@@ -109,7 +109,7 @@ scope/
   TaskGroupSpec.java
   TaskRef.java
   TaskGroupResult.java
-  TaskGroupMemberResult.java
+  TaskCompletion.java
   TaskOutcome.java
 
 spi/

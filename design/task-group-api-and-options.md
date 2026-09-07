@@ -208,28 +208,22 @@ public final class TaskGroupResult {
     public long deadlineNanos();
     public TaskOutcome outcome();
     public @Nullable String failedMemberName();
-    public Map<String, TaskGroupMemberResult> members();
+    public Map<String, TaskCompletion<?>> members();
     public int memberCount();
 }
-
-public final class TaskGroupMemberResult {
-    public String memberName();
-    public TaskOutcome outcome();
-    public @Nullable Throwable failure();
-    public long submitTimeNanos();
-    public long startTimeNanos();
-    public long endTimeNanos();
-    public Duration executionTime();
-    public Duration waitTime();
-    public Duration totalTime();
-}
 ```
+
+成员快照与成员级监听器事件统一为同一个已完成任务记录 `TaskCompletion`（batch 元素与
+group 成员共用），字段为 `taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/
+`result()`/`failure()`，派生 `successful()`/`enqueued()`/三个 Duration。其中 `result()`
+只在监听器投递成功任务时非 null（组成员结果留在其 future），`taskIndex()` 对组成员恒为 0；
+组快照的 `taskName()` 取注册成员名，监听器事件取所属 unit 的 name。
 
 要求：
 
 - Map 按任务定义顺序稳定输出且不可修改；
 - `failure` 仅用于 `USER_FAILURE` 和 `SUBMISSION_FAILURE`；
 - 结果保存完成原因，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
-- 成员结果只携带打平后的只读 timing 数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
+- 成员结果只携带打平后的只读数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
 - `completionFuture()` 正常完成并返回 `TaskGroupResult`，组的非 `SUCCESS` outcome 是结果数据，不通过 completion future 本身抛错表达；
 - 单个成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为 cancelled。

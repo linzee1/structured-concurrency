@@ -70,7 +70,7 @@ member TaskOutcome（可空，成员终态时赋值）
 failure（可空）
 ```
 
-生命周期从 submit 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskListener.TaskEvent`。
+生命周期从 submit 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskCompletion` 监听器事件。
 
 ### 4.4 MultiTaskContext
 
@@ -102,7 +102,7 @@ install member task
   user callable
   markEnded
 clear current task
-  TaskListener callback（显式读取 TaskEvent）
+  TaskListener callback（显式读取 TaskCompletion）
 restore previous task
 ```
 

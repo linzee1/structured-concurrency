@@ -314,12 +314,13 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     private TaskGroupResult snapshot() {
-        Map<String, TaskGroupMemberResult> snapshots = new LinkedHashMap<>();
+        Map<String, TaskCompletion<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : memberStates.values()) {
             snapshots.put(
                     member.name,
-                    new TaskGroupMemberResult(
+                    TaskCompletion.memberSnapshot(
                             member.name,
+                            member.context.multiTaskContext().unitId(),
                             member.reason,
                             member.failure,
                             member.context.submitTimeNanos(),

@@ -405,7 +405,7 @@ class TaskGroupTest {
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
             assertThat(result.members().values())
-                    .extracting(TaskGroupMemberResult::outcome)
+                    .extracting(TaskCompletion::outcome)
                     .containsOnly(TaskOutcome.GROUP_CANCELED);
         } finally {
             global.close();
