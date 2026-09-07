@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 /**
  * Immutable option set for every multi-task entry point.
  *
- * <p>The same option set describes a {@code Par.map} batch, a {@code TaskGroupSpec} group level,
+ * <p>The same option set describes a {@code Par.map} batch, a {@code TaskGroupDefinition} group level,
  * and a group member; each entry point reads the subset it owns:
  *
  * <ul>

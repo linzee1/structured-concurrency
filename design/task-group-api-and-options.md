@@ -19,7 +19,7 @@ account-page group
 
 它提供：
 
-- 通过 `TaskGroupSpec` 收集具名任务定义，并在唯一的 submit 时点统一冻结和提交；
+- 通过 `TaskGroupDefinition` 收集具名任务定义，并在唯一的 submit 时点统一冻结和提交；
 - 组级 deadline、取消和默认 fail-fast；
 - 每个成员独立选择已经注册的 `Par`；
 - 类型安全的成员 `ListenableFuture<T>`；
@@ -41,7 +41,7 @@ account-page group
 | 维度 | Batch (`Par.map`) | Group (`TaskGroup`) |
 |---|---|---|
 | 业务含义 | 一个函数映射同类输入 | 多个异构操作共享协调范围 |
-| 集合形成 | `map()` 调用时固定 | `TaskGroupSpec.Builder.task()` 配置，`TaskGroup.submit()` 冻结并统一提交 |
+| 集合形成 | `map()` 调用时固定 | `TaskGroupDefinition.Builder.task()` 配置，`TaskGroup.submit()` 冻结并统一提交 |
 | 成员身份 | `taskIndex` | 唯一 `memberName` |
 | 返回类型 | 全部为同一个 `R` | 每个成员可以有不同 `T` |
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
@@ -57,41 +57,41 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 ### 3.1 创建与使用
 
-组由不可变、可复用的 `TaskGroupSpec` 描述，经一次性
-`TaskGroup.submit(global, spec)` 冻结并统一提交：
+组由不可变、可复用的 `TaskGroupDefinition` 描述，经一次性
+`TaskGroup.submit(global, definition)` 冻结并统一提交：
 
 ```java
-TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
+TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
         MultiTaskOptions.of("account-page")
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-TaskRef<User> user = spec.task(
+TaskRef<User> user = definition.task(
             new TaskRef<User>("get-user") {},
             "user", userService::getUser,
             MultiTaskOptions.of("get-user").inheritTimeout().build());
-TaskRef<List<Order>> orders = spec.task(
+TaskRef<List<Order>> orders = definition.task(
             new TaskRef<List<Order>>("get-orders") {},
             "order", orderService::getOrders,
             MultiTaskOptions.of("get-orders").inheritTimeout().build());
-TaskRef<Inventory> inventory = spec.task(
+TaskRef<Inventory> inventory = definition.task(
             new TaskRef<Inventory>("get-inventory") {},
             "inventory", inventoryService::getInventory,
             MultiTaskOptions.of("get-inventory").inheritTimeout().build());
 
-try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
+try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-`TaskGroupSpec` 是纯数据描述；`TaskGroup` 是 submit 后的运行对象。当前公共面：
+`TaskGroupDefinition` 是纯数据描述；`TaskGroup` 是 submit 后的运行对象。当前公共面：
 
 ```java
-public final class TaskGroupSpec {
+public final class TaskGroupDefinition {
     public static Builder builder(MultiTaskOptions groupOptions);
     public MultiTaskOptions groupOptions();
-    public List<MemberSpec<?>> members();
+    public List<TaskDefinition<?>> tasks();
 
     public static final class Builder {
         public <T> TaskRef<T> task(
@@ -99,7 +99,7 @@ public final class TaskGroupSpec {
                 String executorName,
                 Callable<T> callable,
                 MultiTaskOptions options);
-        public TaskGroupSpec build();
+        public TaskGroupDefinition build();
     }
 }
 
@@ -110,7 +110,7 @@ public abstract class TaskRef<T> {
 }
 
 public final class TaskGroup implements AutoCloseable {
-    public static TaskGroup submit(GlobalPar env, TaskGroupSpec spec);
+    public static TaskGroup submit(GlobalPar env, TaskGroupDefinition definition);
 
     public String groupId();
     public String groupName();
@@ -128,11 +128,11 @@ public final class TaskGroup implements AutoCloseable {
 
 语义：
 
-- `TaskGroupSpec.Builder.task()` 只校验并保存不可变任务定义（ref 为 null、memberName 重复、参数为
+- `TaskGroupDefinition.Builder.task()` 只校验并保存不可变任务定义（ref 为 null、memberName 重复、参数为
   null 立即拒绝；memberName 的 null/空白校验由 `TaskRef` 构造器完成）；不得提交 executor、启动
   timer、创建 `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；
 - `TaskGroup.submit()` 是唯一的冻结与提交入口；它按提交线程解析结构父任务与
-  observation、创建并注册全部成员后才允许任何成员进入 executor；spec 本身可重复提交；
+  observation、创建并注册全部成员后才允许任何成员进入 executor；definition 本身可重复提交；
 - `TaskRef<T>` 由调用方以匿名子类创建（`new TaskRef<List<Order>>("orders") {}`），在运行时
   捕获结果类型，不携带执行状态；`group.future(ref)` 在组内解析成员
   future，引用不属于该组的 memberName、或 ref 的 raw 结果类型不能覆盖注册类型时抛
@@ -145,7 +145,7 @@ public final class TaskGroup implements AutoCloseable {
 
 `TaskRef<T>` 是调用方创建的类型化令牌，通过匿名子类在运行时捕获结果类型，不携带执行状态：
 异构任务的 future 在统一 submit 时创建，调用方用配置期注册的令牌在提交后取回类型安全的
-future。spec 不捕获线程上下文，因此结构归属始终由提交现场决定。
+future。definition 不捕获线程上下文，因此结构归属始终由提交现场决定。
 
 ### 3.2 组级与成员级选项
 

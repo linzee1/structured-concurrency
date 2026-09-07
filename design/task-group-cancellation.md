@@ -46,7 +46,7 @@ publish CLOSED/result/event
 
 ### 8.4 Deadline
 
-逻辑 deadline 在 `submit()` 时计算；spec 配置耗时不计入 Group timeout：
+逻辑 deadline 在 `submit()` 时计算；definition 配置耗时不计入 Group timeout：
 
 ```text
 requestedGroupDeadline = submitStartNanos + resolvedGroupTimeout
