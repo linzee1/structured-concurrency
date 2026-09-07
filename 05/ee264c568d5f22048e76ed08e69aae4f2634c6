@@ -1,0 +1,33 @@
+docs/zh/migration-v0.2.md
+  ai_agent 89-97
+src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenTest.java
+  ai_agent 58
+design/task-group-cancellation.md
+  ai_agent 111-146
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java
+  ai_agent 566-600
+src/test/java/io/github/huatalk/parallelinscope/scope/TaskBatchResultTest.java
+  ai_agent 9-10,14-15,92-198
+src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationToken.java
+  ai_agent 261,263,265,267,269,271,275
+src/main/java/io/github/huatalk/parallelinscope/internal/FutureInspector.java
+  ai_agent 28
+src/main/java/io/github/huatalk/parallelinscope/scope/TaskBatchResult.java
+  ai_agent 5,7,26,30-34,62-64,71,77-79,85-121,127-137,143,149,159-178
+src/main/java/io/github/huatalk/parallelinscope/internal/TokenOutcomes.java
+  ai_agent 1-72
+src/main/java/io/github/huatalk/parallelinscope/internal/SlidingWindowSubmitter.java
+  ai_agent 65,81,88,114
+src/main/java/io/github/huatalk/parallelinscope/scope/TaskGroup.java
+  ai_agent 16,201,230-247,252,255-258,262,282-284,297-298
+src/test/java/io/github/huatalk/parallelinscope/internal/FutureInspectorTest.java
+  ai_agent 26,28,32,34,38,40,44,46,52,59,70,81,88,148
+src/main/java/io/github/huatalk/parallelinscope/internal/ScopedCallable.java
+  ai_agent 179-181,184-185,187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "05ee264c568d5f22048e76ed08e69aae4f2634c6",
+  "prompts": {}
+}
