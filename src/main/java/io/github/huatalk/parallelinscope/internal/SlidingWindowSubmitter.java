@@ -62,7 +62,7 @@ public class SlidingWindowSubmitter<V> {
      */
     public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(ImmutableList.of());
+            return TaskBatchResult.of(unit.cancellationToken(), ImmutableList.of());
         }
 
         ImmutableList.Builder<ListenableFuture<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -78,14 +78,14 @@ public class SlidingWindowSubmitter<V> {
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
                     resultBuilder.add(Futures.immediateFailedFuture(failure));
                 }
-                return TaskBatchResult.of(resultBuilder.build());
+                return TaskBatchResult.of(unit.cancellationToken(), resultBuilder.build());
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
             ImmutableList<ListenableFuture<V>> results = resultBuilder.build();
-            return TaskBatchResult.of(results);
+            return TaskBatchResult.of(unit.cancellationToken(), results);
         }
 
         // Async submit remaining tasks
@@ -111,7 +111,7 @@ public class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(submittingFuture, results);
+        return TaskBatchResult.of(unit.cancellationToken(), submittingFuture, results);
     }
 
     private ListenableFuture<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {

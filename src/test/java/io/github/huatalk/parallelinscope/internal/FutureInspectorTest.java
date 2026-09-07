@@ -23,40 +23,40 @@ import org.junit.jupiter.api.Test;
 public class FutureInspectorTest {
 
     @Test
-    public void testState_success() {
+    public void testOutcome_success() {
         ListenableFuture<String> future = Futures.immediateFuture("ok");
-        assertThat(FutureInspector.state(future)).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.SUCCESS);
     }
 
     @Test
-    public void testState_canceled() {
+    public void testOutcome_canceled() {
         ListenableFuture<String> future = Futures.immediateCancelledFuture();
-        assertThat(FutureInspector.state(future)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
     }
 
     @Test
-    public void testState_failed() {
+    public void testOutcome_failed() {
         ListenableFuture<String> future = Futures.immediateFailedFuture(new RuntimeException("fail"));
-        assertThat(FutureInspector.state(future)).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.USER_FAILURE);
     }
 
     @Test
-    public void testState_running() {
+    public void testOutcome_running() {
         SettableFuture<String> future = SettableFuture.create();
-        assertThat(FutureInspector.state(future)).isEqualTo(TaskOutcome.RUNNING);
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.RUNNING);
     }
 
     @Test
     public void hintFutureReportsRunningWhenNotDone() {
         ExecutionPhaseHintFuture<String> pending = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
-        assertThat(FutureInspector.state(pending)).isEqualTo(TaskOutcome.RUNNING);
+        assertThat(FutureInspector.outcome(pending)).isEqualTo(TaskOutcome.RUNNING);
     }
 
     @Test
     public void hintFutureReportsSuccessAfterRun() {
         ExecutionPhaseHintFuture<String> succeeded = ExecutionPhaseHintFuture.create(() -> "done", phase -> {});
         succeeded.run();
-        assertThat(FutureInspector.state(succeeded)).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(FutureInspector.outcome(succeeded)).isEqualTo(TaskOutcome.SUCCESS);
     }
 
     @Test
@@ -67,7 +67,7 @@ public class FutureInspectorTest {
                     throw new java.util.concurrent.RejectedExecutionException("full");
                 },
                 false);
-        assertThat(FutureInspector.state(rejected)).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+        assertThat(FutureInspector.outcome(rejected)).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
     }
 
     @Test
@@ -78,14 +78,14 @@ public class FutureInspectorTest {
                 },
                 phase -> {});
         failed.run();
-        assertThat(FutureInspector.state(failed)).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(FutureInspector.outcome(failed)).isEqualTo(TaskOutcome.USER_FAILURE);
     }
 
     @Test
     public void hintFutureReportsMemberCanceledOnCancel() {
         ExecutionPhaseHintFuture<String> canceled = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
         canceled.cancel(true);
-        assertThat(FutureInspector.state(canceled)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(FutureInspector.outcome(canceled)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
     }
 
     @Test
@@ -145,7 +145,7 @@ public class FutureInspectorTest {
         };
         try {
             Thread.currentThread().interrupt();
-            assertThat(FutureInspector.state(interrupted)).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(FutureInspector.outcome(interrupted)).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(Thread.currentThread().isInterrupted()).isTrue();
             Thread.interrupted();
 

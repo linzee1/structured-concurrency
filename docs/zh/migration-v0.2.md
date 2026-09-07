@@ -86,8 +86,15 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 
 `CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELED` → `FAIL_FAST`，
 `TIMEOUT_CANCELED` → `TIMEOUT`，`MUTUAL_CANCELED` → `CANCELED`，`PROPAGATING_CANCELED` →
-`PROPAGATED_CANCELED`。`RUNNING`、`SUCCESS` 不变，`code()` 值与
-`shouldInterruptCurrentThread()` 语义不变。
+`PROPAGATED_CANCELED`。`RUNNING`、`SUCCESS` 不变；`code()` 已删除（整数编码是没有消费方的
+实现细节），`shouldInterruptCurrentThread()` 语义不变，改为直接的枚举比较。
+
+批次报告现在基于批次 token 的已提交状态精确归因被取消的元素（`Par.map` 返回的结果始终
+携带 token）：deadline 到期记 `TIMEOUT`，兄弟失败级联记 `FAIL_FAST`，整批取消或取消自上
+传播记 `GROUP_CANCELED`，无框架路径提交（用户直消）记 `MEMBER_CANCELED`。批次内所有元素
+共享同一 token，因此直接取消并触发级联的那个元素同样记 `FAIL_FAST`；需要逐个元素区分
+发起者时请使用任务组。通过 `TaskBatchResult.of(...)` 自行构造且不带 token 的结果保持粗粒度
+视图：取消一律记 `MEMBER_CANCELED`。
 
 `ExecutionPhase.CANCELLED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
 单 L `CANCELED` 拼写一致。

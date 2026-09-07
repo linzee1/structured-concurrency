@@ -176,25 +176,15 @@ public class ScopedCallable<V> implements Callable<V> {
 
     /**
      * Attributes a failed task from its token state at completion time. This is the direct
-     * observation only; a group snapshot may later attribute a richer post-hoc cause.
+     * observation only: a task canceled under a {@code CANCELED} token reads {@code
+     * MEMBER_CANCELED} here, while a group snapshot may later attribute the richer post-hoc cause
+     * {@code GROUP_CANCELED} via {@link TokenOutcomes}.
      */
     private static TaskOutcome failureOutcome(CancellationToken token) {
-        switch (token.state()) {
-            case TIMEOUT:
-                return TaskOutcome.TIMEOUT;
-            case FAIL_FAST:
-                return TaskOutcome.FAIL_FAST;
-            case CANCELED:
-                return TaskOutcome.MEMBER_CANCELED;
-            case PROPAGATED_CANCELED:
-                return token.originState() == CancellationToken.State.TIMEOUT
-                        ? TaskOutcome.TIMEOUT
-                        : TaskOutcome.GROUP_CANCELED;
-            case SUCCESS:
-            case RUNNING:
-            default:
-                return TaskOutcome.USER_FAILURE;
+        if (token.state() == CancellationToken.State.CANCELED) {
+            return TaskOutcome.MEMBER_CANCELED;
         }
+        return TokenOutcomes.forCanceled(token, TaskOutcome.USER_FAILURE);
     }
 
     @Override

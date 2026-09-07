@@ -86,7 +86,7 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
 | `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
-| `CancellationToken.getState()` / `State.getCode()` | `state()` / `code()` |
+| `CancellationToken.getState()` / `State.getCode()` | `state()`; `code()` is removed — interruption semantics are expressed by the enum values themselves |
 | `TaskGroupMemberResult.completionReason()` | `TaskCompletion.outcome()` (member snapshots are now `TaskGroupResult.members()` values of type `TaskCompletion`) |
 | `TaskGroupMemberResult.taskContext()` | removed; timing flattened to `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
 | `TaskEvent.getTaskContext()/getTaskName()` | `TaskListener` now delivers `TaskCompletion`; `taskContext()` removed (flattened to `taskName()` / `unitId()` / `taskIndex()` + timing nanos) |
@@ -128,7 +128,14 @@ synchronously after a state transition commits and before the associated cancell
 
 Batch-level element cancellation no longer surfaces as a bare cancellation: the token still
 classifies a directly cancelled element through the same fail-fast trigger that a failed element
-uses, so batch reports keep distinguishing the cancelled element via `TaskOutcome`.
+uses, and batch reports now attribute cancelled elements from the batch token's committed state
+(`Par.map` results always carry it): `TIMEOUT` for deadline expiry, `FAIL_FAST` for the cascade
+after a sibling failure, `GROUP_CANCELED` for batch-level or propagated cancellation, and
+`MEMBER_CANCELED` when no framework path committed. Because the batch shares one token across
+elements, the element whose direct cancellation triggered the cascade also reads `FAIL_FAST`;
+per-element initiator attribution requires a task group. Results constructed via
+`TaskBatchResult.of(...)` without a token keep the coarse view: every cancellation reads
+`MEMBER_CANCELED`.
 
 Task groups changed semantics accordingly: cancelling one member (its future or its token) now
 cascades to the whole group, matching batch fail-fast behavior. The directly cancelled member
@@ -147,8 +154,9 @@ originated from a member.
 
 `CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELED` →
 `FAIL_FAST`, `TIMEOUT_CANCELED` → `TIMEOUT`, `MUTUAL_CANCELED` → `CANCELED`, and
-`PROPAGATING_CANCELED` → `PROPAGATED_CANCELED`. `RUNNING` and `SUCCESS` are unchanged, and the
-`code()` values and `shouldInterruptCurrentThread()` semantics are unchanged.
+`PROPAGATING_CANCELED` → `PROPAGATED_CANCELED`. `RUNNING` and `SUCCESS` are unchanged. `code()` is
+removed (the integer encoding was an implementation detail with no consumers); the
+`shouldInterruptCurrentThread()` semantics are unchanged and now read as a direct enum comparison.
 
 `ExecutionPhase.CANCELLED_BEFORE_RUN` is respelled `CANCELED_BEFORE_RUN` to match the single-L
 `CANCELED` spelling used across the library.

@@ -13,6 +13,7 @@ import io.github.huatalk.parallelinscope.internal.ExecutionPhaseHintFuture;
 import io.github.huatalk.parallelinscope.internal.SubmissionException;
 import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import io.github.huatalk.parallelinscope.internal.TaskSubmissions;
+import io.github.huatalk.parallelinscope.internal.TokenOutcomes;
 import io.github.huatalk.parallelinscope.spi.TaskGroupListener;
 import io.github.huatalk.parallelinscope.spi.TaskGroupListener.TaskGroupEvent;
 import java.time.Duration;
@@ -197,9 +198,7 @@ public final class TaskGroup implements AutoCloseable {
                     member.reason = TaskOutcome.SUCCESS;
                 } catch (ExecutionException failure) {
                     member.failure = failure.getCause();
-                    member.reason = member.failure instanceof SubmissionException
-                            ? TaskOutcome.SUBMISSION_FAILURE
-                            : TaskOutcome.USER_FAILURE;
+                    member.reason = classifyFailure(member, member.failure);
                 } catch (CancellationException impossible) {
                     member.reason = TaskOutcome.MEMBER_CANCELED;
                 } catch (InterruptedException interrupted) {
@@ -229,35 +228,38 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
+     * Classifies an exceptionally completed member. A failure that merely signals observed
+     * cancellation — a checkpoint threw a {@link CancellationException}, or the worker thread was
+     * interrupted — can win the race against the cascade cancel on the member future; it is
+     * attributed through the tokens like a cancellation instead of being recorded as a user
+     * failure. A spontaneous {@code CancellationException} from user code with no committed
+     * framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
+     */
+    private TaskOutcome classifyFailure(MemberState member, Throwable failure) {
+        if (failure instanceof SubmissionException) {
+            return TaskOutcome.SUBMISSION_FAILURE;
+        }
+        if (TokenOutcomes.causedByCancellation(failure)) {
+            return classifyCancelled(member, TaskOutcome.USER_FAILURE);
+        }
+        return TaskOutcome.USER_FAILURE;
+    }
+
+    /**
      * Classifies a cancelled member by reading token states only. The member token records its own
      * deadline; the group token is otherwise the single authority, because it commits its state
      * before cancelling member futures. A group token still RUNNING means no framework path
-     * cancelled the member: the user cancelled it directly. A propagated cancellation keeps the
-     * originating reason via {@link CancellationToken#originState()}, so an ancestor timeout is
-     * still reported as {@link TaskOutcome#TIMEOUT}.
+     * cancelled the member: the user cancelled it directly.
      */
     private TaskOutcome classifyCancelled(MemberState member) {
+        return classifyCancelled(member, TaskOutcome.MEMBER_CANCELED);
+    }
+
+    private TaskOutcome classifyCancelled(MemberState member, TaskOutcome whenUncommitted) {
         if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
             return TaskOutcome.TIMEOUT;
         }
-        switch (groupToken.state()) {
-            case TIMEOUT:
-                return TaskOutcome.TIMEOUT;
-            case FAIL_FAST:
-                return TaskOutcome.FAIL_FAST;
-            case PROPAGATED_CANCELED:
-                // An ancestor timeout stays a timeout; any other propagated cause is a plain
-                // group cancellation from this group's viewpoint.
-                return groupToken.originState() == CancellationToken.State.TIMEOUT
-                        ? TaskOutcome.TIMEOUT
-                        : TaskOutcome.GROUP_CANCELED;
-            case CANCELED:
-                return TaskOutcome.GROUP_CANCELED;
-            case SUCCESS:
-            case RUNNING:
-            default:
-                return TaskOutcome.MEMBER_CANCELED;
-        }
+        return TokenOutcomes.forCanceled(groupToken, whenUncommitted);
     }
 
     private void convergeIfTerminal() {
@@ -277,28 +279,23 @@ public final class TaskGroup implements AutoCloseable {
     /**
      * Derives the group outcome from the group token state. On fail-fast, the group reports the
      * failed member's own outcome; a fail-fast with no failed member means the trigger was a
-     * direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELED}.
+     * direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELED}. A
+     * token still RUNNING or SUCCESS means no framework cancellation path committed: the group
+     * succeeded only if every member did.
      */
     private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
-            case TIMEOUT:
-                return TaskOutcome.TIMEOUT;
             case FAIL_FAST:
                 return failedMemberName != null
                         ? memberStates.get(failedMemberName).reason
                         : TaskOutcome.MEMBER_CANCELED;
-            case PROPAGATED_CANCELED:
-                return groupToken.originState() == CancellationToken.State.TIMEOUT
-                        ? TaskOutcome.TIMEOUT
-                        : TaskOutcome.GROUP_CANCELED;
-            case CANCELED:
-                return TaskOutcome.GROUP_CANCELED;
             case SUCCESS:
             case RUNNING:
-            default:
                 boolean allSuccess =
                         memberStates.values().stream().allMatch(member -> member.reason == TaskOutcome.SUCCESS);
                 return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELED;
+            default:
+                return TokenOutcomes.forCanceled(groupToken, TaskOutcome.MEMBER_CANCELED);
         }
     }
 

@@ -258,32 +258,21 @@ public class CancellationToken {
     public enum State {
 
         /** The task is running. */
-        RUNNING(0),
+        RUNNING,
         /** The task completed successfully. */
-        SUCCESS(1),
+        SUCCESS,
         /** A sibling task failed, triggering fail-fast cancellation. */
-        FAIL_FAST(-1),
+        FAIL_FAST,
         /** The task timed out. */
-        TIMEOUT(-2),
+        TIMEOUT,
         /** The token was explicitly canceled. */
-        CANCELED(-3),
+        CANCELED,
         /** The parent token was canceled. */
-        PROPAGATED_CANCELED(-4);
-
-        private final int code;
-
-        State(int code) {
-            this.code = code;
-        }
-
-        /** Returns the state code. */
-        public int code() {
-            return code;
-        }
+        PROPAGATED_CANCELED;
 
         /** Returns whether this state requires interruption. */
         boolean shouldInterruptCurrentThread() {
-            return code < 0;
+            return this != RUNNING && this != SUCCESS;
         }
     }
 }

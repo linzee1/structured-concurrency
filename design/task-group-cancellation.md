@@ -108,6 +108,42 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。嵌套 batch 自己的超时对外
 层只表现为成员失败——谁拥有触发的 deadline，谁报 TIMEOUT。
 
+### 8.4.1 token → outcome 归因映射（单一实现）
+
+上述"读 token 归因 outcome"的映射在 `internal/TokenOutcomes.forCanceled(token, whenUncommitted)`
+中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome`、`ScopedCallable` 的监听器事件、
+`TaskBatchResult.report()` 三方共用：
+
+| token state | 归因 outcome |
+|---|---|
+| `TIMEOUT` | `TIMEOUT` |
+| `FAIL_FAST` | `FAIL_FAST` |
+| `CANCELED` | `GROUP_CANCELED`（事后视角：token 整体被取消） |
+| `PROPAGATED_CANCELED` | `originState()` 为 `TIMEOUT` 则 `TIMEOUT`，否则 `GROUP_CANCELED` |
+| `RUNNING`/`SUCCESS`（无框架路径提交） | 调用方给定的 `whenUncommitted` |
+
+两个有意的分叉点：
+
+- `ScopedCallable` 是**直接观察**：任务在 `CANCELED` token 下抛出（如中断）时，监听器事件记
+  `MEMBER_CANCELED`，先拦截 `CANCELED` 再调用共享映射；组快照保持事后归因
+  `GROUP_CANCELED`，两者允许不一致（见观测契约）。
+- `TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`（成员自身 deadline），再委托
+  共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败成员 outcome）与
+  `RUNNING`/`SUCCESS`（全成功判定），其余委托共享映射。
+
+批次报告（`TaskBatchResult.report()`）携带批次 token 时同样按此表修正 future 层的粗分类
+（future 层对一切取消只报 `MEMBER_CANCELED`）。批次共享单一 token、无逐元素完成时归因，
+因此直接取消并触发级联的元素也记 `FAIL_FAST`；需要区分发起者的场景用 TaskGroup。
+
+**取消信号型失败的改道**：成员/元素的 future 可能不是被 cancel 而是以异常完成——协作检查点
+（`Checkpoints`）在 token 已取消后抛 `CancellationException`，或工作线程被中断后用户代码抛出
+`InterruptedException`，这类 `setException` 会竞赢级联 `cancel(true)`，使 future 呈现为失败而
+非取消。此时异常本身只是"任务观察到了取消"的信号，不记 `USER_FAILURE`：只要异常是
+`CancellationException`/`InterruptedException`（`TokenOutcomes.causedByCancellation`），就改道
+共享映射按 token 归因（`whenUncommitted` 兜底为 `USER_FAILURE`，因此 token 未提交任何取消时，
+用户代码自发抛出的取消异常仍是 `USER_FAILURE`）。`TaskGroup.memberCompleted` 与
+`TaskBatchResult.outcomeOf` 都执行这一改道。
+
 ### 8.5 close
 
 `close()` 不阻塞：

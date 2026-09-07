@@ -563,4 +563,39 @@ class GlobalParTest {
             listening.shutdownNow();
         }
     }
+
+    @Test
+    void batchReportAttributesDeadlineCancellationAsTimeout() {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        try {
+            TaskBatchResult<Integer> result = global.par("io")
+                    .map(
+                            java.util.Arrays.asList(1, 2),
+                            ignored -> {
+                                try {
+                                    Thread.sleep(10_000);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                                return ignored;
+                            },
+                            MultiTaskOptions.of("timeout-batch")
+                                    .timeout(Duration.ofMillis(100))
+                                    .build());
+
+            for (Future<Integer> future : result.results()) {
+                assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS))
+                        .isInstanceOf(java.util.concurrent.CancellationException.class);
+            }
+            // The token commits TIMEOUT before cancelling the element futures, so once every
+            // future is cancelled the attribution is already stable.
+            assertThat(result.report().stateCounts())
+                    .containsOnlyKeys(TaskOutcome.TIMEOUT)
+                    .containsEntry(TaskOutcome.TIMEOUT, 2);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
 }
