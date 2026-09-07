@@ -2,9 +2,6 @@ package io.github.huatalk.parallelinscope.spi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.TaskContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
@@ -13,11 +10,11 @@ class TaskListenerTest {
     @Test
     void eventExposesTimingMetadataAndFailure() {
         IllegalStateException failure = new IllegalStateException("failed");
-        TaskContext context = taskContext();
-        TaskEvent<String> event = TaskEvent.failed(context, failure, true);
+        TaskEvent<String> event = TaskEvent.failed("task", "unit-1", 2, 10, 30, 80, failure, true);
 
-        assertThat(event.taskContext()).isSameAs(context);
         assertThat(event.taskName()).isEqualTo("task");
+        assertThat(event.unitId()).isEqualTo("unit-1");
+        assertThat(event.taskIndex()).isEqualTo(2);
         assertThat(event.submitTimeNanos()).isEqualTo(10);
         assertThat(event.startTimeNanos()).isEqualTo(30);
         assertThat(event.endTimeNanos()).isEqualTo(80);
@@ -32,8 +29,7 @@ class TaskListenerTest {
 
     @Test
     void successfulEventCanCarryNoException() {
-        TaskContext context = taskContext();
-        TaskEvent<String> event = TaskEvent.succeeded(context, "value", false);
+        TaskEvent<String> event = TaskEvent.succeeded("task", "unit-1", 0, 10, 30, 80, "value", false);
         assertThat(event.enqueued()).isFalse();
         assertThat(event.successful()).isTrue();
         assertThat(event.result()).isEqualTo("value");
@@ -42,55 +38,16 @@ class TaskListenerTest {
 
     @Test
     void successfulEventDistinguishesNullResultFromFailure() {
-        TaskEvent<Void> event = TaskEvent.succeeded(taskContext(), null, false);
+        TaskEvent<Void> event = TaskEvent.succeeded("task", "unit-1", 0, 10, 30, 80, null, false);
         assertThat(event.successful()).isTrue();
         assertThat(event.result()).isNull();
         assertThat(event.exception()).isNull();
     }
 
-    private static TaskContext taskContext() {
-        MultiTaskContext batch = MultiTaskContext.resolve(
-                MultiTaskOptions.of("task").timeout(Duration.ofSeconds(30)).build(), 1, null);
-        return new TaskContext() {
-            @Override
-            public MultiTaskContext multiTaskContext() {
-                return batch;
-            }
-
-            @Override
-            public int taskIndex() {
-                return 0;
-            }
-
-            @Override
-            public long submitTimeNanos() {
-                return 10;
-            }
-
-            @Override
-            public long startTimeNanos() {
-                return 30;
-            }
-
-            @Override
-            public long endTimeNanos() {
-                return 80;
-            }
-
-            @Override
-            public long executionTimeNanos() {
-                return 50;
-            }
-
-            @Override
-            public long waitTimeNanos() {
-                return 20;
-            }
-
-            @Override
-            public long totalTimeNanos() {
-                return 70;
-            }
-        };
+    @Test
+    void eventRejectsNegativeTaskIndex() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> TaskEvent.succeeded("task", "unit-1", -1, 10, 30, 80, "value", false))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

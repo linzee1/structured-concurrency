@@ -1,6 +1,5 @@
 package io.github.huatalk.parallelinscope.spi;
 
-import io.github.huatalk.parallelinscope.scope.TaskContext;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -12,7 +11,7 @@ import javax.annotation.Nullable;
  * {@link
  * io.github.huatalk.parallelinscope.scope.GlobalPar.Builder#taskListener(TaskListener)}.
  *
- * <p>Timing methods return {@link Duration}. Raw nanos timestamps are available via getters.
+ * <p>Timing methods return {@link Duration}. Raw nanos timestamps are available via accessors.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
@@ -26,21 +25,37 @@ public interface TaskListener {
      */
     void onTaskComplete(TaskEvent<?> event);
 
-    /** Task context and outcome for one completed task. */
+    /** Identity, timing, and outcome for one completed task. */
     final class TaskEvent<T> {
-        private final TaskContext taskContext;
+        private final String taskName;
+        private final String unitId;
+        private final int taskIndex;
+        private final long submitTimeNanos;
+        private final long startTimeNanos;
+        private final long endTimeNanos;
         private final T result;
         private final boolean successful;
         private final boolean enqueued;
         private final Throwable exception;
 
         private TaskEvent(
-                TaskContext taskContext,
+                String taskName,
+                String unitId,
+                int taskIndex,
+                long submitTimeNanos,
+                long startTimeNanos,
+                long endTimeNanos,
                 @Nullable T result,
                 boolean successful,
                 boolean enqueued,
                 @Nullable Throwable exception) {
-            this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
+            this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
+            this.unitId = Objects.requireNonNull(unitId, "unitId cannot be null");
+            if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
+            this.taskIndex = taskIndex;
+            this.submitTimeNanos = submitTimeNanos;
+            this.startTimeNanos = startTimeNanos;
+            this.endTimeNanos = endTimeNanos;
             this.result = result;
             this.successful = successful;
             this.enqueued = enqueued;
@@ -48,19 +63,49 @@ public interface TaskListener {
         }
 
         /** Creates the completion event for a successful task, including a possibly-null result. */
-        public static <T> TaskEvent<T> succeeded(TaskContext taskContext, @Nullable T result, boolean enqueued) {
-            return new TaskEvent<>(taskContext, result, true, enqueued, null);
+        public static <T> TaskEvent<T> succeeded(
+                String taskName,
+                String unitId,
+                int taskIndex,
+                long submitTimeNanos,
+                long startTimeNanos,
+                long endTimeNanos,
+                @Nullable T result,
+                boolean enqueued) {
+            return new TaskEvent<>(
+                    taskName,
+                    unitId,
+                    taskIndex,
+                    submitTimeNanos,
+                    startTimeNanos,
+                    endTimeNanos,
+                    result,
+                    true,
+                    enqueued,
+                    null);
         }
 
         /** Creates the completion event for a failed task. */
-        public static <T> TaskEvent<T> failed(TaskContext taskContext, Throwable exception, boolean enqueued) {
+        public static <T> TaskEvent<T> failed(
+                String taskName,
+                String unitId,
+                int taskIndex,
+                long submitTimeNanos,
+                long startTimeNanos,
+                long endTimeNanos,
+                Throwable exception,
+                boolean enqueued) {
             return new TaskEvent<>(
-                    taskContext, null, false, enqueued, Objects.requireNonNull(exception, "exception cannot be null"));
-        }
-
-        /** Returns the completed task's context. */
-        public TaskContext taskContext() {
-            return taskContext;
+                    taskName,
+                    unitId,
+                    taskIndex,
+                    submitTimeNanos,
+                    startTimeNanos,
+                    endTimeNanos,
+                    null,
+                    false,
+                    enqueued,
+                    Objects.requireNonNull(exception, "exception cannot be null"));
         }
 
         /**
@@ -69,7 +114,17 @@ public interface TaskListener {
          * @return the logical task name
          */
         public String taskName() {
-            return taskContext.multiTaskContext().name();
+            return taskName;
+        }
+
+        /** Returns the stable identity of the multi-task unit invocation that owns this task. */
+        public String unitId() {
+            return unitId;
+        }
+
+        /** Returns the stable index of this task's input element within its unit. */
+        public int taskIndex() {
+            return taskIndex;
         }
 
         /**
@@ -78,7 +133,7 @@ public interface TaskListener {
          * @return the ticker reading in nanoseconds
          */
         public long submitTimeNanos() {
-            return taskContext.submitTimeNanos();
+            return submitTimeNanos;
         }
 
         /**
@@ -87,7 +142,7 @@ public interface TaskListener {
          * @return the ticker reading in nanoseconds
          */
         public long startTimeNanos() {
-            return taskContext.startTimeNanos();
+            return startTimeNanos;
         }
 
         /**
@@ -96,7 +151,7 @@ public interface TaskListener {
          * @return the ticker reading in nanoseconds
          */
         public long endTimeNanos() {
-            return taskContext.endTimeNanos();
+            return endTimeNanos;
         }
 
         /** Returns whether the task completed successfully, including with a null result. */
@@ -134,7 +189,7 @@ public interface TaskListener {
          * @return the execution duration
          */
         public Duration executionTime() {
-            return Duration.ofNanos(taskContext.executionTimeNanos());
+            return Duration.ofNanos(endTimeNanos - startTimeNanos);
         }
 
         /**
@@ -143,7 +198,7 @@ public interface TaskListener {
          * @return the queue wait duration
          */
         public Duration waitTime() {
-            return Duration.ofNanos(taskContext.waitTimeNanos());
+            return Duration.ofNanos(startTimeNanos - submitTimeNanos);
         }
 
         /**
@@ -152,7 +207,7 @@ public interface TaskListener {
          * @return the duration from submission to completion
          */
         public Duration totalTime() {
-            return Duration.ofNanos(taskContext.totalTimeNanos());
+            return Duration.ofNanos(endTimeNanos - submitTimeNanos);
         }
     }
 }

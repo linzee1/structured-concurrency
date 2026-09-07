@@ -147,9 +147,16 @@ public class ScopedCallable<V> implements Callable<V> {
         }
         long waitMs = waitTime() / NANO_TO_MS;
         boolean enqueued = waitMs > QUEUE_THRESHOLD;
+        MultiTaskContext unit = taskContext.multiTaskContext();
+        String taskName = unit.name();
+        String unitId = unit.unitId();
+        int taskIndex = taskContext.taskIndex();
+        long submitTime = taskContext.submitTimeNanos();
+        long startTime = taskContext.startTimeNanos();
+        long endTime = taskContext.endTimeNanos();
         TaskEvent<V> event = exception == null
-                ? TaskEvent.succeeded(taskContext, result, enqueued)
-                : TaskEvent.failed(taskContext, exception, enqueued);
+                ? TaskEvent.succeeded(taskName, unitId, taskIndex, submitTime, startTime, endTime, result, enqueued)
+                : TaskEvent.failed(taskName, unitId, taskIndex, submitTime, startTime, endTime, exception, enqueued);
 
         for (TaskListener listener : listeners) {
             try {

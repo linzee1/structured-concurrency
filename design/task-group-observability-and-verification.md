@@ -12,11 +12,11 @@
 - 成功结果、用户异常；
 - submit/start/end timing；
 - queue wait 分类；
-- `TaskContext` 和 `TaskEvent.taskName()`（取自所属 `MultiTaskContext.name`）。
+- `TaskEvent` 的打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）。
 
 执行前取消或提交失败的成员没有真实 start/end，不得伪造 TaskEvent。它们必须在 `TaskGroupResult` 和 Group listener 中可见。
 
-Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskEvent/结果关联，不需要新增 current group context。首版不要求修改 `TaskContext` 增加 groupId/memberName。
+Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskEvent/结果关联，不需要新增 current group context。TaskEvent 只暴露打平后的只读字段，不再提供 `TaskContext` 视图，也不携带 groupId/memberName。
 
 ### 10.2 TaskGroupListener
 
@@ -126,7 +126,7 @@ fake-group-batch -> A/B/C
 24. 每个运行成员看到自己的 `TaskExecutionContext.current()`；执行后恢复 previous/null；
 25. inline 嵌套执行呈现 outer -> member -> outer；
 26. `SubmissionScope` 仅覆盖 executor submission，并在 rejection/inline/异常后恢复；
-27. TaskListener 中 current task 为 null，TaskEvent 指向正确成员 TaskContext；
+27. TaskListener 中 current task 为 null，TaskEvent 的 taskName/unitId/taskIndex 指向正确成员；
 28. 执行前取消和 submission failure 不产生虚假 TaskEvent；
 29. Group listener 只调用一次，异常不改变结果；
 30. TTL 值以 `submit()` 的 prepare 阶段为捕获时点传播并恢复；`task()` 时的值不构成快照，普通 ThreadLocal 不承诺传播。

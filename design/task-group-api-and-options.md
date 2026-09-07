@@ -216,7 +216,12 @@ public final class TaskGroupMemberResult {
     public String memberName();
     public TaskOutcome outcome();
     public @Nullable Throwable failure();
-    public TaskContext taskContext();
+    public long submitTimeNanos();
+    public long startTimeNanos();
+    public long endTimeNanos();
+    public Duration executionTime();
+    public Duration waitTime();
+    public Duration totalTime();
 }
 ```
 
@@ -225,6 +230,6 @@ public final class TaskGroupMemberResult {
 - Map 按任务定义顺序稳定输出且不可修改；
 - `failure` 仅用于 `USER_FAILURE` 和 `SUBMISSION_FAILURE`；
 - 结果保存完成原因，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
-- `TaskContext` 是完成后只读视图；Group result 可以持有它，但不得再把它安装为 current task；
+- 成员结果只携带打平后的只读 timing 数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
 - `completionFuture()` 正常完成并返回 `TaskGroupResult`，组的非 `SUCCESS` outcome 是结果数据，不通过 completion future 本身抛错表达；
 - 单个成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为 cancelled。

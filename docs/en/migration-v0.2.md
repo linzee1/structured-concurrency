@@ -18,7 +18,7 @@ The new split is intentional: `MultiTaskOptions` is caller input, while `MultiTa
 
 Earlier `0.2.x` snapshots named this type `ExecutionOptions` and then `BatchExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `MultiTaskOptions`; no compatibility alias is retained during the `0.x` phase.
 
-The per-invocation runtime context was renamed for the same reason: the former `BatchExecutionContext` is now `MultiTaskContext`, because it backs both `Par.map` batches and task-group members. Update imports and `resolve(...)` call sites. Its batch-biased accessors were then neutralized for the same dual role: `batchId()` → `unitId()`, `taskName()` → `name()`, `parLabel()` → `executorLabel()`, and `parent()` → `structuralParent()` (a group member's cancellation parent is the group token carried inside `cancellationToken()`, not this field). `TaskContext.batchContext()` becomes `multiTaskContext()`, and `SubmissionScope.currentBatch()` becomes `current()`.
+The per-invocation runtime context was renamed for the same reason: the former `BatchExecutionContext` is now `MultiTaskContext`, because it backs both `Par.map` batches and task-group members. Update imports and `resolve(...)` call sites. Its batch-biased accessors were then neutralized for the same dual role: `batchId()` → `unitId()`, `taskName()` → `name()`, `parLabel()` → `executorLabel()`, and `parent()` → `structuralParent()` (a group member's cancellation parent is the group token carried inside `cancellationToken()`, not this field). `SubmissionScope.currentBatch()` becomes `current()`. `TaskContext` (whose `batchContext()` was briefly renamed `multiTaskContext()` during the 0.2 cycle) was ultimately removed rather than renamed: its read-only content is flattened into `TaskEvent` and `TaskGroupMemberResult`, as described below.
 
 Batch and task-group option types are unified into the single `MultiTaskOptions`; the earlier
 `BatchExecutionOptions` and `TaskGroupOptions` types are removed. The `taskName()`/`groupName()`
@@ -61,8 +61,14 @@ be submitted repeatedly. The group entry class itself was renamed from `Parallel
 `TaskGroup`, joining its `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener` family. There is no
 compatibility shim because the earlier builder API was not released as a stable contract.
 
-`TaskListener.TaskEvent` now exposes the completed task through `taskContext()` and its outcome
-through `successful()`, `result()`, and `exception()`. A successful task may return null, so
+`TaskListener.TaskEvent` exposes the completed task's identity and timing as flat fields —
+`taskName()`, `unitId()`, `taskIndex()`, `submitTimeNanos()`, `startTimeNanos()`,
+`endTimeNanos()` — and its outcome through `successful()`, `result()`, and `exception()`. The
+read-only `TaskContext` view was removed and its content flattened into the consuming types:
+`TaskEvent` carries the fields above, and `TaskGroupMemberResult` now carries the member's
+timing nanos directly. The engine plumbing previously reachable through
+`TaskContext.multiTaskContext()` (cancellation token, deadline, structural parent) is no
+longer part of the listener/result surface. A successful task may return null, so
 use `successful()` rather than testing the result for null. Listener callbacks run outside the
 completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
 
@@ -90,7 +96,8 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
 | `CancellationToken.getState()` / `State.getCode()` | `state()` / `code()` |
 | `TaskGroupMemberResult.completionReason()` | `TaskGroupMemberResult.outcome()` |
-| `TaskEvent.getTaskContext()/getTaskName()` | `taskContext()` / `taskName()` |
+| `TaskGroupMemberResult.taskContext()` | removed; timing flattened to `submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
+| `TaskEvent.getTaskContext()/getTaskName()` | `taskContext()` removed (flattened to `taskName()` / `unitId()` / `taskIndex()` + timing nanos) / `taskName()` |
 | `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
 | `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `successful()` / `result()` / `enqueued()` / `exception()` |
 | `ScopedCallable.getTaskExecutionContext()/getCancellationToken()/getExecutorName()` | `taskExecutionContext()` / `cancellationToken()` / `executorName()` |
@@ -104,7 +111,7 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `TaskGraphObservationScope.isClosed()` | `closed()` |
 | `MultiTaskContext.taskGraphObservationContext()` | `MultiTaskContext.taskGraphObservationScope()` |
 | `MultiTaskContext.batchId()/taskName()/parLabel()/parent()` | `unitId()` / `name()` / `executorLabel()` / `structuralParent()` |
-| `TaskContext.batchContext()` / `SubmissionScope.currentBatch()` | `TaskContext.multiTaskContext()` / `SubmissionScope.current()` |
+| `TaskContext.batchContext()` / `SubmissionScope.currentBatch()` | `TaskContext` removed (content flattened into `TaskEvent` / `TaskGroupMemberResult`) / `SubmissionScope.current()` |
 | `DrainingBlockingQueue.isShutdown()/isDraining()/isDrained()` | `shutdown()` / `draining()` / `drained()` |
 | `SmartBlockingQueue.getCapacity()` / `VariableLinkedBlockingQueue.getCapacity()` | `capacity()` |
 | `ActionGate.isDue()` | `due()` |

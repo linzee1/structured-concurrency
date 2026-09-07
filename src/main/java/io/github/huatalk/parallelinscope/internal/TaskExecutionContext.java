@@ -1,12 +1,11 @@
 package io.github.huatalk.parallelinscope.internal;
 
 import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
-import io.github.huatalk.parallelinscope.scope.TaskContext;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Per-task state for one task of a multi-task unit — a batch element or a task-group member. */
-public final class TaskExecutionContext implements TaskContext {
+public final class TaskExecutionContext {
 
     private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
 

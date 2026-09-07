@@ -25,7 +25,9 @@ class ScopedCallableContextRestoreTest {
         assertThat(callable.call()).isEqualTo("value");
         TaskEvent event = captured.get();
         assertThat(event).isNotNull();
-        assertThat(event.taskContext()).isSameAs(taskContext);
+        assertThat(event.unitId()).isEqualTo(context.unitId());
+        assertThat(event.taskIndex()).isEqualTo(0);
+        assertThat(event.submitTimeNanos()).isEqualTo(taskContext.submitTimeNanos());
         assertThat(event.successful()).isTrue();
         assertThat(event.result()).isEqualTo("value");
         assertThat(event.taskName()).isEqualTo("listener");
