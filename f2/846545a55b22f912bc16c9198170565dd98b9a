@@ -1,0 +1,19 @@
+src/main/java/io/github/huatalk/parallelinscope/scope/TaskGroup.java
+  s_025b98b86943ea::t_d21ca73d824a9c 320-327
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f2846545a55b22f912bc16c9198170565dd98b9a",
+  "prompts": {},
+  "sessions": {
+    "s_025b98b86943ea": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07aa0-143d-7231-953f-30046bcbbbf7",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
