@@ -69,4 +69,4 @@ TaskBatchResult<Result> result = config.par("my-pool").map(
 
 ---
 
-> 完整测试代码：[D2_LateBindRaceConditionTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java)
+> 完整测试代码：[D2_LateBindRaceConditionTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java)

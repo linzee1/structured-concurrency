@@ -74,4 +74,4 @@ TaskBatchResult<String> result = par.map( items, item -> {
 
 ---
 
-> 📁 完整测试代码：[C1_ThreadPoolDeadlockTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java)
+> 📁 完整测试代码：[C1_ThreadPoolDeadlockTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java)

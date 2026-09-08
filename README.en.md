@@ -2,10 +2,10 @@
 
 # parallel-in-scope
 
-[![CI](https://github.com/HuaTalk/parallel-in-scope/actions/workflows/ci.yml/badge.svg)](https://github.com/HuaTalk/parallel-in-scope/actions/workflows/ci.yml)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.huatalk/parallel-in-scope.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.huatalk/parallel-in-scope)
-[![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/HuaTalk/parallel-in-scope#compatibility-and-build)
-[![License](https://img.shields.io/github/license/HuaTalk/parallel-in-scope)](LICENSE)
+[![CI](https://github.com/monadrome/parallel-in-scope/actions/workflows/ci.yml/badge.svg)](https://github.com/monadrome/parallel-in-scope/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.monadrome/parallel-in-scope.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.monadrome/parallel-in-scope)
+[![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
+[![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 
 > Current development version: `0.2.0-SNAPSHOT`. The `0.2.0` line is a breaking API migration from `0.1.x`.
 
@@ -15,7 +15,7 @@ A structured-concurrency toolkit for Java 8+ with bounded batch submission, coop
 
 ```xml
 <dependency>
-    <groupId>io.github.huatalk</groupId>
+    <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
     <version>0.2.0</version>
 </dependency>

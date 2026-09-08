@@ -9,7 +9,7 @@
 1. `docs/en/reference/cooperative-cancellation.md:61` 与
    `docs/zh/reference/cooperative-cancellation.md:121` 的“不要吞掉取消”示例仍调用
    `par.map("myExecutor", items, ...)`。当前 `Par` 只提供
-   `map(List, Function, BatchExecutionOptions)`（`src/main/java/io/github/huatalk/parallelinscope/scope/Par.java:85`），
+   `map(List, Function, BatchExecutionOptions)`（`src/main/java/io/github/monadrome/parallelinscope/scope/Par.java:85`），
    执行器名参数已在 v0.2 移除。因此两段示例无法编译。
    应改为已选定、绑定执行器的 `Par`（例如 `global.par("myExecutor").map(items, ...)`），或在示例前声明该 `Par`。
 

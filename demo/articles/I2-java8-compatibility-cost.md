@@ -78,4 +78,4 @@ TTL 通过字节码增强，在任务提交时自动捕获上下文，在任务�
 
 ---
 
-> 📁 相关文章：[The Zen of Parallel-in-Scope](https://github.com/huatalk/parallel-in-scope/blob/main/doc/the-zen-of-parallel-in-scope.md)
+> 📁 相关文章：[The Zen of Parallel-in-Scope](https://github.com/monadrome/parallel-in-scope/blob/main/doc/the-zen-of-parallel-in-scope.md)

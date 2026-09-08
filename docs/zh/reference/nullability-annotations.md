@@ -31,7 +31,7 @@ parallel-in-scope 使用混合空指针注解策略，在编译期和 IDE 中为
 
 ```java
 @ParametersAreNonnullByDefault
-package io.github.huatalk.parallelinscope.scope;
+package io.github.monadrome.parallelinscope.scope;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 ```

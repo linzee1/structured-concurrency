@@ -92,4 +92,4 @@ TaskBatchResult<String> result = par.map( items, item -> {
 
 ---
 
-> 📁 完整测试代码：[C2_CachedVsFixedPoolTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java)
+> 📁 完整测试代码：[C2_CachedVsFixedPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java)

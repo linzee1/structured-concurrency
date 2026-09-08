@@ -2,6 +2,8 @@
 
 `0.2.0` 用不可变执行拓扑替代可变配置和运行期 resolver，是一次源码级破坏性迁移。
 
+发布身份同时变更：GitHub 账号由 `huatalk` 改名为 `monadrome`，`io.github.huatalk:parallel-in-scope` 变为 `io.github.monadrome:parallel-in-scope`，根 Java 包 `io.github.huatalk.parallelinscope` 变为 `io.github.monadrome.parallelinscope`。同步更新依赖坐标、import、`package` 声明和 SPI 服务加载名。`0.1.0` 仍以旧坐标发布在 Maven Central 上。
+
 | `0.1.x` | `0.2.0` |
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(name, executor)` |
@@ -52,7 +54,7 @@ callable, options)`、一次性的 `TaskGroup.submit(global, spec)` 和 `TaskRef
 
 早期快照还曾将这套检测命名为 `GlobalParLivelockPolicy` 和 `LivelockListener`。请分别改为 `GlobalParDeadlockPolicy` 和 `DeadlockDetectionListener`；当前检测针对依赖图中的潜在死锁结构，不证明运行时已经死锁，也不检测活锁。
 
-已完成任务的记录统一为单个类 `io.github.huatalk.parallelinscope.scope.TaskCompletion`：
+已完成任务的记录统一为单个类 `io.github.monadrome.parallelinscope.scope.TaskCompletion`：
 `TaskListener` 在任务完成时收到它，`TaskGroupResult.members()` 也以它为每个成员的终端快照。
 它同时取代旧的 `TaskListener.TaskEvent` 与 `TaskGroupMemberResult`，以打平字段暴露任务身份与
 计时——`taskName()`、`unitId()`、`taskIndex()`、`submitTimeNanos()`、`startTimeNanos()`、
@@ -65,8 +67,8 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 应读取 event，而不是依赖 `TaskExecutionContext.current()`。
 
 任务终态分类已统一为单个枚举 `TaskOutcome`，取代原先的
-`io.github.huatalk.parallelinscope.internal.FutureState` 与
-`io.github.huatalk.parallelinscope.scope.TaskGroupMemberReason`。`TaskOutcome` 在原成员原因值
+`io.github.monadrome.parallelinscope.internal.FutureState` 与
+`io.github.monadrome.parallelinscope.scope.TaskGroupMemberReason`。`TaskOutcome` 在原成员原因值
 之上补充了 `RUNNING`，因此可同时服务批量报告与组成员结果。映射关系：`FutureState.FAILED` →
 `TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELED`，
 `TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
