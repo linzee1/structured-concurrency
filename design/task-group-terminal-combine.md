@@ -103,7 +103,8 @@ public final class CompletedTaskValues {
 - 成功 member 的返回值可以为 null；
 - 成员结果本就保存在成员 future 中；视图只在 `apply` 调用期间有效，实现可以在回调返回后释放结果引用；
 - 不提供 `Map<String, Object>`，避免强转和名称重构风险；
-- 不提供 future，避免 combine 重新等待、取消或编排底层任务。
+- 不提供 future，避免 combine 重新等待、取消或编排底层任务；
+- combine 函数只能依赖 member 值与配置期捕获的环境（submit 之前已存在的对象）。combine 由框架在最后一个 member 成功时立即调度，与 submit 之后调用线程上的代码之间没有同步边，因此"捕获 submit 后创建的对象"在异步模型下原则上不成立；需要调用线程状态参与组装时，调用方应读 member futures 自行组装，不经 combine。
 
 combine 不是用户编写的 future 编排器，而是框架确认 join 条件后的单次业务计算。
 
@@ -116,6 +117,20 @@ combine 不是用户编写的 future 编排器，而是框架确认 join 条件�
 3. 所有 members 成功后构造 `CompletedTaskValues`，对已 prepared 的 terminal future 调用目标 executor 的 `execute()`；combine 终态后 Group 才完成。
 
 空 Group 配置 combine 时，join 条件立即满足，combine 仍提交到显式 executor；此时"空组不创建 timer"的既有规则不再适用——group deadline timer 必须为 combine arm 上。空 Group 无 combine 时立即成功，不变。
+
+### 执行线程与线程角色
+
+用户 lambda 唯一合法的执行位置是 `combineOptions` 指定 `Par` 的 worker 线程。其余候选均被拒绝：
+
+- **最后完成 member 的线程（回调内联）**：哪个 member 最后完成是竞态结果，combine 的执行位置随之不确定，重计算可能随机占用 IO 池 worker；收敛回调运行在框架的 future 完成机制中，契约本就禁止在此处执行用户代码。这与 Guava `directExecutor()` 的著名风险（重入、死锁、在 IO 线程跑重活）同源；
+- **调用线程**：`submit()` 立即返回，join 满足时调用线程不在场；与非阻塞模型互斥；
+- **框架内置隐藏 executor**：违背"Group 不创建新 executor"的约定，所有 Group 的 combine 挤在无业务语义的共享池中，失去按计算性质选池与隔离的能力，而这正是 registered `Par` 体系存在的意义。
+
+据此区分三个线程角色：
+
+1. **收敛回调线程**（最后成功 member 的 worker）：只做框架动作——构造 `CompletedTaskValues`、包 `SubmissionScope`、调用 `executor.execute()`，有界且无用户代码；
+2. **目标 `Par` 的 worker 线程**：唯一运行用户 lambda 的线程，`TaskExecutionContext.current()`、TTL 回放、TaskListener 投递与 member 行为一致；
+3. **submit 线程**：仅在空 Group + combine 时承担角色 1（join 条件在 submit 时即满足，提交发生在 submit 流程内，与 member 提交循环同地位）。
 
 ## 7. 结果与 outcome
 
@@ -180,7 +195,7 @@ member C ──┘
 
 ## 13. 采用门槛与验收
 
-combine 仅用于需要框架调度与观测的非平凡业务计算。只记录指标时用 Group listener；调用方需要逐项消费结果时读 member futures；需要部分结果、fallback 或多依赖节点时另行设计 workflow/DAG API。
+combine 仅用于需要框架调度与观测的非平凡业务计算。combine 主体应是内存计算（组装、裁剪、聚合、校验、序列化）；如果发现自己在 combine 里做第二次远程调用并关心它的失败语义，需要的是下一个 Group 或另行设计的 DAG——不是更复杂的 combine。只记录指标时用 Group listener；调用方需要逐项消费结果或需要 submit 后创建的对象参与组装时，读 member futures 自行组装；需要部分结果、fallback 或多依赖节点时另行设计 workflow/DAG API。
 
 最低验收：
 
