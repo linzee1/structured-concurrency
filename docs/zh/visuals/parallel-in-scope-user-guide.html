@@ -19,7 +19,7 @@
     .register("io", executor)
     .build();
 
-BatchExecutionOptions options = BatchExecutionOptions.of("fetch")
+MultiTaskOptions options = MultiTaskOptions.of("fetch")
     .parallelism(8)
     .timeout(Duration.ofSeconds(3))
     .build();

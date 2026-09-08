@@ -1,6 +1,6 @@
 package io.github.huatalk.parallelinscope.internal;
 
-import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
+import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import io.github.huatalk.parallelinscope.scope.TaskContext;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -10,21 +10,21 @@ public final class TaskExecutionContext implements TaskContext {
 
     private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
 
-    private final BatchExecutionContext batchContext;
+    private final MultiTaskContext batchContext;
     private final int taskIndex;
     private final long submitTimeNanos;
 
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
 
-    public TaskExecutionContext(BatchExecutionContext batchContext, int taskIndex, long submitTimeNanos) {
+    public TaskExecutionContext(MultiTaskContext batchContext, int taskIndex, long submitTimeNanos) {
         this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
         if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
     }
 
-    public BatchExecutionContext batchContext() {
+    public MultiTaskContext batchContext() {
         return batchContext;
     }
 

@@ -11,22 +11,19 @@ import java.util.List;
  * <p>This is declarative configuration only: it does not register executors, own schedulers, or
  * retain batch state. A per-Par override replaces this policy for that entry during batch
  * resolution; it does not create another executor or resource-ownership scope.
+ *
+ * <p>Timeouts are deliberately not part of this policy: every {@link MultiTaskOptions} must
+ * state its own timeout explicitly.
  */
 public final class GlobalExecutionPolicy {
-    private final long defaultTimeoutMillis;
     private final List<TaskListener> taskListeners;
 
     private GlobalExecutionPolicy(Builder builder) {
-        this.defaultTimeoutMillis = builder.defaultTimeoutMillis;
         this.taskListeners = Collections.unmodifiableList(new ArrayList<>(builder.taskListeners));
     }
 
     public static Builder builder() {
         return new Builder();
-    }
-
-    public long defaultTimeoutMillis() {
-        return defaultTimeoutMillis;
     }
 
     /**
@@ -38,14 +35,7 @@ public final class GlobalExecutionPolicy {
     }
 
     public static final class Builder {
-        private long defaultTimeoutMillis = 60_000L;
         private final List<TaskListener> taskListeners = new ArrayList<>();
-
-        public Builder defaultTimeoutMillis(long timeoutMillis) {
-            if (timeoutMillis <= 0) throw new IllegalArgumentException("timeout must be positive");
-            this.defaultTimeoutMillis = timeoutMillis;
-            return this;
-        }
 
         public Builder taskListener(TaskListener listener) {
             taskListeners.add(java.util.Objects.requireNonNull(listener));

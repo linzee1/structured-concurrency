@@ -99,21 +99,42 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Callable<V> task) {
-        return submitTask(ExecutionPhaseHintFuture.create(task, phaseObserver));
+        return submit(ExecutionPhaseHintFuture.create(task, phaseObserver));
+    }
+
+    /**
+     * Submits an already-prepared future and returns the exact future passed to the executor.
+     *
+     * @param future prepared task future
+     * @return the submitted listenable future
+     */
+    ListenableFuture<V> submit(ExecutionPhaseHintFuture<V> future) {
+        future.addListener(() -> completionQueue.add(future), directExecutor());
+        executor.execute(future);
+        return future;
     }
 
     /**
      * Submits a value-producing task and runs it inline when the executor rejects it.
      *
-     * <p>The returned future is registered with the completion queue before either execution path
-     * begins. This preserves the completion-service contract for callers that use completion
-     * events to drive a sliding submission window.
-     *
      * @param task task to execute
      * @return the submitted or inline-executed listenable future
      */
     ListenableFuture<V> submitOrRunInline(Callable<V> task) {
-        ExecutionPhaseHintFuture<V> future = ExecutionPhaseHintFuture.create(task, phaseObserver);
+        return submitOrRunInline(ExecutionPhaseHintFuture.create(task, phaseObserver));
+    }
+
+    /**
+     * Submits an already-prepared future and runs it inline when the executor rejects it.
+     *
+     * <p>The returned future is registered with the completion queue before either execution path
+     * begins. This preserves the completion-service contract for callers that use completion
+     * events to drive a sliding submission window.
+     *
+     * @param future prepared task future
+     * @return the submitted or inline-executed listenable future
+     */
+    ListenableFuture<V> submitOrRunInline(ExecutionPhaseHintFuture<V> future) {
         future.addListener(() -> completionQueue.add(future), directExecutor());
         try {
             executor.execute(future);
@@ -132,7 +153,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
      */
     @Override
     public ListenableFuture<V> submit(Runnable task, @Nullable V result) {
-        return submitTask(ExecutionPhaseHintFuture.create(task, result, phaseObserver));
+        return submit(ExecutionPhaseHintFuture.create(task, result, phaseObserver));
     }
 
     /**
@@ -167,17 +188,5 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     @Override
     public ListenableFuture<V> poll(long timeout, TimeUnit unit) throws InterruptedException {
         return completionQueue.poll(timeout, unit);
-    }
-
-    /**
-     * Registers completion notification before submitting the same future as a runnable.
-     *
-     * @param task listenable task to submit
-     * @return the submitted task
-     */
-    private ListenableFuture<V> submitTask(ExecutionPhaseHintFuture<V> task) {
-        task.addListener(() -> completionQueue.add(task), directExecutor());
-        executor.execute(task);
-        return task;
     }
 }

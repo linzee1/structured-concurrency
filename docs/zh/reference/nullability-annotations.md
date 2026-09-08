@@ -44,7 +44,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 | SPI 接口 | JSR-305 | `import javax.annotation.Nullable;` |
 | Internal 类 | Checker Framework | `import org.checkerframework.checker.nullness.qual.Nullable;` |
 
-**Public API 类**：`GlobalPar`, `Par`, `BatchExecutionOptions`, `AsyncBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
+**Public API 类**：`GlobalPar`, `Par`, `MultiTaskOptions`, `AsyncBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
 
 **SPI 接口**：`TaskListener`, `DeadlockDetectionListener`
 

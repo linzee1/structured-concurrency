@@ -29,9 +29,4 @@ public enum TaskOutcome {
     FAIL_FAST,
     /** Canceled because a deadline was reached. */
     TIMEOUT;
-
-    /** Returns whether this outcome is terminal (the task will not transition further). */
-    public boolean isTerminal() {
-        return this != RUNNING;
-    }
 }

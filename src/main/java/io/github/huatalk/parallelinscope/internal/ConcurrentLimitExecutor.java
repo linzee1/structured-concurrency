@@ -10,16 +10,13 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.context.SubmissionScope;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
+import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import io.github.huatalk.parallelinscope.scope.TaskType;
-import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -40,31 +37,30 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ConcurrentLimitExecutor<V> {
 
-    private static final Consumer<ExecutionPhase> NOOP = phase -> {};
-
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
-    private final BatchExecutionContext batchContext;
+    private final MultiTaskContext batchContext;
     private final ListeningExecutorService submitterPool;
 
     /** Creates a submitter for the new immutable batch runtime context. */
     public ConcurrentLimitExecutor(
-            ListeningExecutorService pool,
-            BatchExecutionContext batchContext,
-            ListeningExecutorService submitterPool,
-            Consumer<? super ExecutionPhase> phaseObserver) {
+            ListeningExecutorService pool, MultiTaskContext batchContext, ListeningExecutorService submitterPool) {
         this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
-        this.cs = new ListenableCompletionService<>(pool, blockingQueue, phaseObserver);
+        this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
 
     /**
      * Submits all tasks and returns the batch result immediately.
      *
-     * @param tasks list of tasks to execute
+     * <p>Each returned future is the exact {@link ExecutionPhaseHintFuture} passed in: the caller
+     * prepares tasks via {@link TaskSubmissions}, and this executor only coordinates when each
+     * prepared future enters the worker pool.
+     *
+     * @param tasks prepared task futures to execute
      * @return AsyncBatchResult containing individual task futures
      */
-    public AsyncBatchResult<V> submitAll(List<? extends Callable<V>> tasks) {
+    public AsyncBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
             return AsyncBatchResult.of(ImmutableList.of());
         }
@@ -118,9 +114,9 @@ public class ConcurrentLimitExecutor<V> {
         return AsyncBatchResult.of(submittingFuture, results);
     }
 
-    private ListenableFuture<V> fallbackSubmit(List<? extends Callable<V>> tasks, int i) {
-        Callable<V> task = tasks.get(i);
-        BatchExecutionContext previous = SubmissionScope.install(batchContext);
+    private ListenableFuture<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
+        ExecutionPhaseHintFuture<V> task = tasks.get(i);
+        MultiTaskContext previous = SubmissionScope.install(batchContext);
         try {
             return TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
         } finally {
@@ -137,7 +133,9 @@ public class ConcurrentLimitExecutor<V> {
     }
 
     private int submitRemaining(
-            List<? extends Callable<V>> tasks, List<ListenableFuture<V>> result, AtomicInteger nextIndex) {
+            List<? extends ExecutionPhaseHintFuture<V>> tasks,
+            List<ListenableFuture<V>> result,
+            AtomicInteger nextIndex) {
         int index = nextIndex.get();
         int size = tasks.size();
         int submitted = 0;

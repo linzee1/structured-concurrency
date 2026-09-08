@@ -43,12 +43,12 @@ AsyncBatchResult<User> result = global.par("io")
 
 ## v0.2 Migration
 
-`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `GlobalPar`, `BatchExecutionOptions`, and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md) before upgrading an existing application.
+`ParConfig`, `ParOptions`, `GlobalParConfig`, `Par.getInstance()`, `new Par(...)`, and `Par.map(executorName, ...)` are removed. Use `GlobalPar`, `MultiTaskOptions`, and `global.par(name).map(...)` instead. See the [v0.2 migration guide](docs/en/migration-v0.2.md) before upgrading an existing application.
 
 ## Core Capabilities
 
 - Immutable application topology with multiple named, executor-bound `Par` entries
-- Per-batch `BatchExecutionOptions` resolved into a `BatchExecutionContext`
+- Per-call `MultiTaskOptions` resolved into a `MultiTaskContext`
 - Fail-fast, timeout, manual, and parent-to-child cooperative cancellation
 - Sliding-window submission with terminal results for tasks that were never submitted
 - Cross-`Par` nested calls with task/executor identity graph recording

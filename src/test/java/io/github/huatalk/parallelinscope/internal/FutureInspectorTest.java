@@ -47,8 +47,21 @@ public class FutureInspectorTest {
     }
 
     @Test
+    public void hintFutureReportsRunningWhenNotDone() {
+        ExecutionPhaseHintFuture<String> pending = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
+        assertThat(FutureInspector.state(pending)).isEqualTo(TaskOutcome.RUNNING);
+    }
+
+    @Test
+    public void hintFutureReportsSuccessAfterRun() {
+        ExecutionPhaseHintFuture<String> succeeded = ExecutionPhaseHintFuture.create(() -> "done", phase -> {});
+        succeeded.run();
+        assertThat(FutureInspector.state(succeeded)).isEqualTo(TaskOutcome.SUCCESS);
+    }
+
+    @Test
     public void hintFutureReportsSubmissionFailureInsteadOfUserFailure() {
-        ExecutionPhaseHintFuture<String> rejected = ExecutionPhaseHintFuture.createDeferred(() -> "never", phase -> {});
+        ExecutionPhaseHintFuture<String> rejected = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
         rejected.submitPrepared(
                 command -> {
                     throw new java.util.concurrent.RejectedExecutionException("full");
@@ -70,7 +83,7 @@ public class FutureInspectorTest {
 
     @Test
     public void hintFutureReportsMemberCanceledOnCancel() {
-        ExecutionPhaseHintFuture<String> canceled = ExecutionPhaseHintFuture.createDeferred(() -> "never", phase -> {});
+        ExecutionPhaseHintFuture<String> canceled = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
         canceled.cancel(true);
         assertThat(FutureInspector.state(canceled)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
     }

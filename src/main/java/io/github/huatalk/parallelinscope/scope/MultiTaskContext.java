@@ -4,39 +4,41 @@ import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
- * Immutable resolved state for one {@code Par.map} invocation; never cached by a {@code Par} or
- * {@code GlobalPar}.
+ * Immutable resolved state for one multi-task scope — a {@code Par.map} batch or one task-group
+ * member; never cached by a {@code Par} or {@code GlobalPar}.
  *
  * <p>Resolution is the only place where user options become executable values: requested
- * parallelism is capped by task count, absent timeout uses the global default, and a nested batch
- * uses the earlier of its requested and parent deadlines. The cancellation token is always a new
- * child token, so cancellation propagates downward without making child failure cancel its parent.
+ * parallelism is capped by task count, an explicit timeout uses the earlier of its own and any
+ * parent deadline, and an inherited timeout resolves to the enclosing deadline (rejected when there
+ * is none). The cancellation token is always a new child token, so cancellation propagates downward
+ * without making child failure cancel its parent.
  */
-public final class BatchExecutionContext {
+public final class MultiTaskContext {
     private final String batchId;
     private final String taskName;
     private final int taskCount;
     private final int effectiveParallelism;
     private final long deadlineNanos;
     private final CancellationToken cancellationToken;
-    private final BatchExecutionContext parent;
+    private final MultiTaskContext parent;
     private final TaskGraphObservationContext taskGraphObservationContext;
     private final ExecutorIdentity executorIdentity;
     private final String parLabel;
     private final TaskType taskType;
     private final boolean rejectEnqueue;
 
-    private BatchExecutionContext(
+    private MultiTaskContext(
             String taskName,
             int taskCount,
             int effectiveParallelism,
             long deadlineNanos,
             CancellationToken cancellationToken,
-            BatchExecutionContext parent,
+            MultiTaskContext parent,
             TaskGraphObservationContext taskGraphObservationContext,
             ExecutorIdentity executorIdentity,
             String parLabel,
@@ -60,50 +62,49 @@ public final class BatchExecutionContext {
      * Resolves public options without binding a concrete {@code Par}. This overload is intended for
      * compatibility and tests; normal execution uses the identity-aware overload below.
      */
-    public static BatchExecutionContext resolve(
-            GlobalExecutionPolicy policy,
-            BatchExecutionOptions options,
-            int taskCount,
-            @Nullable BatchExecutionContext parent) {
-        return resolve(policy, options, taskCount, parent, null);
+    public static MultiTaskContext resolve(MultiTaskOptions options, int taskCount, @Nullable MultiTaskContext parent) {
+        return resolve(options, taskCount, parent, null);
     }
 
-    public static BatchExecutionContext resolve(
-            GlobalExecutionPolicy policy,
-            BatchExecutionOptions options,
+    public static MultiTaskContext resolve(
+            MultiTaskOptions options,
             int taskCount,
-            @Nullable BatchExecutionContext parent,
+            @Nullable MultiTaskContext parent,
             @Nullable TaskGraphObservationContext taskGraphObservationContext) {
-        Objects.requireNonNull(policy);
         Objects.requireNonNull(options);
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
         int requested = options.parallelism();
         int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
-        long timeoutMillis;
-        if (options.timeout() == null) {
-            timeoutMillis = policy.defaultTimeoutMillis();
-        } else {
+        Optional<Duration> timeout = options.timeout();
+        long now = System.nanoTime();
+        long deadline;
+        if (timeout.isPresent()) {
+            long timeoutMillis;
             try {
-                timeoutMillis = options.timeout().toMillis();
+                timeoutMillis = timeout.get().toMillis();
             } catch (ArithmeticException overflow) {
                 timeoutMillis = Long.MAX_VALUE / 1_000_000L;
             }
+            long timeoutNanos;
+            try {
+                timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
+            } catch (ArithmeticException overflow) {
+                timeoutNanos = Long.MAX_VALUE;
+            }
+            long requestedDeadline = timeoutNanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + timeoutNanos;
+            deadline = parent == null ? requestedDeadline : Math.min(parent.deadlineNanos, requestedDeadline);
+        } else {
+            if (parent == null) {
+                throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
+            }
+            deadline = parent.deadlineNanos;
         }
-        long now = System.nanoTime();
-        long timeoutNanos;
-        try {
-            timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
-        } catch (ArithmeticException overflow) {
-            timeoutNanos = Long.MAX_VALUE;
-        }
-        long requestedDeadline = timeoutNanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + timeoutNanos;
-        long deadline = parent == null ? requestedDeadline : Math.min(parent.deadlineNanos, requestedDeadline);
         CancellationToken token = new CancellationToken(parent == null ? null : parent.cancellationToken, deadline);
         TaskGraphObservationContext effectiveObservation = taskGraphObservationContext != null
                 ? taskGraphObservationContext
                 : parent == null ? null : parent.taskGraphObservationContext;
-        return new BatchExecutionContext(
-                options.taskName(),
+        return new MultiTaskContext(
+                options.name(),
                 taskCount,
                 effective,
                 deadline,
@@ -121,16 +122,15 @@ public final class BatchExecutionContext {
      * identity is diagnostic and graph state, not a submission target; actual submission is owned by
      * the corresponding internal executor runtime.
      */
-    public static BatchExecutionContext resolve(
-            GlobalExecutionPolicy policy,
-            BatchExecutionOptions options,
+    public static MultiTaskContext resolve(
+            MultiTaskOptions options,
             int taskCount,
-            @Nullable BatchExecutionContext parent,
+            @Nullable MultiTaskContext parent,
             @Nullable TaskGraphObservationContext taskGraphObservationContext,
             ExecutorIdentity executorIdentity,
             String parLabel) {
-        BatchExecutionContext context = resolve(policy, options, taskCount, parent, taskGraphObservationContext);
-        return new BatchExecutionContext(
+        MultiTaskContext context = resolve(options, taskCount, parent, taskGraphObservationContext);
+        return new MultiTaskContext(
                 context.taskName,
                 context.taskCount,
                 context.effectiveParallelism,
@@ -149,44 +149,45 @@ public final class BatchExecutionContext {
      * independent. This is used by task-group members, where group cancellation is not a graph
      * parent and the group deadline is not necessarily the structural parent's deadline.
      */
-    static BatchExecutionContext resolve(
-            GlobalExecutionPolicy policy,
-            BatchExecutionOptions options,
+    static MultiTaskContext resolve(
+            MultiTaskOptions options,
             int taskCount,
-            @Nullable BatchExecutionContext structuralParent,
+            @Nullable MultiTaskContext structuralParent,
             @Nullable CancellationToken cancellationParent,
             long deadlineCeilingNanos,
             long resolutionTimeNanos,
             @Nullable TaskGraphObservationContext taskGraphObservationContext,
             ExecutorIdentity executorIdentity,
             String parLabel) {
-        Objects.requireNonNull(policy, "policy cannot be null");
         Objects.requireNonNull(options, "options cannot be null");
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
         int requested = options.parallelism();
         int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
-        long timeoutMillis;
-        if (options.timeout() == null) {
-            timeoutMillis = policy.defaultTimeoutMillis();
-        } else {
+        long requestedDeadline;
+        Optional<Duration> timeout = options.timeout();
+        if (timeout.isPresent()) {
+            long timeoutMillis;
             try {
-                timeoutMillis = options.timeout().toMillis();
+                timeoutMillis = timeout.get().toMillis();
             } catch (ArithmeticException overflow) {
                 timeoutMillis = Long.MAX_VALUE / 1_000_000L;
             }
+            long timeoutNanos;
+            try {
+                timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
+            } catch (ArithmeticException overflow) {
+                timeoutNanos = Long.MAX_VALUE;
+            }
+            requestedDeadline = timeoutNanos > Long.MAX_VALUE - resolutionTimeNanos
+                    ? Long.MAX_VALUE
+                    : resolutionTimeNanos + timeoutNanos;
+        } else {
+            // A member that inherits its timeout resolves to the enclosing group deadline.
+            requestedDeadline = deadlineCeilingNanos;
         }
-        long timeoutNanos;
-        try {
-            timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
-        } catch (ArithmeticException overflow) {
-            timeoutNanos = Long.MAX_VALUE;
-        }
-        long requestedDeadline = timeoutNanos > Long.MAX_VALUE - resolutionTimeNanos
-                ? Long.MAX_VALUE
-                : resolutionTimeNanos + timeoutNanos;
         long deadline = Math.min(requestedDeadline, deadlineCeilingNanos);
-        return new BatchExecutionContext(
-                options.taskName(),
+        return new MultiTaskContext(
+                options.name(),
                 taskCount,
                 effective,
                 deadline,
@@ -230,7 +231,7 @@ public final class BatchExecutionContext {
         return cancellationToken;
     }
 
-    public BatchExecutionContext parent() {
+    public MultiTaskContext parent() {
         return parent;
     }
 

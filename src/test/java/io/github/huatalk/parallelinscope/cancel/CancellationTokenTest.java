@@ -293,4 +293,44 @@ public class CancellationTokenTest {
         assertThat(taskStillPending).isTrue();
         assertThat(task).isCancelled();
     }
+
+    // ==================== originState ====================
+
+    @Test
+    public void originStateResolvesThroughPropagationChain() {
+        CancellationToken grandparent = CancellationToken.create();
+        CancellationToken parent = new CancellationToken(grandparent);
+        CancellationToken child = new CancellationToken(parent);
+
+        grandparent.timeoutCancel();
+
+        assertThat(parent.state()).isEqualTo(CancellationToken.State.PROPAGATING_CANCELED);
+        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATING_CANCELED);
+        assertThat(child.originState()).isEqualTo(CancellationToken.State.TIMEOUT_CANCELED);
+        assertThat(parent.originState()).isEqualTo(CancellationToken.State.TIMEOUT_CANCELED);
+        assertThat(grandparent.originState()).isEqualTo(CancellationToken.State.TIMEOUT_CANCELED);
+    }
+
+    @Test
+    public void originStateReportsMutualCancelAcrossPropagation() {
+        CancellationToken parent = CancellationToken.create();
+        CancellationToken child = new CancellationToken(parent);
+
+        parent.cancel(true);
+
+        assertThat(child.originState()).isEqualTo(CancellationToken.State.MUTUAL_CANCELED);
+    }
+
+    @Test
+    public void originStateStopsAtTheOriginatingToken() {
+        CancellationToken origin = CancellationToken.create();
+        CancellationToken child = new CancellationToken(origin);
+        CancellationToken grandchild = new CancellationToken(child);
+
+        child.cancel(true);
+
+        assertThat(grandchild.originState()).isEqualTo(CancellationToken.State.MUTUAL_CANCELED);
+        assertThat(origin.state()).isEqualTo(CancellationToken.State.RUNNING);
+        assertThat(origin.originState()).isEqualTo(CancellationToken.State.RUNNING);
+    }
 }

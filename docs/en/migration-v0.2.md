@@ -6,7 +6,7 @@ Version `0.2.0` replaces the mutable configuration-and-resolver API with an immu
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(name, executor)` |
 | `new Par(config)` | `global.par(name)` |
-| `ParOptions` | `BatchExecutionOptions` |
+| `ParOptions` | `MultiTaskOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` timeout/listener defaults | `GlobalExecutionPolicy` |
 | `ParConfig` livelock settings | `GlobalParDeadlockPolicy` |
@@ -14,17 +14,49 @@ Version `0.2.0` replaces the mutable configuration-and-resolver API with an immu
 | executor-name resolution at call time | executor binding at `GlobalPar` build time |
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` scope |
 
-The new split is intentional: `BatchExecutionOptions` is caller input, while `BatchExecutionContext` is per-batch runtime state. Cancellation, deadline, and executor identity flow through parent-child batch contexts, including nested calls across named `Par` entries.
+The new split is intentional: `MultiTaskOptions` is caller input, while `MultiTaskContext` is per-batch runtime state. Cancellation, deadline, and executor identity flow through parent-child batch contexts, including nested calls across named `Par` entries.
 
-Earlier `0.2.x` snapshots named this type `ExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `BatchExecutionOptions`; no compatibility alias is retained during the `0.x` phase.
+Earlier `0.2.x` snapshots named this type `ExecutionOptions` and then `BatchExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `MultiTaskOptions`; no compatibility alias is retained during the `0.x` phase.
+
+The per-invocation runtime context was renamed for the same reason: the former `BatchExecutionContext` is now `MultiTaskContext`, because it backs both `Par.map` batches and task-group members. Update imports and `resolve(...)` call sites; accessors such as `batchId()` and `batchContext()` keep their names.
+
+Batch and task-group option types are unified into the single `MultiTaskOptions`; the earlier
+`BatchExecutionOptions` and `TaskGroupOptions` types are removed. The `taskName()`/`groupName()`
+accessors and the matching builder methods converge on `name()`; every other builder method keeps
+its name. A batch reads name/parallelism/timeout/taskType/rejectEnqueue; a group reads
+name/timeout/listeners, with member execution strategy supplied per `TaskGroupSpec.Builder.task`
+call.
+
+`MultiTaskOptions.timeout` is a forced explicit choice between two mutually exclusive builder
+declarations: `timeout(Duration)` sets an explicit positive timeout, and `inheritTimeout()`
+declares that the enclosing scope's deadline is inherited. `build()` rejects a builder that
+declares neither (`IllegalArgumentException`: call `timeout(Duration)` or `inheritTimeout()`) or
+both. The accessor changed from `Duration timeout()` to `Optional<Duration> timeout()`; an empty
+value means inherit. `GlobalExecutionPolicy.defaultTimeoutMillis` is removed so no silent global
+default remains. `MultiTaskContext.resolve` consequently no longer takes the policy; drop
+that argument.
+
+Deadline resolution follows one uniform rule. An explicit timeout resolves to the earlier of its
+own bound and the enclosing hard deadline. An inherited timeout resolves to the enclosing deadline:
+for a `Par.map` batch or a task group that is the deadline of the enclosing scoped task, and for a
+group member it is the group deadline. Inheriting with no enclosing deadline is rejected at the
+entry point: a top-level `Par.map` and a top-level `TaskGroup.submit` both throw
+`IllegalArgumentException` telling you to call `timeout(Duration)`.
 
 Earlier snapshots also exposed this detector as `GlobalParLivelockPolicy` and `LivelockListener`. Rename them to `GlobalParDeadlockPolicy` and `DeadlockDetectionListener`; the detector reports potential dependency-graph deadlocks and does not prove a runtime deadlock or detect livelock.
 
-The first task-group API in `0.2.0-SNAPSHOT` uses a fixed builder contract. If code was written
-against an earlier task-group draft, replace `openTaskGroup()`, dynamic `submit()`, and `seal()` with
-`taskGroupBuilder()`, `addTask()`, and the one-shot `buildAndSubmitAll()`. `addTask()` returns a
-typed `ParallelTaskGroup.TaskHandle<T>`; call `future()` only after build. There is no compatibility
-shim because the dynamic-admission API was not released as a stable contract.
+The task-group API now centers on an immutable, reusable spec. Replace the earlier builder
+ceremony — `GlobalPar.taskGroupBuilder(options)`, `ParallelTaskGroup.Builder.addTask(name, par,
+callable, options)`, the one-shot `buildAndSubmitAll()`, and `ParallelTaskGroup.TaskHandle<T>` —
+with `TaskGroupSpec.builder(groupOptions)`, `TaskGroupSpec.Builder.task(memberName, executorName,
+callable, options)`, the one-shot `TaskGroup.submit(global, spec)`, and `TaskRef<T>`.
+Members reference their executor by registered name instead of a `Par` object. `task()` returns a
+typed `TaskRef<T>` token that carries no execution state; after submission, resolve the member's
+future with `group.future(ref)`. A spec captures no thread context, so the structural parent and
+observation scope are resolved from the submitting thread at each `submit` call, and one spec may
+be submitted repeatedly. The group entry class itself was renamed from `ParallelTaskGroup` to
+`TaskGroup`, joining its `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener` family. There is no
+compatibility shim because the earlier builder API was not released as a stable contract.
 
 `TaskListener.TaskEvent` now exposes the completed task through `taskContext()` and its outcome
 through `successful()`, `result()`, and `exception()`. A successful task may return null, so

@@ -2,7 +2,7 @@ package io.github.huatalk.parallelinscope.queue;
 
 import com.google.common.util.concurrent.ForwardingBlockingQueue;
 import io.github.huatalk.parallelinscope.context.SubmissionScope;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
+import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
@@ -63,7 +63,7 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      */
     @Override
     public boolean offer(E o) {
-        BatchExecutionContext batch = SubmissionScope.currentBatch();
+        MultiTaskContext batch = SubmissionScope.currentBatch();
         if (batch != null) {
             if (batch.taskType() == TaskType.CPU_BOUND || batch.rejectEnqueue()) return false;
             return delegate.offer(o);
