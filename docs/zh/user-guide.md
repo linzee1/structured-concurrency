@@ -2,7 +2,7 @@
 
 > 本文档面向当前 `0.2.0-SNAPSHOT` API。使用 `ParConfig` 或 `ParOptions` 的 `0.1.x` 示例不能直接用于本版本，请先阅读 [v0.2 迁移指南](migration-v0.2.md)。
 
-`parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`BatchExecutionContext` 负责单次调用的运行时状态。
+`parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
 ## 构建执行拓扑
 
@@ -10,7 +10,6 @@
 
 ```java
 GlobalExecutionPolicy defaults = GlobalExecutionPolicy.builder()
-        .defaultTimeoutMillis(10_000)
         .taskListener(metricsListener)
         .build();
 
@@ -37,10 +36,10 @@ Par defaultPar = GlobalPar.global().defaultPar();
 
 ## 执行批次
 
-`BatchExecutionOptions` 是单次调用的不可变输入。库将它与 `GlobalExecutionPolicy`、任务数量、父批次和绑定的执行器 identity 解析为内部 `BatchExecutionContext`。
+`MultiTaskOptions` 是单次调用的不可变输入。库将它与任务数量、父批次和绑定的执行器 identity 解析为内部 `MultiTaskContext`。
 
 ```java
-BatchExecutionOptions options = BatchExecutionOptions.of("fetch-account")
+MultiTaskOptions options = MultiTaskOptions.of("fetch-account")
         .taskType(TaskType.IO_BOUND)
         .parallelism(16)
         .timeout(Duration.ofSeconds(5))
@@ -55,7 +54,7 @@ AsyncBatchResult<Account> result = httpPar.map(
 List<ListenableFuture<Account>> futures = result.getResults();
 ```
 
-`parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制；显式 timeout 必须为正，未设置时使用全局默认值。`TaskType.CPU_BOUND` 与 `TaskType.IO_BOUND` 描述调度意图。`rejectEnqueue` 控制绑定执行器支持时是否拒绝排队。
+`parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制；timeout 必须显式二选一：调用 `timeout(Duration)` 设置正数超时，或调用 `inheritTimeout()` 继承外层作用域的 deadline——两者都未声明或同时声明时 `build()` 拒绝。显式 timeout 会被外层 deadline 截断；在没有外层 scoped task 时声明继承会在入口点被拒绝。`TaskType.CPU_BOUND` 与 `TaskType.IO_BOUND` 描述调度意图。`rejectEnqueue` 控制绑定执行器支持时是否拒绝排队。
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
@@ -73,7 +72,7 @@ httpPar.map(accountIds, id -> {
 }, options);
 ```
 
-任务内部再次调用 `map` 时，子调用继承当前 `BatchExecutionContext`。子批次继承父取消令牌和 deadline，记录父子边，并可使用不同的 `Par`：
+任务内部再次调用 `map` 时，子调用继承当前 `MultiTaskContext`。子批次继承父取消令牌和 deadline，记录父子边，并可使用不同的 `Par`：
 
 ```java
 databasePar.map(ids, id -> {
@@ -147,4 +146,4 @@ Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 - 注册执行器的所有权在库外；由拥有它的组件负责关闭。
 - 为每批任务提供稳定 task name，并在长 CPU 任务中设置 checkpoint。
 - 需要隔离的资源应使用不同 `Par`，即使它们同为 IO。
-- `BatchExecutionContext`、`ExecutorRuntime` 和 `ExecutorIdentity` 是运行时/内部概念，不应由应用构造或缓存。
+- `MultiTaskContext`、`ExecutorRuntime` 和 `ExecutorIdentity` 是运行时/内部概念，不应由应用构造或缓存。

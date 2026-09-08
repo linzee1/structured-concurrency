@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.huatalk.parallelinscope.context.SubmissionScope;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy;
+import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
+import java.time.Duration;
 import java.util.concurrent.SynchronousQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ class SmartBlockingQueueTest {
         assertOfferRejects(queue, context(TaskType.CPU_BOUND, false), 1);
         assertOfferRejects(queue, context(TaskType.IO_BOUND, true), 2);
 
-        BatchExecutionContext previous = SubmissionScope.install(context(TaskType.IO_BOUND, false));
+        MultiTaskContext previous = SubmissionScope.install(context(TaskType.IO_BOUND, false));
         try {
             assertThat(queue.offer(3)).isTrue();
             assertThat(queue.poll()).isEqualTo(3);
@@ -53,9 +53,8 @@ class SmartBlockingQueueTest {
         }
     }
 
-    private static void assertOfferRejects(
-            SmartBlockingQueue<Integer> queue, BatchExecutionContext context, int element) {
-        BatchExecutionContext previous = SubmissionScope.install(context);
+    private static void assertOfferRejects(SmartBlockingQueue<Integer> queue, MultiTaskContext context, int element) {
+        MultiTaskContext previous = SubmissionScope.install(context);
         try {
             assertThat(queue.offer(element)).isFalse();
             assertThat(queue).isEmpty();
@@ -64,12 +63,12 @@ class SmartBlockingQueueTest {
         }
     }
 
-    private static BatchExecutionContext context(TaskType taskType, boolean rejectEnqueue) {
-        return BatchExecutionContext.resolve(
-                GlobalExecutionPolicy.builder().build(),
-                BatchExecutionOptions.of("queue")
+    private static MultiTaskContext context(TaskType taskType, boolean rejectEnqueue) {
+        return MultiTaskContext.resolve(
+                MultiTaskOptions.of("queue")
                         .taskType(taskType)
                         .rejectEnqueue(rejectEnqueue)
+                        .timeout(Duration.ofSeconds(30))
                         .build(),
                 1,
                 null);

@@ -18,7 +18,7 @@
   <p>此页面已随 v0.2 重构：旧图中的 <code>ParConfig</code>、<code>ParOptions</code> 和运行期执行器解析不再存在。</p>
   <div class="flow">
     <p><strong>应用装配：</strong><code>GlobalPar</code> 注册多个具名 <code>Par</code>，并在构建期将每个入口绑定到 supplied executor。</p>
-    <p><strong>单次调用：</strong><code>BatchExecutionOptions</code> 解析为 <code>BatchExecutionContext</code>，后者保存 deadline、取消令牌、父批次和 executor identity。</p>
+    <p><strong>单次调用：</strong><code>MultiTaskOptions</code> 解析为 <code>MultiTaskContext</code>，后者保存 deadline、取消令牌、父批次和 executor identity。</p>
     <p><strong>执行与观测：</strong>滑动窗口提交在取消或拒绝后为未提交任务写入终态；跨 <code>Par</code> 嵌套调用可在同一个 observation scope 中记录任务图。</p>
     <p><strong>维护：</strong>取消发生在执行前时，按物理线程池 identity 合并 purge 维护。</p>
   </div>

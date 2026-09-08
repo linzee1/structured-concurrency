@@ -2,7 +2,7 @@ package io.github.huatalk.parallelinscope.internal;
 
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
+import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
 import java.util.List;
@@ -110,7 +110,7 @@ public class ScopedCallable<V> implements Callable<V> {
         // ==================== prepareContext ====================
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        BatchExecutionContext batchContext = taskContext.batchContext();
+        MultiTaskContext batchContext = taskContext.batchContext();
         String taskName = batchContext.taskName();
         // TaskGraphObservationContext is a TransmittableThreadLocal captured by the TtlCallable
         // wrapper created at the Par.map boundary.

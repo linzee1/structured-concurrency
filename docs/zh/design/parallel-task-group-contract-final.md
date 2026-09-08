@@ -1,11 +1,21 @@
 # 独立并行任务组最终设计契约
 
-> 本文是 `ParallelTaskGroup` 的独立实施规范。实现者只依赖本文和当前代码库即可完成开发，
+> 本文是 `TaskGroup` 的独立实施规范。实现者只依赖本文和当前代码库即可完成开发，
 > 不需要再参考早期草稿。文中的 MUST、MUST NOT、SHOULD 分别表示必须、禁止和推荐。
+
+> **入口 API 已演进（0.2.x 快照）**：本文描述的 `GlobalPar.taskGroupBuilder()` /
+> `ParallelTaskGroup.Builder.addTask()` / `buildAndSubmitAll()` / `TaskHandle` 配置流程已被替换为
+> 不可变、可复用的 `TaskGroupSpec` 加一次性 `TaskGroup.submit(global, spec)` 和
+> `TaskRef<T>` 令牌；选项类型统一为 `MultiTaskOptions`，timeout 必须显式二选一
+> （`timeout(Duration)` 或 `inheritTimeout()`）。结构父任务、observation 与组 deadline 改在
+> submit 时按提交线程解析（spec 不再在创建时捕获线程上下文），成员按注册名解析 executor，
+> 不再校验 `Par` 归属。下文关于取消、收敛、deadline 与提交线性化的运行语义仍然有效；
+> 涉及 Builder 生命周期（配置/消费状态机、`addTask` 校验时点）的段落描述的是被替换的历史设计。
+> 当前 API 见 [使用指南](../user-guide.md) 与 [v0.2 迁移指南](../migration-v0.2.md)。
 
 ## 1. 目标与非目标
 
-`ParallelTaskGroup` 用于在一个显式协调范围内提交少量、具名、类型可以不同、彼此没有数据依赖的任务：
+`TaskGroup` 用于在一个显式协调范围内提交少量、具名、类型可以不同、彼此没有数据依赖的任务：
 
 ```text
 account-page group
@@ -16,7 +26,7 @@ account-page group
 
 它提供：
 
-- 通过 Builder 收集具名任务定义，并在唯一的 build 时点统一冻结和提交；
+- 通过 `TaskGroupSpec` 收集具名任务定义，并在唯一的 submit 时点统一冻结和提交；
 - 组级 deadline、取消和默认 fail-fast；
 - 每个成员独立选择已经注册的 `Par`；
 - 类型安全的成员 `ListenableFuture<T>`；
@@ -35,10 +45,10 @@ account-page group
 
 ## 2. Group 与 Batch 的语义边界
 
-| 维度 | Batch (`Par.map`) | Group (`ParallelTaskGroup`) |
+| 维度 | Batch (`Par.map`) | Group (`TaskGroup`) |
 |---|---|---|
 | 业务含义 | 一个函数映射同类输入 | 多个异构操作共享协调范围 |
-| 集合形成 | `map()` 调用时固定 | `addTask()` 配置，`buildAndSubmitAll()` 固定并统一提交 |
+| 集合形成 | `map()` 调用时固定 | `TaskGroupSpec.Builder.task()` 配置，`TaskGroup.submit()` 冻结并统一提交 |
 | 成员身份 | `taskIndex` | 唯一 `memberName` |
 | 返回类型 | 全部为同一个 `R` | 每个成员可以有不同 `T` |
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
@@ -54,54 +64,55 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 ### 3.1 创建与使用
 
-`GlobalPar` 新增：
+当前入口（替代下文的 Builder 设计）：组由不可变、可复用的 `TaskGroupSpec` 描述，经一次性
+`TaskGroup.submit(global, spec)` 冻结并统一提交：
 
 ```java
-public ParallelTaskGroup.Builder taskGroupBuilder(TaskGroupOptions options)
-```
-
-正常成功路径在 Builder 中定义全部任务，在唯一的 build 时点统一提交：
-
-```java
-ParallelTaskGroup.Builder builder = global.taskGroupBuilder(
-        TaskGroupOptions.of("account-page")
+TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
+        MultiTaskOptions.of("account-page")
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-ParallelTaskGroup.TaskHandle<User> user = builder.addTask(
-            "get-user", userPar, userService::getUser,
-            BatchExecutionOptions.of("get-user").build());
-ParallelTaskGroup.TaskHandle<List<Order>> orders = builder.addTask(
-            "get-orders", orderPar, orderService::getOrders,
-            BatchExecutionOptions.of("get-orders").build());
-ParallelTaskGroup.TaskHandle<Inventory> inventory = builder.addTask(
-            "get-inventory", inventoryPar, inventoryService::getInventory,
-            BatchExecutionOptions.of("get-inventory").build());
+TaskRef<User> user = spec.task(
+            "get-user", "user", userService::getUser,
+            MultiTaskOptions.of("get-user").inheritTimeout().build());
+TaskRef<List<Order>> orders = spec.task(
+            "get-orders", "order", orderService::getOrders,
+            MultiTaskOptions.of("get-orders").inheritTimeout().build());
+TaskRef<Inventory> inventory = spec.task(
+            "get-inventory", "inventory", inventoryService::getInventory,
+            MultiTaskOptions.of("get-inventory").inheritTimeout().build());
 
-try (ParallelTaskGroup group = builder.buildAndSubmitAll()) {
-    User userValue = user.future().get();
+try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
+    User userValue = group.future(user).get();
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-`Builder` 是一次性、非线程安全的配置对象；`ParallelTaskGroup` 是 build 后的运行对象。至少提供：
+`TaskGroupSpec` 是纯数据描述；`TaskGroup` 是 submit 后的运行对象。当前公共面：
 
 ```java
-public final class ParallelTaskGroup implements AutoCloseable {
+public final class TaskGroupSpec {
+    public static Builder builder(MultiTaskOptions groupOptions);
+    public MultiTaskOptions groupOptions();
+    public List<MemberSpec<?>> members();
+
     public static final class Builder {
-        public <T> TaskHandle<T> addTask(
+        public <T> TaskRef<T> task(
                 String memberName,
-                Par par,
+                String executorName,
                 Callable<T> callable,
-                BatchExecutionOptions options);
-
-        public ParallelTaskGroup buildAndSubmitAll();
+                MultiTaskOptions options);
+        public TaskGroupSpec build();
     }
+}
 
-    public static final class TaskHandle<T> {
-        public String memberName();
-        public ListenableFuture<T> future();
-    }
+public final class TaskRef<T> {
+    public String memberName();
+}
+
+public final class TaskGroup implements AutoCloseable {
+    public static TaskGroup submit(GlobalPar env, TaskGroupSpec spec);
 
     public String groupId();
     public String groupName();
@@ -110,6 +121,7 @@ public final class ParallelTaskGroup implements AutoCloseable {
 
     public Optional<ListenableFuture<?>> findMember(String memberName);
     public Map<String, ListenableFuture<?>> members();
+    public <T> ListenableFuture<T> future(TaskRef<T> ref);
 
     @Override
     public void close();
@@ -118,37 +130,47 @@ public final class ParallelTaskGroup implements AutoCloseable {
 
 语义：
 
-- `addTask()` 只校验并保存不可变任务定义；不得提交 executor、启动 timer、创建
-  `BatchExecutionContext`/`TaskExecutionContext` 或占用运行期资源；
-- `buildAndSubmitAll()` 是 Builder 唯一的冻结与提交入口，只能成功调用一次；它创建并注册全部成员后才允许任何成员进入 executor；
-- Builder build 成功或开始执行不可逆的运行期创建后即视为已消费，后续 `addTask()` 或再次 build 均抛 `IllegalStateException`；
-- `TaskHandle.future()` 在 build 成功绑定 future 前抛 `IllegalStateException`；绑定后始终返回同一个类型安全的 future；
+- `TaskGroupSpec.Builder.task()` 只校验并保存不可变任务定义（memberName 为空或重复、参数为
+  null 立即拒绝）；不得提交 executor、启动 timer、创建
+  `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；
+- `TaskGroup.submit()` 是唯一的冻结与提交入口；它按提交线程解析结构父任务与
+  observation、创建并注册全部成员后才允许任何成员进入 executor；spec 本身可重复提交；
+- `TaskRef<T>` 是配置期发放的类型化令牌，不携带执行状态；`group.future(ref)` 在组内解析成员
+  future，引用不属于该组的 memberName 时抛 `IllegalArgumentException`；
 - `cancel()` 幂等、非阻塞，固定 `CANCELED`（若尚未固定）并取消未完成成员；
 - `close()` 是异常安全清理：若仍有未完成成员，语义等同 `cancel()`；若所有成员已经终态或空组则无副作用；
 - `completionFuture()` 在全部冻结成员的公开 future 终态后完成，不存在另行封口条件；
 - `members()` 返回按定义顺序排列、不可修改的完整集合；
 - `findMember()`/`members()` 在 Group 返回给调用方时即可看见全部冻结成员。
 
-选择嵌套 `TaskHandle<T>` 是因为异构任务的 future 只能在统一 build 时创建，而调用方仍需要类型安全地持有它。它是任务定义的轻量句柄，不是 Context，也不拥有执行生命周期；首版不新增顶层 `TaskGroupBuilder` 或 `TaskDefinition` 类。
+`TaskRef<T>` 取代早期嵌套 `TaskHandle<T>`：异构任务的 future 在统一 submit 时创建，调用方用
+配置期拿到的令牌在提交后取回类型安全的 future。spec 不捕获线程上下文，因此结构归属始终由
+提交现场决定。
 
-### 3.2 TaskGroupOptions
+### 3.2 组级与成员级选项
+
+组级与成员级选项统一为 `MultiTaskOptions`；组读取 name/timeout/listeners，成员读取
+name/parallelism/timeout/taskType/rejectEnqueue：
 
 ```java
-public final class TaskGroupOptions {
+public final class MultiTaskOptions {
     public static Builder builder();
-    public static Builder of(String groupName);
+    public static Builder of(String name);
 
-    public String groupName();
-    public @Nullable Duration timeout();
+    public String name();
+    public Optional<Duration> timeout();
     public List<TaskGroupListener> listeners();
 }
 ```
 
-- `groupName` 非空；
-- timeout 配置后必须为正数；
-- timeout 缺省时使用 `GlobalPar.executionPolicy().defaultTimeoutMillis()`；
+- `name` 非空；
+- timeout 必须显式二选一：`timeout(Duration)`（正数）或 `inheritTimeout()`（继承外层
+  deadline）；两者都未声明或同时声明时 `build()` 抛 `IllegalArgumentException`；`timeout()`
+  访问器返回空 `Optional` 表示继承；
+- 组级 `inheritTimeout()` 要求 submit 时存在外层 scoped task，否则 `submit` 抛
+  `IllegalArgumentException`；成员级 `inheritTimeout()` 解析为组 deadline；
 - options 不保存运行状态，可安全复用；
-- listener 在 build 时复制成不可修改快照。
+- listener 在 options 构建时复制成不可修改快照，submit 时使用该快照。
 
 ### 3.3 结果类型
 
@@ -211,15 +233,15 @@ public final class TaskGroupMemberResult {
 GlobalPar ────────────────────────────────────────────────────────────
 
 配置生命周期
-Builder ── addTask* ── build/freeze ── consumed
+TaskGroupSpec.Builder ── task* ── build ── TaskGroupSpec（不可变、可复用）
 
 请求/显式协调生命周期
-ParallelTaskGroup ── created/running ── all terminal ── closed
+TaskGroup ── created/running ── all terminal ── closed
 
 每个成员对象生命周期
-TaskDefinition ── added ── frozen ─┐
+MemberSpec ── added ── frozen ─┐
 MemberState ──────────────────────── prepared/submitted/running ── terminal
-BatchExecutionContext ────────────────────────────────────────────────
+MultiTaskContext ────────────────────────────────────────────────
 TaskExecutionContext ─ created ─ queued ─ run ─ completed/event ─────
 
 动态线程绑定
@@ -230,13 +252,15 @@ TaskExecutionContext.current()                 └─ user callable ─┘
 TaskGraphObservationContext ─────────────────────────────────────────
 ```
 
-### 4.2 ParallelTaskGroup
+### 4.2 TaskGroup
 
-`Builder` 只保存 options、创建时捕获的外层上下文/observation 和有序任务定义。任务定义推荐作为 Builder 私有静态内部类，不新增公共 Context。Builder 在 `taskGroupBuilder()` 返回时创建，在 `buildAndSubmitAll()` 后不可复用，也不属于任何物理线程。
+`TaskGroupSpec` 只保存组级 options 和有序成员定义，是纯数据、可复用对象；外层上下文、
+observation 和 deadline 归属在每次 `TaskGroup.submit()` 时按提交线程解析。成员定义
+（`MemberSpec`）是 spec 的不可变组成部分，不新增公共 Context。spec 不属于任何物理线程。
 
-`ParallelTaskGroup` 本身就是组级运行状态，MUST NOT 再新增 `TaskGroupContext` 或 `CurrentTaskGroupTl`。
+`TaskGroup` 本身就是组级运行状态，MUST NOT 再新增 `TaskGroupContext` 或 `CurrentTaskGroupTl`。
 
-它在 `buildAndSubmitAll()` 的运行期创建阶段产生，至少持有：
+它在 `TaskGroup.submit()` 的运行期创建阶段产生，至少持有：
 
 ```text
 groupId / groupName
@@ -256,7 +280,7 @@ listener snapshot
 
 ### 4.3 MemberState
 
-每个冻结成员需要一个内部状态记录。推荐作为 `ParallelTaskGroup` 的私有/包可见内部类，避免新增公共 Context：
+每个冻结成员需要一个内部状态记录。推荐作为 `TaskGroup` 的私有/包可见内部类，避免新增公共 Context：
 
 ```text
 memberName
@@ -269,14 +293,14 @@ failure（可空）
 
 生命周期从 build 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskListener.TaskEvent`。
 
-### 4.4 BatchExecutionContext
+### 4.4 MultiTaskContext
 
-每个成员创建一个单任务 `BatchExecutionContext`：
+每个成员创建一个单任务 `MultiTaskContext`：
 
 ```text
 taskCount = 1
 effectiveParallelism = 1
-taskName = member BatchExecutionOptions.taskName
+taskName = member MultiTaskOptions.name
 executorIdentity / parLabel = member Par 的绑定
 ```
 
@@ -315,7 +339,7 @@ TaskListener 回调期间 `TaskExecutionContext.current()` MUST 为 null，避�
 成员每次真正调用目标 executor 的 `execute/submit` 时，必须临时安装成员 Batch：
 
 ```java
-BatchExecutionContext previous = SubmissionScope.install(memberBatch);
+MultiTaskContext previous = SubmissionScope.install(memberBatch);
 try {
     executor.execute(memberFuture);
 } finally {
@@ -327,7 +351,7 @@ try {
 
 ### 4.7 TaskGraphObservationContext
 
-Builder 创建时捕获同一个 `GlobalPar` 当前有效的 observation；不存在或 owner 不匹配时保存 null。成员执行必须使用该快照，而不是把 Group membership 写成 TaskGraph edge。
+`submit()` 解析提交线程上同一个 `GlobalPar` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
 
 调用方必须让 observation 生命周期覆盖 Group 的所有成员执行。若 observation 已提前关闭，成员不得复活它，后续图记录可以安全忽略。
 
@@ -339,7 +363,7 @@ Builder 创建时捕获同一个 `GlobalPar` 当前有效的 observation；不�
 
 ## 5. 结构化 parent、取消 parent 与 deadline 上限必须解耦
 
-现有 `BatchExecutionContext.resolve()` 把三件事都从 `parent BatchExecutionContext` 推导：
+现有 `MultiTaskContext.resolve()` 把三件事都从 `parent MultiTaskContext` 推导：
 
 1. TaskGraph/嵌套结构 parent；
 2. cancellation token parent；
@@ -348,11 +372,10 @@ Builder 创建时捕获同一个 `GlobalPar` 当前有效的 observation；不�
 Group member 证明这三者不总是同一个对象。实现 MUST 抽取一个新的解析重载或内部 factory，使其可独立传入：
 
 ```java
-BatchExecutionContext resolve(
-        GlobalExecutionPolicy policy,
-        BatchExecutionOptions options,
+MultiTaskContext resolve(
+        MultiTaskOptions options,
         int taskCount,
-        @Nullable BatchExecutionContext structuralParent,
+        @Nullable MultiTaskContext structuralParent,
         @Nullable CancellationToken cancellationParent,
         long deadlineCeilingNanos,
         @Nullable TaskGraphObservationContext observation,
@@ -376,7 +399,7 @@ member deadline           = min(member requested deadline, group deadline)
 
 ### 5.2 Group 在一个正在执行的 scoped task 中创建
 
-`taskGroupBuilder()` 必须捕获当时的 `TaskExecutionContext.current()`，之后即使从其他线程调用 `buildAndSubmitAll()` 也不能改变该归属：
+`TaskGroup.submit()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 spec 无论之后从哪个线程提交，归属都由该次提交现场决定：
 
 ```text
 outerBatch = currentTask.batchContext()
@@ -395,15 +418,15 @@ Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。每�
 
 ## 6. 状态机与完成条件
 
-Builder 和运行 Group 是两个生命周期，不共享一个动态状态机：
+`TaskGroupSpec` 是不可变纯数据，不存在配置/消费状态机；只有运行 Group 有生命周期：
 
 ```text
-Builder: CONFIGURING --buildAndSubmitAll--> CONSUMED
 Group:   RUNNING -----all members terminal--> CLOSED
 ```
 
-- Builder 非线程安全，不支持 `addTask()` 与 build 并发；调用方必须在一个配置流程中完成定义；
-- `buildAndSubmitAll()` 一旦开始运行期创建，Builder 即进入 `CONSUMED`，即使 build 最终抛异常也不得重试；
+- `TaskGroupSpec.Builder` 非线程安全，调用方必须在一个配置流程中完成定义后 `build()`；build 出的
+  spec 可安全共享并重复提交；
+- 每次 `TaskGroup.submit()` 独立创建运行对象；spec 没有"已消费"状态；
 - 返回的 Group 从一开始就持有完整、不可扩展的成员集合；不存在 `OPEN`、`SEALED` 或 `ACTIVE`；
 - `CLOSED` 只表示全部公开成员 future 已终态且不可变结果已经发布。
 
@@ -426,50 +449,50 @@ null --member canceled + final convergence--> CANCELED
 - 全部成员终态且存在直接取消成员时，若没有更早的组级失败/超时，Group 原因固定为 `CANCELED`；
 - `CLOSED` 只在 `terminalCount == memberCount` 时发布；
 - Group 原因可以先固定，但 completion future 仍必须等所有公开成员 future 达到终态；
-- 空 Builder build 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
+- 空 spec submit 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
 
 建议 Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作或一把私有 lock。成员 future 的完成 callback 在 lock 内只更新小型状态和决定后续动作，取消 future、触发 listener 等外部调用必须在 lock 外执行，防止重入和长时间占锁。
 
-## 7. build、冻结与统一提交契约
+## 7. submit、冻结与统一提交契约
 
 ### 7.1 配置期校验
 
-`addTask()` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
+`TaskGroupSpec.Builder.task()` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
 
 - memberName 为空或重复；
-- member `Par` 不属于创建 Group 的同一个 `GlobalPar`；
-- 参数为 null；
-- Builder 已消费。
+- 参数为 null。
 
-由于 Builder 可存活一段时间，`buildAndSubmitAll()` MUST 在冻结前重新校验所有定义以及 `GlobalPar` 是否仍开放。`addTask()` 不检查或消耗 deadline，因为 Group 的逻辑执行时间从 build 开始。
+成员 executor 按注册名在 `submit()` 时经 `GlobalPar.par(executorName)` 解析，未知名称抛出
+`IllegalArgumentException`。`task()` 不检查或消耗 deadline，因为 Group 的逻辑执行时间从
+submit 开始。
 
-executor rejection 只有实际提交时才能知道，因此属于 build 后的成员运行结果，不是 Builder 校验失败。若成员按现有 CPU-bound 策略在 rejection 后成功 inline 执行，则它是正常执行路径；只有配置的全部提交/回退路径最终失败时，公开 future 才以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast。
+executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 spec 校验失败。若成员按现有 CPU-bound 策略在 rejection 后成功 inline 执行，则它是正常执行路径；只有配置的全部提交/回退路径最终失败时，公开 future 才以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast。
 
-### 7.2 build 线性化与步骤
+### 7.2 submit 线性化与步骤
 
-`buildAndSubmitAll()` 必须作为一次整体 admission 与 `GlobalPar.close()` 线性化，不能按成员分别跨越关闭边界。推荐让下列准备和注册阶段整体处于一次 `GlobalPar.whileOpen()` 中；实际 executor 调用仍须在内部锁和 GlobalPar admission lock 外进行：
+`TaskGroup.submit()` 必须作为一次整体 admission 与 `GlobalPar.close()` 线性化，不能按成员分别跨越关闭边界。推荐让下列准备和注册阶段整体处于一次 `GlobalPar.whileOpen()` 中；实际 executor 调用仍须在内部锁和 GlobalPar admission lock 外进行：
 
-本文所称“统一提交”是指所有成员共享一个逻辑 build/submission boundary：build 前没有任何运行状态或执行，build 时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
+本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：submit 前没有任何运行状态或执行，submit 时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
 
 必须满足：
 
-1. 原子地将 Builder 标记为已消费；
-2. 在 `GlobalPar.whileOpen()` 内重新校验并冻结有序任务定义；
-3. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
-4. 为每个定义创建 member Batch、TaskExecutionContext、公开 future 和执行权竞争对象；
-5. 将全部 `MemberState` 注册到 Group，并将全部 `TaskHandle` 绑定到各自 future；
-6. 空组立即发布 `SUCCESS` 并返回，不创建 timer；非空组安排 Group deadline timer；
-7. 退出所有 registry/admission lock；
-8. 按定义顺序向各自目标 executor 提交同一个 prepared future；
-9. 提交循环结束后返回 Group；若某个成员 inline 执行、失败或触发 fail-fast，剩余尚未调用 executor 的 prepared future 也必须被取消并达到终态。
+1. 在 `GlobalPar.whileOpen()` 内解析结构父任务/observation、按注册名解析成员 executor 并冻结有序任务定义；
+2. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
+3. 为每个定义创建 member Batch、TaskExecutionContext、公开 future 和执行权竞争对象；
+4. 将全部 `MemberState` 注册到 Group，发布完整 members registry；
+5. 空组立即发布 `SUCCESS` 并返回，不创建 timer；非空组安排 Group deadline timer；
+6. 退出所有 registry/admission lock；
+7. 按定义顺序向各自目标 executor 提交同一个 prepared future；
+8. 提交循环结束后返回 Group；若某个成员 inline 执行、失败或触发 fail-fast，剩余尚未调用 executor 的 prepared future 也必须被取消并达到终态。
 
 不能在全部成员注册前调用任何 `executor.execute()`，否则 direct executor 或 rejection fallback 可能在 Group 看见完整成员集合前执行用户代码。
 
 不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致 close/cancel 长时间无法取得锁。
 
-`buildAndSubmitAll()` 正常返回时必须保证全部 `TaskHandle` 已绑定、完整 members registry 已发布，并且每个仍未因 fail-fast/timeout/cancel 终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，返回时部分甚至全部成员已经终态属于合法行为。
+`TaskGroup.submit()` 正常返回时必须保证完整 members registry 已发布（`future(TaskRef)`
+可立即解析），并且每个仍未因 fail-fast/timeout/cancel 终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，返回时部分甚至全部成员已经终态属于合法行为。
 
-成功跨过全量注册后，单个 executor rejection、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`buildAndSubmitAll()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、GlobalPar 已关闭，或无法建立完整运行对象的框架级准备错误才允许 build 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，并且不得执行任何用户 callable。
+成功跨过全量注册后，单个 executor rejection、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submit()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、GlobalPar 已关闭，或无法建立完整运行对象的框架级准备错误才允许 submit 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，并且不得执行任何用户 callable。
 
 ### 7.3 Prepared single-task submission
 
@@ -541,7 +564,7 @@ publish CLOSED/result/event
 
 ### 8.4 Deadline
 
-逻辑 deadline 在 `buildAndSubmitAll()` 时计算；Builder 配置耗时不计入 Group timeout：
+逻辑 deadline 在 `submit()` 时计算；spec 配置耗时不计入 Group timeout：
 
 ```text
 requestedGroupDeadline = buildStartTicker + resolvedGroupTimeout
@@ -604,7 +627,7 @@ memberDeadline = min(member requested/default deadline, groupDeadline)
 - `ConcurrentLimitExecutor`：Group 不使用滑动窗口、placeholder 或 completion queue 驱动提交；
 - `AsyncBatchResult`：Group 是异构成员和固定的具名集合；
 - `Par.map(singletonList, ...)`：会引入错误抽象和不必要包装；
-- 虚构的 Group `BatchExecutionContext`：membership 不是 Batch；
+- 虚构的 Group `MultiTaskContext`：membership 不是 Batch；
 - Group ThreadLocal/TTL：Group 由显式对象持有，不是线程隐式状态。
 
 ### 9.3 建议代码组织
@@ -613,8 +636,9 @@ memberDeadline = min(member requested/default deadline, groupDeadline)
 
 ```text
 scope/
-  ParallelTaskGroup.java
-  TaskGroupOptions.java
+  TaskGroup.java
+  TaskGroupSpec.java
+  TaskRef.java
   TaskGroupResult.java
   TaskGroupCompletionReason.java
   TaskGroupMemberReason.java
@@ -627,13 +651,13 @@ internal/
   PreparedScopedTask.java         // 可作为 SingleTaskSubmitter 内部类型
 ```
 
-`ExecutorRuntime` 当前是 `scope` 包私有类型，`internal.SingleTaskSubmitter` MUST NOT 直接依赖或公开它。推荐由 `Par` 新增包可见的单任务准备入口（例如 `prepareSingleTask(...)`），在 `scope` 包内完成 owner、policy、runtime identity、executor 和 phase observer 的解析，再把普通参数传给 internal kernel。`ParallelTaskGroup` 与 `Par` 同包，可调用该入口；公共 API 不暴露 runtime。
+`ExecutorRuntime` 当前是 `scope` 包私有类型，`internal.SingleTaskSubmitter` MUST NOT 直接依赖或公开它。推荐由 `Par` 新增包可见的单任务准备入口（例如 `prepareSingleTask(...)`），在 `scope` 包内完成 owner、policy、runtime identity、executor 和 phase observer 的解析，再把普通参数传给 internal kernel。`TaskGroup` 与 `Par` 同包，可调用该入口；公共 API 不暴露 runtime。
 
 共享内核至少分离以下阶段：
 
 ```text
 Par/package-private entry
-  ├─ validate owner and resolve member BatchExecutionContext
+  ├─ validate owner and resolve member MultiTaskContext
   ├─ create TaskExecutionContext + ScopedCallable + TTL wrapper
   └─ internal kernel prepare execution future
 
@@ -708,9 +732,9 @@ fake-group-batch -> A/B/C
 
 ## 12. GlobalPar 关闭与资源所有权
 
-- `taskGroupBuilder()` 创建纯配置对象时应验证 GlobalPar 当前开放，但不因此长期 retain；
-- `buildAndSubmitAll()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `GlobalPar.whileOpen()`，使 build 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
-- build 完成 admission 后，即使 GlobalPar 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
+- `TaskGroupSpec` 是纯配置对象，创建它不验证 GlobalPar 状态，也不长期 retain；
+- `TaskGroup.submit()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `GlobalPar.whileOpen()`，使 submit 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
+- submit 完成 admission 后，即使 GlobalPar 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
 - 每个冻结成员通过 `retainUntilComplete()` 计入活动运行；可以增加 group-aware retain helper，但不得提前关闭 timer/submitter/maintenance 服务；
 - Group 不创建或关闭业务 executor；
 - `GlobalPar.close()` 不阻塞，不关闭注册 executor；
@@ -720,9 +744,9 @@ fake-group-batch -> A/B/C
 
 实现和测试必须证明：
 
-1. 每个 memberName 在一个 Builder 中至多定义一次；
-2. 每个 callable 最多执行一次；
-3. Builder 只能 build 一次，build 开始后不能再添加成员；
+1. 每个 memberName 在一个 `TaskGroupSpec` 中至多定义一次；
+2. 每次 submit 中每个 callable 最多执行一次；
+3. spec 不可变、可复用；每次 submit 冻结的是同一份完整定义；
 4. Group 一旦发布，其 registry 完整、不可扩展，且每个成员都拥有一个最终终态的公开 future；
 5. executor rejection 不能留下 pending future；
 6. `terminalCount` 对每个成员最多增加一次；
@@ -742,18 +766,18 @@ fake-group-batch -> A/B/C
 1. 三个异构成员分别返回不同类型且各执行一次；
 2. 成员使用不同 `Par`/executor 时并行运行；
 3. 同一 `Par` 上多个成员均独立提交，不经过滑动窗口；
-4. 重复 memberName、空名称、null 参数、foreign `Par` 在 add/build 校验阶段拒绝且没有 callable 执行；
-5. `addTask()` 不创建执行上下文、不启动 timer、不提交或执行 callable；
-6. 空 Builder build 返回立即 SUCCESS 的 Group，未创建 timer；`TaskHandle.future()` 在 build 前不可用、build 后稳定可用。
+4. 重复 memberName、空名称、null 参数在 `task()` 配置期拒绝；未知 executorName 在 submit 时拒绝且没有 callable 执行；
+5. `task()` 不创建执行上下文、不启动 timer、不提交或执行 callable；
+6. 空 spec submit 返回立即 SUCCESS 的 Group，未创建 timer；`TaskRef` 在 submit 后即可经 `group.future(ref)` 稳定解析。
 
-### 14.2 build 与提交竞态
+### 14.2 submit 与关闭竞态
 
-7. 重复 build、build 后 add 均拒绝；Builder 明示非线程安全，不为 add/build 并发提供语义；
-8. `buildAndSubmitAll()` 与 `GlobalPar.close()` 竞争时，要么完整组被接纳，要么 build 完整拒绝，绝无部分 admission；
+7. 同一个 spec 可重复 submit，每次产生独立 Group（不同 groupId）；
+8. `TaskGroup.submit()` 与 `GlobalPar.close()` 竞争时，要么完整组被接纳，要么 submit 完整拒绝，绝无部分 admission；
 9. direct executor/inline fallback 中，任一 callable 执行前完整成员集合已可查询；
 10. executor rejection 产生 SUBMISSION_FAILURE、触发 fail-fast、所有 future 终态；
 11. 已注册但尚未 `executor.execute()` 的成员被 fail-fast/cancel 后不得运行 callable；
-12. 重复 cancel、close 不重复计数或回调；build 提交循环中的 inline failure 会终结尚未提交成员。
+12. 重复 cancel、close 不重复计数或回调；submit 提交循环中的 inline failure 会终结尚未提交成员。
 
 ### 14.3 取消与原因
 
@@ -769,7 +793,7 @@ fake-group-batch -> A/B/C
 19. group deadline 早于 member deadline，Group TIMEOUT，成员 TIMEOUT；
 20. member deadline 早于 group deadline，该 member TIMEOUT 并使 Group TIMEOUT；
 21. failure、timeout、cancel 同时竞争时 first-wins 且不覆盖；
-22. 外层 deadline 在 build 准备期间过期：所有冻结成员不执行，Group TIMEOUT；
+22. 外层 deadline 在 submit 准备期间过期：所有冻结成员不执行，Group TIMEOUT；
 23. Group 提前完成后 timer 取消或触发为 no-op。
 
 ### 14.5 上下文与监控
@@ -780,7 +804,7 @@ fake-group-batch -> A/B/C
 27. TaskListener 中 current task 为 null，TaskEvent 指向正确成员 TaskContext；
 28. 执行前取消和 submission failure 不产生虚假 TaskEvent；
 29. Group listener 只调用一次，异常不改变结果；
-30. TTL 值以 `buildAndSubmitAll()` 的 prepare 阶段为捕获时点传播并恢复；`addTask()` 时的值不构成快照，普通 ThreadLocal 不承诺传播。
+30. TTL 值以 `submit()` 的 prepare 阶段为捕获时点传播并恢复；`task()` 时的值不构成快照，普通 ThreadLocal 不承诺传播。
 
 ### 14.6 TaskGraph 与关闭
 
@@ -788,7 +812,7 @@ fake-group-batch -> A/B/C
 32. outer scoped task 创建 Group 时，只产生 outer->member 的真实边；
 33. member 内嵌套 `Par.map()` 产生 member->child Batch 的真实边；
 34. 同一 executor 的 siblings 不因 membership 产生 self-loop；
-35. GlobalPar close 后拒绝新 Builder/build；先于 close 完成 admission 的完整 Group 可继续运行；
+35. GlobalPar close 后拒绝新 submit；先于 close 完成 admission 的完整 Group 可继续运行；
 36. close 前完整冻结的成员继续走终止、timeout 和 telemetry；
 37. Group close 不关闭任何注册 executor。
 
@@ -796,10 +820,10 @@ fake-group-batch -> A/B/C
 
 推荐按以下顺序实现，每一步保持测试可运行：
 
-1. 解耦 `BatchExecutionContext` 的 structural parent、cancellation parent 和 deadline ceiling，并保持现有 `Par.map()` 行为不变；
+1. 解耦 `MultiTaskContext` 的 structural parent、cancellation parent 和 deadline ceiling，并保持现有 `Par.map()` 行为不变；
 2. 抽取两阶段单任务提交内核，先让 `Par.map()` 或针对 helper 的测试证明 TTL、SubmissionScope、phase、rejection 和 inline 语义；
-3. 实现 `TaskGroupOptions`、结果枚举和不可变结果对象；
-4. 实现一次性 Builder、`TaskHandle<T>`、全量冻结 registry、计数和 completion future；
+3. 实现组级/成员级 `MultiTaskOptions` 三态 timeout、结果枚举和不可变结果对象；
+4. 实现 `TaskGroupSpec`、`TaskRef<T>`、一次性 `submit`、全量冻结 registry、计数和 completion future；
 5. 接入 group/member token、deadline、fail-fast 和 outer cancellation；
 6. 接入 TaskListener、Group listener、GlobalPar retain 与 purger；
 7. 接入 TaskGraph 的 outer/member 真实边并验证无 membership 边；
@@ -817,4 +841,4 @@ fake-group-batch -> A/B/C
 - 所有冻结 public future 必然终态；
 - TaskGraph 只记录真实结构化依赖；
 - 全量 Maven 测试通过且 Java 8 main source 兼容；
-- 用户文档说明 Builder/build、`TaskHandle`、close、cancel、deadline、成员取消和 observation 生命周期。
+- 用户文档说明 spec/submit、`TaskRef`、close、cancel、deadline、成员取消和 observation 生命周期。

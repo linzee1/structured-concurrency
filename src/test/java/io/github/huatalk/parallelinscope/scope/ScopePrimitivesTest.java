@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Behavior pins for small scope primitives: {@link ExecutorIdentity} identity semantics,
- * {@link GlobalExecutionPolicy} defaults, {@link BatchExecutionContext#resolve} boundary matrix,
+ * {@link GlobalExecutionPolicy} defaults, {@link MultiTaskContext#resolve} boundary matrix,
  * {@link GlobalPar} topology shutdown states with its scheduler adapter, and {@link ScopedCallable}
  * timing bookkeeping.
  */
@@ -51,18 +51,11 @@ class ScopePrimitivesTest {
     // ==================== GlobalExecutionPolicy ====================
 
     @Test
-    void executionPolicyDefaultsTimeoutAndSnapshotSemantics() {
+    void executionPolicyExposesListenerSnapshotSemantics() {
         GlobalExecutionPolicy policy = GlobalExecutionPolicy.builder().build();
-        assertThat(policy.defaultTimeoutMillis()).isEqualTo(60_000L);
         assertThat(policy.taskListeners()).isEmpty();
 
-        GlobalExecutionPolicy custom =
-                GlobalExecutionPolicy.builder().defaultTimeoutMillis(250L).build();
-        assertThat(custom.defaultTimeoutMillis()).isEqualTo(250L);
-
         GlobalExecutionPolicy.Builder builder = GlobalExecutionPolicy.builder();
-        assertThatThrownBy(() -> builder.defaultTimeoutMillis(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.defaultTimeoutMillis(-1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> builder.taskListener(null)).isInstanceOf(NullPointerException.class);
 
         TaskListener listener = event -> {};
@@ -73,35 +66,35 @@ class ScopePrimitivesTest {
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    // ==================== BatchExecutionContext.resolve ====================
+    // ==================== MultiTaskContext.resolve ====================
 
-    private static BatchExecutionContext resolve(
-            int parallelism, Duration timeout, int taskCount, BatchExecutionContext parent) {
-        BatchExecutionOptions.Builder options = BatchExecutionOptions.of("batch");
+    private static MultiTaskContext resolve(int parallelism, Duration timeout, int taskCount, MultiTaskContext parent) {
+        MultiTaskOptions.Builder options = MultiTaskOptions.of("batch").timeout(timeout);
         if (parallelism > 0) {
             options.parallelism(parallelism);
         }
-        if (timeout != null) {
-            options.timeout(timeout);
-        }
-        return BatchExecutionContext.resolve(
-                GlobalExecutionPolicy.builder().build(), options.build(), taskCount, parent);
+        return MultiTaskContext.resolve(options.build(), taskCount, parent);
     }
 
     @Test
     void resolveNormalizesParallelismAgainstTaskCount() {
-        assertThat(resolve(0, null, 4, null).effectiveParallelism()).isEqualTo(4);
-        assertThat(resolve(-1, null, 3, null).effectiveParallelism()).isEqualTo(3);
-        assertThat(resolve(9, null, 3, null).effectiveParallelism()).isEqualTo(3);
-        assertThat(resolve(2, null, 5, null).effectiveParallelism()).isEqualTo(2);
-        assertThat(resolve(2, null, 5, null).taskCount()).isEqualTo(5);
-        assertThatThrownBy(() -> resolve(1, null, -1, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(resolve(0, Duration.ofSeconds(30), 4, null).effectiveParallelism())
+                .isEqualTo(4);
+        assertThat(resolve(-1, Duration.ofSeconds(30), 3, null).effectiveParallelism())
+                .isEqualTo(3);
+        assertThat(resolve(9, Duration.ofSeconds(30), 3, null).effectiveParallelism())
+                .isEqualTo(3);
+        assertThat(resolve(2, Duration.ofSeconds(30), 5, null).effectiveParallelism())
+                .isEqualTo(2);
+        assertThat(resolve(2, Duration.ofSeconds(30), 5, null).taskCount()).isEqualTo(5);
+        assertThatThrownBy(() -> resolve(1, Duration.ofSeconds(30), -1, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void resolveAppliesExplicitTimeoutAndOverflowGuard() {
         long before = System.nanoTime();
-        BatchExecutionContext timed = resolve(0, Duration.ofMillis(150), 1, null);
+        MultiTaskContext timed = resolve(0, Duration.ofMillis(150), 1, null);
         long deadline = timed.deadlineNanos();
         long expectedLow = before + TimeUnit.MILLISECONDS.toNanos(140);
         long expectedHigh = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(160);
@@ -109,34 +102,29 @@ class ScopePrimitivesTest {
         assertThat(timed.remaining().toMillis()).isLessThanOrEqualTo(160);
         assertThat(timed.remaining()).isGreaterThanOrEqualTo(Duration.ZERO);
 
-        BatchExecutionContext overflow = resolve(0, Duration.ofNanos(Long.MAX_VALUE), 1, null);
+        MultiTaskContext overflow = resolve(0, Duration.ofNanos(Long.MAX_VALUE), 1, null);
         assertThat(overflow.deadlineNanos()).isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
     void childDeadlineNeverExceedsParentDeadline() {
-        BatchExecutionContext parent = resolve(0, Duration.ofMillis(50), 1, null);
-        BatchExecutionContext child = resolve(0, Duration.ofHours(10), 1, parent);
+        MultiTaskContext parent = resolve(0, Duration.ofMillis(50), 1, null);
+        MultiTaskContext child = resolve(0, Duration.ofHours(10), 1, parent);
         assertThat(child.deadlineNanos()).isLessThanOrEqualTo(parent.deadlineNanos());
         assertThat(child.parent()).isSameAs(parent);
         assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
     }
 
     @Test
-    void resolveRejectsNullPolicyAndOptions() {
-        BatchExecutionOptions options = BatchExecutionOptions.of("x").build();
-        assertThatThrownBy(() -> BatchExecutionContext.resolve(null, options, 1, null))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> BatchExecutionContext.resolve(
-                        GlobalExecutionPolicy.builder().build(), null, 1, null))
-                .isInstanceOf(NullPointerException.class);
+    void resolveRejectsNullOptions() {
+        assertThatThrownBy(() -> MultiTaskContext.resolve(null, 1, null)).isInstanceOf(NullPointerException.class);
     }
 
     // ==================== ScopedCallable timing ====================
 
     @Test
     void scopedCallableRecordsPositiveWaitAndExecutionDurations() throws Exception {
-        BatchExecutionContext context = resolve(0, Duration.ofSeconds(30), 1, null);
+        MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
         ScopedCallable<Integer> callable = new ScopedCallable<>(
                 task(context, 0),
                 () -> {
@@ -162,9 +150,8 @@ class ScopePrimitivesTest {
         ExecutorService supplied = Executors.newSingleThreadExecutor();
         try {
             ExecutorIdentity identity = new ExecutorIdentity(supplied);
-            BatchExecutionContext labelled = BatchExecutionContext.resolve(
-                    GlobalExecutionPolicy.builder().build(),
-                    BatchExecutionOptions.of("n").build(),
+            MultiTaskContext labelled = MultiTaskContext.resolve(
+                    MultiTaskOptions.of("n").timeout(Duration.ofSeconds(30)).build(),
                     1,
                     null,
                     null,
@@ -174,14 +161,8 @@ class ScopePrimitivesTest {
                     new ScopedCallable<>(task(labelled, 0), () -> "ok", java.util.Collections.emptyList());
             assertThat(labelledCall.executorName()).isEqualTo("par-label");
 
-            BatchExecutionContext anonymous = BatchExecutionContext.resolve(
-                    GlobalExecutionPolicy.builder().build(),
-                    BatchExecutionOptions.of("n").build(),
-                    1,
-                    null,
-                    null,
-                    identity,
-                    null);
+            MultiTaskContext anonymous = MultiTaskContext.resolve(
+                    MultiTaskOptions.of("n").timeout(Duration.ofSeconds(30)).build(), 1, null, null, identity, null);
             ScopedCallable<String> anonymousCall =
                     new ScopedCallable<>(task(anonymous, 0), () -> "ok", java.util.Collections.emptyList());
             assertThat(anonymousCall.executorName()).isEqualTo("NA");
@@ -197,7 +178,7 @@ class ScopePrimitivesTest {
         }
     }
 
-    private static TaskExecutionContext task(BatchExecutionContext context, int index) {
+    private static TaskExecutionContext task(MultiTaskContext context, int index) {
         return new TaskExecutionContext(
                 context, index, com.google.common.base.Ticker.systemTicker().read());
     }

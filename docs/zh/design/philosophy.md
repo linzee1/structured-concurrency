@@ -262,7 +262,7 @@ ParOptions ioOpts = ParOptions.ioTask("fetchRemote")
 ```java
 @Override
 public boolean offer(E e) {
-    BatchExecutionContext batch = SubmissionScope.currentBatch();
+    MultiTaskContext batch = SubmissionScope.currentBatch();
     // CPU 密集型任务：拒绝入队，触发 CallerRunsPolicy 同步执行
     if (batch != null && batch.taskType() == TaskType.CPU_BOUND) {
         return false;

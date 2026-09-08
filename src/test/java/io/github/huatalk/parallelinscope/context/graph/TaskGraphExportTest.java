@@ -7,10 +7,10 @@ import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
 import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -192,7 +193,8 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                BatchExecutionOptions.of("inner")
+                                                MultiTaskOptions.of("inner")
+                                                        .timeout(Duration.ofSeconds(30))
                                                         .build());
                                 try {
                                     return inner.results().get(0).get(2, TimeUnit.SECONDS);
@@ -200,7 +202,9 @@ class TaskGraphExportTest {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            BatchExecutionOptions.of("outer").build());
+                            MultiTaskOptions.of("outer")
+                                    .timeout(Duration.ofSeconds(30))
+                                    .build());
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
@@ -248,7 +252,8 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                BatchExecutionOptions.of("inner")
+                                                MultiTaskOptions.of("inner")
+                                                        .timeout(Duration.ofSeconds(30))
                                                         .build());
                                 try {
                                     return inner.results().get(0).get(2, TimeUnit.SECONDS);
@@ -256,7 +261,9 @@ class TaskGraphExportTest {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            BatchExecutionOptions.of("outer").build());
+                            MultiTaskOptions.of("outer")
+                                    .timeout(Duration.ofSeconds(30))
+                                    .build());
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
@@ -288,7 +295,9 @@ class TaskGraphExportTest {
                     .map(
                             Collections.singletonList(1),
                             value -> value + 1,
-                            BatchExecutionOptions.of("direct").build());
+                            MultiTaskOptions.of("direct")
+                                    .timeout(Duration.ofSeconds(30))
+                                    .build());
 
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
 

@@ -1,7 +1,7 @@
 package io.github.huatalk.parallelinscope.cancel;
 
 import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionContext;
+import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -47,7 +47,7 @@ public final class Checkpoints {
      * @throws CancellationException if the matching task is canceled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
-        BatchExecutionContext batch = currentBatchContext();
+        MultiTaskContext batch = currentBatchContext();
         if (batch != null) {
             if (taskName == null || !taskName.equals(batch.taskName())) return;
             checkCancellationToken(lean);
@@ -494,7 +494,7 @@ public final class Checkpoints {
     }
 
     private static void checkCancellationToken(boolean lean) {
-        BatchExecutionContext batch = currentBatchContext();
+        MultiTaskContext batch = currentBatchContext();
         CancellationToken cancelToken = batch == null ? null : batch.cancellationToken();
         if (cancelToken != null && cancelToken.state().shouldInterruptCurrentThread()) {
             throw lean
@@ -510,7 +510,7 @@ public final class Checkpoints {
         return cancellation;
     }
 
-    private static BatchExecutionContext currentBatchContext() {
+    private static MultiTaskContext currentBatchContext() {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         return currentTask == null ? null : currentTask.batchContext();
     }

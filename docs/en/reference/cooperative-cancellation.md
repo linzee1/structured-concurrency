@@ -26,7 +26,7 @@ Tasks that have not started are skipped, blocked I/O tasks are interrupted, and 
 ## Add checkpoints to CPU-bound work
 
 ```java
-BatchExecutionOptions options = BatchExecutionOptions.of("my-task")
+MultiTaskOptions options = MultiTaskOptions.of("my-task")
         .parallelism(4)
         .timeout(Duration.ofSeconds(5))
         .build();
@@ -42,7 +42,7 @@ global.par("myExecutor").map(dataList, item -> {
 }, options);
 ```
 
-The checkpoint task name must match `BatchExecutionOptions.of(taskName)`. The `lean` flag selects `LeanCancellationException` without a stack trace for production paths or the standard `CancellationException` with a stack trace for diagnostics.
+The checkpoint task name must match `MultiTaskOptions.of(taskName)`. The `lean` flag selects `LeanCancellationException` without a stack trace for production paths or the standard `CancellationException` with a stack trace for diagnostics.
 
 ## Checkpoints API
 

@@ -6,7 +6,7 @@
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(name, executor)` |
 | `new Par(config)` | `global.par(name)` |
-| `ParOptions` | `BatchExecutionOptions` |
+| `ParOptions` | `MultiTaskOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` 的 timeout/listener 默认值 | `GlobalExecutionPolicy` |
 | `ParConfig` 的 livelock 设置 | `GlobalParDeadlockPolicy` |
@@ -14,9 +14,39 @@
 | 调用时按名称解析执行器 | `GlobalPar` 构建期绑定执行器 |
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` 作用域 |
 
-新的类型边界是刻意设计：`BatchExecutionOptions` 是调用方输入，`BatchExecutionContext` 是单批运行时状态。取消、deadline 和执行器 identity 通过父子批次上下文传播，也支持跨具名 `Par` 的嵌套调用。
+新的类型边界是刻意设计：`MultiTaskOptions` 是调用方输入，`MultiTaskContext` 是单批运行时状态。取消、deadline 和执行器 identity 通过父子批次上下文传播，也支持跨具名 `Par` 的嵌套调用。
 
-早期 `0.2.x` 快照曾将该类型命名为 `ExecutionOptions`。请将 import、变量声明和 `Par.map` 参数统一改为 `BatchExecutionOptions`；在 `0.x` 阶段不保留兼容别名。
+早期 `0.2.x` 快照曾将该类型命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`。请将 import、变量声明和 `Par.map` 参数统一改为 `MultiTaskOptions`；在 `0.x` 阶段不保留兼容别名。
+
+单次调用的运行时上下文也因同样理由改名：原 `BatchExecutionContext` 现为 `MultiTaskContext`，因为它同时支撑 `Par.map` 批次与任务组成员。请更新 import 与 `resolve(...)` 调用点；`batchId()`、`batchContext()` 等访问器名称不变。
+
+批次与任务组的选项类型已统一为单一的 `MultiTaskOptions`；原先的 `BatchExecutionOptions`
+和 `TaskGroupOptions` 已删除。`taskName()`/`groupName()` 访问器及对应的 builder 方法统一为
+`name()`；其余 builder 方法名称不变。批次读取 name/parallelism/timeout/taskType/rejectEnqueue；
+任务组读取 name/timeout/listeners，成员的执行策略按 `TaskGroupSpec.Builder.task` 逐个传入。
+
+`MultiTaskOptions.timeout` 现在必须在两个互斥的 builder 声明中显式二选一：
+`timeout(Duration)` 设置正数显式超时，`inheritTimeout()` 声明继承外层作用域的 deadline。
+两者都未声明或同时声明时 `build()` 抛出 `IllegalArgumentException`。访问器由
+`Duration timeout()` 改为 `Optional<Duration> timeout()`；空值表示继承。
+`GlobalExecutionPolicy.defaultTimeoutMillis` 已删除，不再存在隐式的全局默认超时。
+`MultiTaskContext.resolve` 相应不再接收 policy 参数，调用时删除该实参。
+
+deadline 解析遵循统一规则：显式 timeout 取自身上限与外层硬 deadline 的较早者；继承时解析为
+外层 deadline——`Par.map` 批次或任务组继承所在 scoped task 的 deadline，组成员继承组的
+deadline。没有外层 deadline 可继承时，入口点直接拒绝：顶层 `Par.map` 与顶层
+`TaskGroup.submit` 都抛出 `IllegalArgumentException`，提示改用 `timeout(Duration)`。
+
+任务组 API 现在以不可变、可复用的 spec 为中心。请把早期的 builder 流程——
+`GlobalPar.taskGroupBuilder(options)`、`ParallelTaskGroup.Builder.addTask(name, par, callable,
+options)`、一次性的 `buildAndSubmitAll()` 和 `ParallelTaskGroup.TaskHandle<T>`——替换为
+`TaskGroupSpec.builder(groupOptions)`、`TaskGroupSpec.Builder.task(memberName, executorName,
+callable, options)`、一次性的 `TaskGroup.submit(global, spec)` 和 `TaskRef<T>`。
+成员按注册名而不是 `Par` 对象引用执行器。`task()` 返回的 `TaskRef<T>` 是不携带执行状态的类型化
+令牌；提交后通过 `group.future(ref)` 取回成员 future。spec 不捕获线程上下文，结构父任务与观测
+作用域在每次 `submit` 时按提交线程解析，因此同一个 spec 可以重复提交。组入口类本身也由
+`ParallelTaskGroup` 改名为 `TaskGroup`，归入 `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener`
+家族。早期 builder API 从未作为稳定契约发布，因此不提供兼容 shim。
 
 早期快照还曾将这套检测命名为 `GlobalParLivelockPolicy` 和 `LivelockListener`。请分别改为 `GlobalParDeadlockPolicy` 和 `DeadlockDetectionListener`；当前检测针对依赖图中的潜在死锁结构，不证明运行时已经死锁，也不检测活锁。
 

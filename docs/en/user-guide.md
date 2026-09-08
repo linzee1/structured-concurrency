@@ -2,11 +2,11 @@
 
 > This guide documents the current `0.2.0-SNAPSHOT` API. `0.1.x` examples using `ParConfig` or `ParOptions` do not compile against this version; see the [migration guide](migration-v0.2.md).
 
-`parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `BatchExecutionContext` owns one invocation's runtime state.
+`parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
-It also coordinates a fixed heterogeneous set of named operations through `ParallelTaskGroup`. A
-group is configured first and submitted at one explicit build boundary; it is not a dynamically
-growing batch.
+It also coordinates a fixed heterogeneous set of named operations through `TaskGroup`. A
+group is described as a reusable `TaskGroupSpec` and submitted at one explicit boundary; it is not
+a dynamically growing batch.
 
 ## Build the execution topology
 
@@ -14,7 +14,6 @@ Create `GlobalPar` at the composition root. Register every logical entry with th
 
 ```java
 GlobalExecutionPolicy defaults = GlobalExecutionPolicy.builder()
-        .defaultTimeoutMillis(10_000)
         .taskListener(metricsListener)
         .build();
 
@@ -41,10 +40,10 @@ Prefer explicit injection in tests and libraries. `installGlobal` is one-time an
 
 ## Execute a batch
 
-`BatchExecutionOptions` is immutable input for one call. The library resolves it with `GlobalExecutionPolicy`, the item count, any parent batch, and the bound executor identity into an internal `BatchExecutionContext`.
+`MultiTaskOptions` is immutable input for one call. The library resolves it with the item count, any parent batch, and the bound executor identity into an internal `MultiTaskContext`.
 
 ```java
-BatchExecutionOptions options = BatchExecutionOptions.of("fetch-account")
+MultiTaskOptions options = MultiTaskOptions.of("fetch-account")
         .taskType(TaskType.IO_BOUND)
         .parallelism(16)
         .timeout(Duration.ofSeconds(5))
@@ -59,41 +58,50 @@ AsyncBatchResult<Account> result = httpPar.map(
 List<ListenableFuture<Account>> futures = result.results();
 ```
 
-`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. An explicit timeout must be positive; omitted timeout uses the global default. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
+`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice: call `timeout(Duration)` for an explicit positive bound, or `inheritTimeout()` to adopt the enclosing scope's deadline — `build()` rejects a builder that declares neither or both. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
 ## Execute a heterogeneous task group
 
 Use a task group when a request has a small fixed set of independent operations that may return
-different types or use different `Par` entries. `addTask` only records definitions. It does not
-create execution contexts, capture TTL values, start timers, or submit work. `buildAndSubmitAll`
-freezes the complete set, prepares every member, and then submits them.
+different types or use different `Par` entries. A group is described by a `TaskGroupSpec`: an
+immutable, reusable, pure-data description. `TaskGroupSpec.Builder.task` only records a definition;
+it does not create execution contexts, capture TTL values, start timers, or submit work.
+`TaskGroup.submit(global, spec)` resolves the calling thread's context at submission time,
+freezes the complete member set, prepares every member, and then submits them.
+
+Groups and batches share one option type, `MultiTaskOptions`: the group reads name, timeout,
+and listeners, while each member reads the execution subset (parallelism, task type, enqueue
+policy, timeout). Members typically declare `inheritTimeout()` so they run under the group
+deadline; an explicit member timeout is capped by it. A group that declares `inheritTimeout()`
+must be submitted from inside a scoped task, otherwise `submit` is rejected.
 
 ```java
-ParallelTaskGroup.Builder builder = global.taskGroupBuilder(
-        TaskGroupOptions.of("account-page")
+TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
+        MultiTaskOptions.of("account-page")
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-ParallelTaskGroup.TaskHandle<User> user = builder.addTask(
-        "user", databasePar, userRepository::load,
-        BatchExecutionOptions.of("load-user").build());
-ParallelTaskGroup.TaskHandle<List<Order>> orders = builder.addTask(
-        "orders", httpPar, orderClient::load,
-        BatchExecutionOptions.of("load-orders").taskType(TaskType.IO_BOUND).build());
+TaskRef<User> user = spec.task(
+        "user", "database", userRepository::load,
+        MultiTaskOptions.of("load-user").inheritTimeout().build());
+TaskRef<List<Order>> orders = spec.task(
+        "orders", "http", orderClient::load,
+        MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
-try (ParallelTaskGroup group = builder.buildAndSubmitAll()) {
-    User userValue = user.future().get();
-    List<Order> orderValues = orders.future().get();
+try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
+    User userValue = group.future(user).get();
+    List<Order> orderValues = group.future(orders).get();
     TaskGroupResult result = group.completionFuture().get();
 }
 ```
 
-The builder is one-shot and not thread-safe. A `TaskHandle` is type-safe, but its `future()` is
-available only after a successful build. Group completion always returns a `TaskGroupResult`;
-`FAILED`, `TIMEOUT`, and `CANCELED` are result reasons rather than failures of the completion
-future. Individual member futures retain normal Guava success, failure, and cancellation behavior.
+A `TaskRef` is a type-safe token handed out while configuring the spec; after submission,
+`group.future(ref)` resolves the member's future. Group completion always returns a
+`TaskGroupResult`; `FAILED`, `TIMEOUT`, and `CANCELED` are result reasons rather than failures of
+the completion future. Individual member futures retain normal Guava success, failure, and
+cancellation behavior.
 
 Group cancellation is fully structured, matching batch semantics: the first member failure, a
 direct cancellation of any member future or member token, the group deadline, or any single member
@@ -101,10 +109,12 @@ deadline cancels every unfinished member. `group.cancel()` and `close()` cancel 
 without blocking. Member outcomes are attributed from the cancellation tokens, so a cancelled
 member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` rather than a bare
 cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
-member deadlines start at the build boundary, and member deadlines are capped by the group
-deadline. A group built inside a scoped task inherits outer cancellation and its deadline ceiling;
-each member remains a real child task, while membership itself does not add dependency edges
-between siblings.
+member deadlines start at the submission boundary, and member deadlines are capped by the group
+deadline. A group submitted inside a scoped task inherits outer cancellation and its deadline
+ceiling; cancellation propagated from an ancestor keeps its originating reason
+(`CancellationToken.originState()`), so an ancestor deadline expiring still converges the group as
+`TIMEOUT` rather than a plain `CANCELED`. Each member remains a real child task, while membership
+itself does not add dependency edges between siblings.
 
 ## Cancellation and nested batches
 
@@ -120,7 +130,7 @@ httpPar.map(accountIds, id -> {
 }, options);
 ```
 
-Nested `map` calls inherit the current `BatchExecutionContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
+Nested `map` calls inherit the current `MultiTaskContext` when they run inside a task. The child receives the parent cancellation token and deadline, records an edge to the parent, and may target a different `Par`:
 
 ```java
 databasePar.map(ids, id -> {
@@ -195,4 +205,4 @@ Consumers can still take elements that were queued before `close()`; no recovery
 - Keep registered executor ownership outside the library; shut executors down in the owning component.
 - Give each batch a stable task name and add checkpoints to long CPU work.
 - Use different `Par` entries for resources that require isolation, even when both are IO-bound.
-- Treat `BatchExecutionContext`, `ExecutorRuntime`, and `ExecutorIdentity` as runtime/internal concepts, not configuration objects to cache or construct.
+- Treat `MultiTaskContext`, `ExecutorRuntime`, and `ExecutorIdentity` as runtime/internal concepts, not configuration objects to cache or construct.

@@ -3,6 +3,7 @@ package io.github.huatalk.parallelinscope.scope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.huatalk.parallelinscope.spi.TaskListener;
 import org.junit.jupiter.api.Test;
 
 /** Builder validation matrix for {@link GlobalPar} policies and its policy overrides. */
@@ -97,7 +98,8 @@ class GlobalParPoliciesTest {
         assertThat(deadlock.build().enabled()).isTrue();
 
         GlobalExecutionPolicy.Builder execution = GlobalExecutionPolicy.builder();
-        assertThat(execution.defaultTimeoutMillis(1234L)).isSameAs(execution);
-        assertThat(execution.build().defaultTimeoutMillis()).isEqualTo(1234L);
+        TaskListener listener = event -> {};
+        assertThat(execution.taskListener(listener)).isSameAs(execution);
+        assertThat(execution.build().taskListeners()).containsExactly(listener);
     }
 }
