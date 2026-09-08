@@ -118,6 +118,40 @@ ceiling; cancellation propagated from an ancestor keeps its originating reason
 `TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while membership
 itself does not add dependency edges between siblings.
 
+### Terminal combine
+
+When the request ends by assembling the member values into one result, the definition can declare
+a single terminal combine instead of wiring `Futures` callbacks yourself. The combine is a real
+scoped task — prepared at submit like a member, but submitted to its own `Par` only after every
+member succeeds — so it inherits the group's structured cancellation, deadline, and observability:
+
+```java
+TaskRef<AccountPage> page = definition.combine(
+        new TaskRef<AccountPage>("assemble-page") {},
+        "cpu",
+        values -> new AccountPage(values.value(user), values.value(orders)),
+        MultiTaskOptions.of("assemble-page").inheritTimeout().build());
+
+try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
+    AccountPage accountPage = group.future(page).get();
+}
+```
+
+The `CompletedTaskValues` view is non-blocking and exposes only successful member values through
+the registered `TaskRef` tokens — no futures, no name-keyed map. The combine function runs exactly
+once on a worker of the named `Par` (never on a member's completion thread; a rejected combine
+fails as `SUBMISSION_FAILURE` instead of running inline), and it must be a pure function of member
+values and configuration-time captures: it is scheduled the moment the last member succeeds, so
+state created by the submitting thread after `submit` returns is not visible to it — read the
+member futures directly for that. A group accepts at most one combine, declared with its own
+`TaskRef`; `group.future(combineRef)` resolves the typed terminal future with normal Guava
+semantics. If any member fails, the combine never runs and the terminal future is cancelled with
+the group's attributed outcome. The combine's snapshot appears as `TaskGroupResult.terminal()`
+(`members()` stays member-only), and when the combine itself fails or is rejected,
+`failedMemberName()` carries the combine's registered name. The group deadline spans the fan-out
+and the combine, so a combine whose members consumed most of the budget may time out before it
+starts — that is the intended end-to-end semantics.
+
 ## Cancellation and nested batches
 
 Any task failure triggers fail-fast cancellation for its batch. A timeout, explicit `CancellationToken` cancellation, or cancellation of a parent batch has the same cooperative boundary: queued work is cancelled, blocking work is interrupted where possible, and CPU-bound code stops at a checkpoint.

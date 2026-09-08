@@ -190,6 +190,22 @@ public class CancellationToken {
     }
 
     /**
+     * Cancels this token as a fail-fast cancellation, committing {@code FAIL_FAST} before the
+     * cascade runs.
+     *
+     * <p>Intended for {@code io.github.monadrome.parallelinscope.scope.TaskGroup}'s terminal
+     * combine: the combine is always the last task to complete, so its failure must commit the
+     * group state synchronously — convergence reading the token must not observe a still-{@code
+     * RUNNING} group and misattribute the terminal business failure as a cancellation. Member
+     * failures keep the established rule and do not use this path.
+     */
+    public void failFastCancel() {
+        if (transitionTo(FAIL_FAST)) {
+            futureToken.cancel(true);
+        }
+    }
+
+    /**
      * Returns the current state.
      *
      * @return the current state
