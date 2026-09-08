@@ -4,7 +4,7 @@ import com.google.common.reflect.TypeToken;
 import java.util.Objects;
 
 /**
- * A typed token identifying one member of a {@link TaskGroupSpec}.
+ * A typed token identifying one member of a {@link TaskGroupDefinition}.
  *
  * <p>A {@code TaskRef} captures the member's result type at runtime through an anonymous subclass,
  * in the style of Guava's {@link TypeToken}:
@@ -13,9 +13,9 @@ import java.util.Objects;
  * TaskRef<List<Order>> orders = new TaskRef<List<Order>>("orders") {};
  * }</pre>
  *
- * <p>The token is handed to {@link TaskGroupSpec.Builder#task(TaskRef, String,
+ * <p>The token is handed to {@link TaskGroupDefinition.Builder#task(TaskRef, String,
  * java.util.concurrent.Callable, MultiTaskOptions)} at configuration time. It carries no execution
- * state; after the spec is submitted, the same token resolves the member's future via {@link
+ * state; after the definition is submitted, the same token resolves the member's future via {@link
  * TaskGroup#future(TaskRef)}, which rejects a token whose raw result type does not cover the type
  * the member was registered with.
  */

@@ -10,19 +10,19 @@ import java.util.concurrent.Callable;
 /**
  * Immutable, reusable, pure-data description of one heterogeneous task group.
  *
- * <p>A spec captures only configuration: the group-level {@link MultiTaskOptions} (of which the
+ * <p>A definition captures only configuration: the group-level {@link MultiTaskOptions} (of which the
  * group reads name, timeout, and listeners) and the ordered member definitions. It binds no thread
  * context, executor, or deadline; those are resolved from the submitting environment at each
- * {@link TaskGroup#submit(GlobalPar, TaskGroupSpec)} call, so one spec can be submitted
+ * {@link TaskGroup#submit(GlobalPar, TaskGroupDefinition)} call, so one definition can be submitted
  * repeatedly.
  */
-public final class TaskGroupSpec {
+public final class TaskGroupDefinition {
     private final MultiTaskOptions groupOptions;
-    private final List<MemberSpec<?>> members;
+    private final List<TaskDefinition<?>> tasks;
 
-    private TaskGroupSpec(Builder builder) {
+    private TaskGroupDefinition(Builder builder) {
         this.groupOptions = builder.groupOptions;
-        this.members = Collections.unmodifiableList(new ArrayList<>(builder.members.values()));
+        this.tasks = Collections.unmodifiableList(new ArrayList<>(builder.tasks.values()));
     }
 
     public static Builder builder(MultiTaskOptions groupOptions) {
@@ -34,19 +34,19 @@ public final class TaskGroupSpec {
         return groupOptions;
     }
 
-    /** Ordered member definitions; an empty list describes an immediately successful group. */
-    public List<MemberSpec<?>> members() {
-        return members;
+    /** Ordered task definitions; an empty list describes an immediately successful group. */
+    public List<TaskDefinition<?>> tasks() {
+        return tasks;
     }
 
     /** Immutable description of one group member. */
-    public static final class MemberSpec<T> {
+    public static final class TaskDefinition<T> {
         private final TaskRef<T> ref;
         private final String executorName;
         private final Callable<T> callable;
         private final MultiTaskOptions options;
 
-        private MemberSpec(TaskRef<T> ref, String executorName, Callable<T> callable, MultiTaskOptions options) {
+        private TaskDefinition(TaskRef<T> ref, String executorName, Callable<T> callable, MultiTaskOptions options) {
             this.ref = ref;
             this.executorName = executorName;
             this.callable = callable;
@@ -79,7 +79,7 @@ public final class TaskGroupSpec {
     /** Configuration builder; each {@link #task} call is validated immediately. */
     public static final class Builder {
         private final MultiTaskOptions groupOptions;
-        private final LinkedHashMap<String, MemberSpec<?>> members = new LinkedHashMap<>();
+        private final LinkedHashMap<String, TaskDefinition<?>> tasks = new LinkedHashMap<>();
 
         private Builder(MultiTaskOptions groupOptions) {
             this.groupOptions = Objects.requireNonNull(groupOptions, "groupOptions cannot be null");
@@ -96,15 +96,15 @@ public final class TaskGroupSpec {
             Objects.requireNonNull(executorName, "executorName cannot be null");
             Objects.requireNonNull(callable, "callable cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
-            if (members.containsKey(ref.memberName())) {
+            if (tasks.containsKey(ref.memberName())) {
                 throw new IllegalArgumentException("Duplicate memberName '" + ref.memberName() + "'");
             }
-            members.put(ref.memberName(), new MemberSpec<>(ref, executorName, callable, options));
+            tasks.put(ref.memberName(), new TaskDefinition<>(ref, executorName, callable, options));
             return ref;
         }
 
-        public TaskGroupSpec build() {
-            return new TaskGroupSpec(this);
+        public TaskGroupDefinition build() {
+            return new TaskGroupDefinition(this);
         }
     }
 }

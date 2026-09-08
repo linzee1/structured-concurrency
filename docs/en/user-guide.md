@@ -5,7 +5,7 @@
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
 It also coordinates a fixed heterogeneous set of named operations through `TaskGroup`. A
-group is described as a reusable `TaskGroupSpec` and submitted at one explicit boundary; it is not
+group is described as a reusable `TaskGroupDefinition` and submitted at one explicit boundary; it is not
 a dynamically growing batch.
 
 ## Build the execution topology
@@ -61,10 +61,10 @@ The returned futures remain in input order. If failure, timeout, cancellation, s
 ## Execute a heterogeneous task group
 
 Use a task group when a request has a small fixed set of independent operations that may return
-different types or use different `Par` entries. A group is described by a `TaskGroupSpec`: an
-immutable, reusable, pure-data description. `TaskGroupSpec.Builder.task` only records a definition;
+different types or use different `Par` entries. A group is described by a `TaskGroupDefinition`: an
+immutable, reusable, pure-data description. `TaskGroupDefinition.Builder.task` only records a definition;
 it does not create execution contexts, capture TTL values, start timers, or submit work.
-`TaskGroup.submit(global, spec)` resolves the calling thread's context at submission time,
+`TaskGroup.submit(global, definition)` resolves the calling thread's context at submission time,
 freezes the complete member set, prepares every member, and then submits them.
 
 Groups and batches share one option type, `MultiTaskOptions`: the group reads name, timeout,
@@ -76,21 +76,21 @@ capped by it. A group that declares `inheritTimeout()` must be submitted from in
 task, otherwise `submit` is rejected.
 
 ```java
-TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
+TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
         MultiTaskOptions.of("account-page")
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-TaskRef<User> user = spec.task(
+TaskRef<User> user = definition.task(
         new TaskRef<User>("user") {},
         "database", userRepository::load,
         MultiTaskOptions.of("load-user").inheritTimeout().build());
-TaskRef<List<Order>> orders = spec.task(
+TaskRef<List<Order>> orders = definition.task(
         new TaskRef<List<Order>>("orders") {},
         "http", orderClient::load,
         MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
-try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
+try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
     List<Order> orderValues = group.future(orders).get();
     TaskGroupResult result = group.completionFuture().get();
@@ -98,7 +98,7 @@ try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
 ```
 
 A `TaskRef` is a type-safe token created as an anonymous subclass so the member's result type is
-captured at runtime; it is registered while configuring the spec, and after submission
+captured at runtime; it is registered while configuring the definition, and after submission
 `group.future(ref)` resolves the member's future, rejecting a ref whose raw result type does not
 cover the registered one. Group completion always returns a
 `TaskGroupResult`; the group outcome (`result.outcome()`, a `TaskOutcome`) is result data rather

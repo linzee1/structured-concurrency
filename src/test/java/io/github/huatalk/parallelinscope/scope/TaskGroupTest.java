@@ -41,19 +41,19 @@ class TaskGroupTest {
                 .build();
         try {
             AtomicInteger executions = new AtomicInteger();
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("page"));
-            TaskRef<String> text = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+            TaskRef<String> text = definition.task(
                     new TaskRef<>("text") {},
                     "first",
                     () -> "value-" + executions.incrementAndGet(),
                     memberOptions("text"));
-            TaskRef<Integer> number = spec.task(
+            TaskRef<Integer> number = definition.task(
                     new TaskRef<>("number") {},
                     "second",
                     () -> 40 + executions.incrementAndGet(),
                     memberOptions("number"));
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             assertThat(group.future(text).get(2, TimeUnit.SECONDS)).startsWith("value-");
             assertThat(group.future(number).get(2, TimeUnit.SECONDS)).isBetween(41, 42);
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -80,8 +80,8 @@ class TaskGroupTest {
         try {
             AtomicInteger calls = new AtomicInteger();
             ttl.set("configure");
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("ttl"));
-            TaskRef<String> member = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("ttl"));
+            TaskRef<String> member = definition.task(
                     new TaskRef<>("member") {},
                     "worker",
                     () -> {
@@ -92,7 +92,7 @@ class TaskGroupTest {
 
             assertThat(calls).hasValue(0);
             ttl.set("submit");
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
 
             assertThat(group.future(member).get(2, TimeUnit.SECONDS)).isEqualTo("submit");
             assertThat(calls).hasValue(1);
@@ -109,8 +109,8 @@ class TaskGroupTest {
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         CountDownLatch running = new CountDownLatch(1);
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("fail-fast"));
-            spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("fail-fast"));
+            definition.task(
                     new TaskRef<>("slow") {},
                     "worker",
                     () -> {
@@ -119,7 +119,7 @@ class TaskGroupTest {
                         return 1;
                     },
                     memberOptions("slow"));
-            spec.task(
+            definition.task(
                     new TaskRef<>("failure") {},
                     "worker",
                     () -> {
@@ -128,8 +128,9 @@ class TaskGroupTest {
                     },
                     memberOptions("failure"));
 
-            TaskGroupResult result =
-                    TaskGroup.submit(global, spec.build()).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedMemberName()).isEqualTo("failure");
@@ -146,7 +147,7 @@ class TaskGroupTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         try {
-            TaskGroupSpec.Builder groupDeadline = TaskGroupSpec.builder(MultiTaskOptions.of("group-timeout")
+            TaskGroupDefinition.Builder groupDeadline = TaskGroupDefinition.builder(MultiTaskOptions.of("group-timeout")
                     .timeout(Duration.ofMillis(30))
                     .build());
             groupDeadline.task(
@@ -163,9 +164,10 @@ class TaskGroupTest {
             assertThat(first.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(first.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
 
-            TaskGroupSpec.Builder memberDeadline = TaskGroupSpec.builder(MultiTaskOptions.of("member-timeout")
-                    .timeout(Duration.ofSeconds(2))
-                    .build());
+            TaskGroupDefinition.Builder memberDeadline =
+                    TaskGroupDefinition.builder(MultiTaskOptions.of("member-timeout")
+                            .timeout(Duration.ofSeconds(2))
+                            .build());
             memberDeadline.task(
                     new TaskRef<>("slow") {},
                     "worker",
@@ -191,8 +193,8 @@ class TaskGroupTest {
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("member-cancel"));
-            TaskRef<Integer> canceled = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("member-cancel"));
+            TaskRef<Integer> canceled = definition.task(
                     new TaskRef<>("canceled") {},
                     "worker",
                     () -> {
@@ -200,7 +202,7 @@ class TaskGroupTest {
                         return 1;
                     },
                     memberOptions("canceled"));
-            spec.task(
+            definition.task(
                     new TaskRef<>("sibling") {},
                     "worker",
                     () -> {
@@ -208,7 +210,7 @@ class TaskGroupTest {
                         return 2;
                     },
                     memberOptions("sibling"));
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             group.future(canceled).cancel(true);
 
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -227,10 +229,10 @@ class TaskGroupTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(MultiTaskOptions.of("member-timeout")
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(MultiTaskOptions.of("member-timeout")
                     .timeout(Duration.ofSeconds(2))
                     .build());
-            spec.task(
+            definition.task(
                     new TaskRef<>("slow") {},
                     "worker",
                     () -> {
@@ -238,7 +240,7 @@ class TaskGroupTest {
                         return 1;
                     },
                     MultiTaskOptions.of("slow").timeout(Duration.ofMillis(50)).build());
-            spec.task(
+            definition.task(
                     new TaskRef<>("sibling") {},
                     "worker",
                     () -> {
@@ -247,8 +249,9 @@ class TaskGroupTest {
                     },
                     memberOptions("sibling"));
 
-            TaskGroupResult result =
-                    TaskGroup.submit(global, spec.build()).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -266,10 +269,10 @@ class TaskGroupTest {
         try {
             // "tight" binds its own stricter deadline; "shared" resolves to exactly the group
             // deadline and skips the member bind. Both paths must still attribute TIMEOUT.
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(MultiTaskOptions.of("mixed-deadlines")
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(MultiTaskOptions.of("mixed-deadlines")
                     .timeout(Duration.ofSeconds(2))
                     .build());
-            spec.task(
+            definition.task(
                     new TaskRef<>("tight") {},
                     "worker",
                     () -> {
@@ -277,7 +280,7 @@ class TaskGroupTest {
                         return 1;
                     },
                     MultiTaskOptions.of("tight").timeout(Duration.ofMillis(50)).build());
-            spec.task(
+            definition.task(
                     new TaskRef<>("shared") {},
                     "worker",
                     () -> {
@@ -286,8 +289,9 @@ class TaskGroupTest {
                     },
                     MultiTaskOptions.of("shared").timeout(Duration.ofSeconds(2)).build());
 
-            TaskGroupResult result =
-                    TaskGroup.submit(global, spec.build()).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(result.members().get("tight").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -313,10 +317,11 @@ class TaskGroupTest {
         try {
             // The member inherits the group deadline, so its token is never bound; propagation to
             // the nested batch rides the token constructor listener chain alone.
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(MultiTaskOptions.of("nested-propagation")
-                    .timeout(Duration.ofMillis(50))
-                    .build());
-            spec.task(
+            TaskGroupDefinition.Builder definition =
+                    TaskGroupDefinition.builder(MultiTaskOptions.of("nested-propagation")
+                            .timeout(Duration.ofMillis(50))
+                            .build());
+            definition.task(
                     new TaskRef<>("member") {},
                     "outer",
                     () -> {
@@ -350,7 +355,7 @@ class TaskGroupTest {
                     },
                     MultiTaskOptions.of("member").inheritTimeout().build());
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             assertThat(nestedRunning.await(2, TimeUnit.SECONDS)).isTrue();
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
@@ -384,9 +389,9 @@ class TaskGroupTest {
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         CountDownLatch started = new CountDownLatch(2);
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("cancel"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("cancel"));
             for (String name : Arrays.asList("one", "two")) {
-                spec.task(
+                definition.task(
                         new TaskRef<>(name) {},
                         "worker",
                         () -> {
@@ -396,7 +401,7 @@ class TaskGroupTest {
                         },
                         memberOptions(name));
             }
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
             group.cancel();
@@ -420,8 +425,8 @@ class TaskGroupTest {
         try {
             Thread submitThread = Thread.currentThread();
             AtomicReference<Thread> firstThread = new AtomicReference<>();
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("inline"));
-            TaskRef<Integer> first = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inline"));
+            TaskRef<Integer> first = definition.task(
                     new TaskRef<>("first") {},
                     "direct",
                     () -> {
@@ -429,9 +434,10 @@ class TaskGroupTest {
                         return 1;
                     },
                     memberOptions("first"));
-            TaskRef<Integer> second = spec.task(new TaskRef<>("second") {}, "direct", () -> 2, memberOptions("second"));
+            TaskRef<Integer> second =
+                    definition.task(new TaskRef<>("second") {}, "direct", () -> 2, memberOptions("second"));
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
 
             assertThat(firstThread.get()).isSameAs(submitThread);
             assertThat(group.members().keySet()).containsExactly("first", "second");
@@ -454,8 +460,8 @@ class TaskGroupTest {
                 .build();
         AtomicInteger calls = new AtomicInteger();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("rejection"));
-            spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("rejection"));
+            definition.task(
                     new TaskRef<>("rejected") {},
                     "reject",
                     () -> 1,
@@ -463,10 +469,11 @@ class TaskGroupTest {
                             .taskType(TaskType.IO_BOUND)
                             .timeout(Duration.ofSeconds(30))
                             .build());
-            spec.task(new TaskRef<>("later") {}, "normal", calls::incrementAndGet, memberOptions("later"));
+            definition.task(new TaskRef<>("later") {}, "normal", calls::incrementAndGet, memberOptions("later"));
 
-            TaskGroupResult result =
-                    TaskGroup.submit(global, spec.build()).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -495,11 +502,12 @@ class TaskGroupTest {
                     })
                     .timeout(Duration.ofSeconds(30))
                     .build();
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(options);
-            spec.task(new TaskRef<>("one") {}, "direct", () -> 1, memberOptions("one"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options);
+            definition.task(new TaskRef<>("one") {}, "direct", () -> 1, memberOptions("one"));
 
-            TaskGroupResult result =
-                    TaskGroup.submit(global, spec.build()).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
 
             assertThat(observed.get()).isSameAs(result);
             assertThat(current.get()).isNull();
@@ -510,25 +518,28 @@ class TaskGroupTest {
     }
 
     @Test
-    void specValidatesMembersAndIsReusableAcrossSubmits() throws Exception {
+    void definitionValidatesTasksAndIsReusableAcrossSubmits() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("spec"));
-            spec.task(new TaskRef<>("one") {}, "worker", () -> 1, memberOptions("one"));
-            assertThatThrownBy(() -> spec.task(new TaskRef<>("one") {}, "worker", () -> 2, memberOptions("two")))
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("definition"));
+            definition.task(new TaskRef<>("one") {}, "worker", () -> 1, memberOptions("one"));
+            assertThatThrownBy(() -> definition.task(new TaskRef<>("one") {}, "worker", () -> 2, memberOptions("two")))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> spec.task(new TaskRef<>(" ") {}, "worker", () -> 2, memberOptions("blank")))
+            assertThatThrownBy(() -> definition.task(new TaskRef<>(" ") {}, "worker", () -> 2, memberOptions("blank")))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> spec.task(null, "worker", () -> 2, memberOptions("null")))
+            assertThatThrownBy(() -> definition.task(null, "worker", () -> 2, memberOptions("null")))
                     .isInstanceOf(NullPointerException.class);
 
-            TaskGroupSpec.Builder unknownExecutor = TaskGroupSpec.builder(groupOptions("unknown"));
+            TaskGroupDefinition.Builder unknownExecutor = TaskGroupDefinition.builder(groupOptions("unknown"));
             unknownExecutor.task(new TaskRef<>("member") {}, "missing", () -> 1, memberOptions("member"));
             assertThatThrownBy(() -> TaskGroup.submit(global, unknownExecutor.build()))
                     .isInstanceOf(IllegalArgumentException.class);
 
-            TaskGroupSpec reusable = spec.build();
+            TaskGroupDefinition reusable = definition.build();
+            assertThat(reusable.tasks())
+                    .extracting(TaskGroupDefinition.TaskDefinition::memberName)
+                    .containsExactly("one");
             TaskGroup first = TaskGroup.submit(global, reusable);
             TaskGroup second = TaskGroup.submit(global, reusable);
             assertThat(first.groupId()).isNotEqualTo(second.groupId());
@@ -557,11 +568,11 @@ class TaskGroupTest {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global = GlobalPar.builder().register("direct", direct).build();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("typed"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("typed"));
             TaskRef<Integer> member =
-                    spec.task(new TaskRef<Integer>("member") {}, "direct", () -> 1, memberOptions("member"));
+                    definition.task(new TaskRef<Integer>("member") {}, "direct", () -> 1, memberOptions("member"));
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
 
             assertThat(group.future(member).get(2, TimeUnit.SECONDS)).isEqualTo(1);
             // A supertype ref is sound: the member result is assignable to it.
@@ -582,13 +593,13 @@ class TaskGroupTest {
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         try {
             TaskGroup empty = TaskGroup.submit(
-                    global, TaskGroupSpec.builder(groupOptions("empty")).build());
+                    global, TaskGroupDefinition.builder(groupOptions("empty")).build());
             assertThat(empty.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
 
             global.close();
             assertThatThrownBy(() -> TaskGroup.submit(
                             global,
-                            TaskGroupSpec.builder(groupOptions("closed")).build()))
+                            TaskGroupDefinition.builder(groupOptions("closed")).build()))
                     .isInstanceOf(IllegalStateException.class);
         } finally {
             global.close();
@@ -601,14 +612,14 @@ class TaskGroupTest {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global = GlobalPar.builder().register("direct", direct).build();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("inherit-member"));
-            TaskRef<Long> member = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inherit-member"));
+            TaskRef<Long> member = definition.task(
                     new TaskRef<>("member") {},
                     "direct",
                     () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member").inheritTimeout().build());
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.future(member).get(2, TimeUnit.SECONDS)).isEqualTo(result.deadlineNanos());
@@ -623,8 +634,8 @@ class TaskGroupTest {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global = GlobalPar.builder().register("direct", direct).build();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("tight-member"));
-            TaskRef<Long> member = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("tight-member"));
+            TaskRef<Long> member = definition.task(
                     new TaskRef<>("member") {},
                     "direct",
                     () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
@@ -632,7 +643,7 @@ class TaskGroupTest {
                             .timeout(Duration.ofMillis(100))
                             .build());
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.future(member).get(2, TimeUnit.SECONDS)).isLessThan(result.deadlineNanos());
@@ -651,8 +662,8 @@ class TaskGroupTest {
                 .register("inner", inner)
                 .build();
         try {
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("nested-batch"));
-            TaskRef<long[]> member = spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("nested-batch"));
+            TaskRef<long[]> member = definition.task(
                     new TaskRef<>("member") {},
                     "outer",
                     () -> {
@@ -678,7 +689,7 @@ class TaskGroupTest {
                     },
                     MultiTaskOptions.of("member").inheritTimeout().build());
 
-            TaskGroup group = TaskGroup.submit(global, spec.build());
+            TaskGroup group = TaskGroup.submit(global, definition.build());
             long[] deadlines = group.future(member).get(2, TimeUnit.SECONDS);
 
             assertThat(deadlines[1]).isEqualTo(deadlines[0]);
@@ -702,7 +713,7 @@ class TaskGroupTest {
         try {
             assertThatThrownBy(() -> TaskGroup.submit(
                             global,
-                            TaskGroupSpec.builder(MultiTaskOptions.of("orphan")
+                            TaskGroupDefinition.builder(MultiTaskOptions.of("orphan")
                                             .inheritTimeout()
                                             .build())
                                     .build()))
@@ -716,10 +727,11 @@ class TaskGroupTest {
                                 long outerDeadline = TaskExecutionContext.current()
                                         .multiTaskContext()
                                         .deadlineNanos();
-                                TaskGroupSpec.Builder spec = TaskGroupSpec.builder(MultiTaskOptions.of("nested-group")
-                                        .inheritTimeout()
-                                        .build());
-                                spec.task(
+                                TaskGroupDefinition.Builder definition =
+                                        TaskGroupDefinition.builder(MultiTaskOptions.of("nested-group")
+                                                .inheritTimeout()
+                                                .build());
+                                definition.task(
                                         new TaskRef<>("child") {},
                                         "inner",
                                         () -> 1,
@@ -727,7 +739,7 @@ class TaskGroupTest {
                                                 .inheritTimeout()
                                                 .build());
                                 try {
-                                    TaskGroupResult result = TaskGroup.submit(global, spec.build())
+                                    TaskGroupResult result = TaskGroup.submit(global, definition.build())
                                             .completionFuture()
                                             .get(2, TimeUnit.SECONDS);
                                     assertThat(result.deadlineNanos()).isEqualTo(outerDeadline);
@@ -761,15 +773,16 @@ class TaskGroupTest {
                             ignored -> {
                                 MultiTaskContext expectedParent =
                                         TaskExecutionContext.current().multiTaskContext();
-                                TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("nested"));
-                                TaskRef<MultiTaskContext> child = spec.task(
+                                TaskGroupDefinition.Builder definition =
+                                        TaskGroupDefinition.builder(groupOptions("nested"));
+                                TaskRef<MultiTaskContext> child = definition.task(
                                         new TaskRef<>("child") {},
                                         "inner",
                                         () -> TaskExecutionContext.current()
                                                 .multiTaskContext()
                                                 .structuralParent(),
                                         memberOptions("child"));
-                                TaskGroup group = TaskGroup.submit(global, spec.build());
+                                TaskGroup group = TaskGroup.submit(global, definition.build());
                                 try {
                                     assertThat(group.future(child).get(2, TimeUnit.SECONDS))
                                             .isSameAs(expectedParent);
@@ -801,8 +814,9 @@ class TaskGroupTest {
                     .map(
                             Arrays.asList(1),
                             ignored -> {
-                                TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("nested"));
-                                spec.task(
+                                TaskGroupDefinition.Builder definition =
+                                        TaskGroupDefinition.builder(groupOptions("nested"));
+                                definition.task(
                                         new TaskRef<>("child") {},
                                         "inner",
                                         () -> {
@@ -810,7 +824,7 @@ class TaskGroupTest {
                                             return 1;
                                         },
                                         memberOptions("child"));
-                                nestedGroup.set(TaskGroup.submit(global, spec.build()));
+                                nestedGroup.set(TaskGroup.submit(global, definition.build()));
                                 try {
                                     new CountDownLatch(1).await(10, TimeUnit.SECONDS);
                                 } catch (InterruptedException interrupted) {
@@ -843,7 +857,7 @@ class TaskGroupTest {
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         try {
             TaskGroup group = TaskGroup.submit(
-                    global, TaskGroupSpec.builder(groupOptions("named")).build());
+                    global, TaskGroupDefinition.builder(groupOptions("named")).build());
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.groupName()).isEqualTo("named");
@@ -863,13 +877,13 @@ class TaskGroupTest {
         CountDownLatch started = new CountDownLatch(1);
         try {
             TaskGroup completed = TaskGroup.submit(
-                    global, TaskGroupSpec.builder(groupOptions("done")).build());
+                    global, TaskGroupDefinition.builder(groupOptions("done")).build());
             completed.completionFuture().get(2, TimeUnit.SECONDS);
             completed.close(); // must not disturb the recorded result
             assertThat(completed.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
 
-            TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("close-cancel"));
-            spec.task(
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("close-cancel"));
+            definition.task(
                     new TaskRef<>("slow") {},
                     "worker",
                     () -> {
@@ -878,7 +892,7 @@ class TaskGroupTest {
                         return 1;
                     },
                     memberOptions("slow"));
-            TaskGroup unfinished = TaskGroup.submit(global, spec.build());
+            TaskGroup unfinished = TaskGroup.submit(global, definition.build());
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             unfinished.close();
             TaskGroupResult result = unfinished.completionFuture().get(2, TimeUnit.SECONDS);
@@ -910,8 +924,9 @@ class TaskGroupTest {
                                 outerToken.set(TaskExecutionContext.current()
                                         .multiTaskContext()
                                         .cancellationToken());
-                                TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("outer-cancel"));
-                                spec.task(
+                                TaskGroupDefinition.Builder definition =
+                                        TaskGroupDefinition.builder(groupOptions("outer-cancel"));
+                                definition.task(
                                         new TaskRef<>("slow") {},
                                         "inner",
                                         () -> {
@@ -919,7 +934,7 @@ class TaskGroupTest {
                                             return 1;
                                         },
                                         memberOptions("slow"));
-                                TaskGroup group = TaskGroup.submit(global, spec.build());
+                                TaskGroup group = TaskGroup.submit(global, definition.build());
                                 publishedGroup.set(group);
                                 groupBuilt.countDown();
                                 // Stay inside the outer task until the group converges, so the

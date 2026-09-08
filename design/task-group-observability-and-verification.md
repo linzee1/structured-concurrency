@@ -70,9 +70,9 @@ fake-group-batch -> A/B/C
 
 实现和测试必须证明：
 
-1. 每个 memberName 在一个 `TaskGroupSpec` 中至多定义一次；
+1. 每个 memberName 在一个 `TaskGroupDefinition` 中至多定义一次；
 2. 每次 submit 中每个 callable 最多执行一次；
-3. spec 不可变、可复用；每次 submit 冻结的是同一份完整定义；
+3. definition 不可变、可复用；每次 submit 冻结的是同一份完整定义；
 4. Group 一旦发布，其 registry 完整、不可扩展，且每个成员都拥有一个最终终态的公开 future；
 5. executor rejection 不能留下 pending future；
 6. `terminalCount` 对每个成员最多增加一次；
@@ -94,11 +94,11 @@ fake-group-batch -> A/B/C
 3. 同一 `Par` 上多个成员均独立提交，不经过滑动窗口；
 4. 重复 memberName 与 null 参数在 `task()` 配置期拒绝，空白/null 名称在 `TaskRef` 构造期拒绝；未知 executorName 在 submit 时拒绝且没有 callable 执行；`future(ref)` 拒绝 raw 结果类型不覆盖注册类型的令牌；
 5. `task()` 不创建执行上下文、不启动 timer、不提交或执行 callable；
-6. 空 spec submit 返回立即 SUCCESS 的 Group，未创建 timer；`TaskRef` 在 submit 后即可经 `group.future(ref)` 稳定解析。
+6. 空 definition submit 返回立即 SUCCESS 的 Group，未创建 timer；`TaskRef` 在 submit 后即可经 `group.future(ref)` 稳定解析。
 
 ### 14.2 submit 与关闭竞态
 
-7. 同一个 spec 可重复 submit，每次产生独立 Group（不同 groupId）；
+7. 同一个 definition 可重复 submit，每次产生独立 Group（不同 groupId）；
 8. `TaskGroup.submit()` 与 `GlobalPar.close()` 竞争时，要么完整组被接纳，要么 submit 完整拒绝，绝无部分 admission；
 9. direct executor/inline fallback 中，任一 callable 执行前完整成员集合已可查询；
 10. executor rejection 产生 SUBMISSION_FAILURE、触发 fail-fast、所有 future 终态；
@@ -153,4 +153,4 @@ fake-group-batch -> A/B/C
 - 所有冻结 public future 必然终态；
 - TaskGraph 只记录真实结构化依赖；
 - 全量 Maven 测试通过且 Java 8 main source 兼容；
-- 用户文档说明 spec/submit、`TaskRef`、close、cancel、deadline、成员取消和 observation 生命周期。
+- 用户文档说明 definition/submit、`TaskRef`、close、cancel、deadline、成员取消和 observation 生命周期。
