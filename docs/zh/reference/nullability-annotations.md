@@ -44,7 +44,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 | SPI 接口 | JSR-305 | `import javax.annotation.Nullable;` |
 | Internal 类 | Checker Framework | `import org.checkerframework.checker.nullness.qual.Nullable;` |
 
-**Public API 类**：`GlobalPar`, `Par`, `MultiTaskOptions`, `AsyncBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
+**Public API 类**：`GlobalPar`, `Par`, `MultiTaskOptions`, `TaskBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
 
 **SPI 接口**：`TaskListener`, `DeadlockDetectionListener`
 
@@ -54,7 +54,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 - **返回值可能为 null**：仅在 API 明确允许缺省值时标注
 - **参数显式接受 null**：如 `CancellationToken` 的 parent 构造参数可传 `null`
-- **构造器参数可选**：如 `AsyncBatchResult` 构造器的 `submitCanceller` 可以传 null
+- **构造器参数可选**：如 `TaskBatchResult` 构造器的 `submitCanceller` 可以传 null
 
 ### 4. 什么时候不需要标注
 

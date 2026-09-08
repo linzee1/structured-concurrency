@@ -65,21 +65,21 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 外层任务
-BatchExecutionOptions outerOpts = BatchExecutionOptions.of("outer-task")
+MultiTaskOptions outerOpts = MultiTaskOptions.of("outer-task")
         .parallelism(4)
         .timeout(java.time.Duration.ofMillis(10_000))
         .build();
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
-AsyncBatchResult<String> result = par.map( items, item -> {
+TaskBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用同一个 CachedThreadPool，不会死锁
-    BatchExecutionOptions innerOpts = BatchExecutionOptions.of("inner-task")
+    MultiTaskOptions innerOpts = MultiTaskOptions.of("inner-task")
             .parallelism(2)
             .timeout(java.time.Duration.ofMillis(5_000))
             .build();
 
     List<String> subItems = Arrays.asList("a", "b");
-    AsyncBatchResult<String> innerResult = par.map( subItems, sub -> {
+    TaskBatchResult<String> innerResult = par.map( subItems, sub -> {
         return item + "-" + sub;
     }, innerOpts);
 

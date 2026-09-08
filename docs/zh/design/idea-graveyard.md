@@ -19,7 +19,7 @@
 
 fail-fast 是结构化并发的核心语义：一个 scope 内的任务要么全部成功，要么在第一个失败时取消剩余任务。允许"忽略失败继续跑"会引入多种复杂性：
 
-1. **结果模型爆炸。** 调用方需要区分"成功的结果"和"失败的占位符"，`AsyncBatchResult` 的类型签名和使用方式都会复杂化。
+1. **结果模型爆炸。** 调用方需要区分"成功的结果"和"失败的占位符"，`TaskBatchResult` 的类型签名和使用方式都会复杂化。
 2. **取消语义模糊。** 如果允许部分失败继续，那么 `CancellationToken` 的级联逻辑、`allAsList` 的语义都需要分裂成两条路径。
 3. **隐藏了真正的问题。** 如果一个批次中有任务失败，通常意味着整个批次的结果已经不完整，继续执行只是在浪费资源。
 
@@ -57,7 +57,7 @@ Java 生态已经有成熟的编排方案：`CompletableFuture`、Guava `FluentF
 
 ```java
 // 阶段 1：批量获取
-AsyncBatchResult<Price> prices = par.map("io-pool", skuList, this::fetchPrice, opts);
+TaskBatchResult<Price> prices = par.map("io-pool", skuList, this::fetchPrice, opts);
 
 // 阶段 2：用 Guava 编排后续逻辑
 ListenableFuture<List<Price>> allPrices = Futures.allAsList(prices.getResults());
@@ -174,7 +174,7 @@ par.map("io-pool", urls, url -> {
 **为什么不做：**
 
 1. **`ListenableFuture` 是更好的并发原语。** 它的 `addListener(Runnable, Executor)` 强制指定回调执行的线程池，避免了 `CompletableFuture` 中臭名昭著的 `ForkJoinPool.commonPool()` 默认行为和 `thenApply` vs `thenApplyAsync` 的混淆。
-2. **内部基础设施绑定。** `ConcurrentLimitExecutor` 使用内部 `ListenableCompletionService`、`SettableFuture`、`FluentFuture.withTimeout()`、`Futures.allAsList()` 等 Guava 原语构建——这些是核心机制，不是可替换的表面 API。提供 CF 适配层意味着维护两套 Future 语义。
+2. **内部基础设施绑定。** `SlidingWindowSubmitter` 使用内部 `ListenableCompletionService`、`SettableFuture`、`FluentFuture.withTimeout()`、`Futures.allAsList()` 等 Guava 原语构建——这些是核心机制，不是可替换的表面 API。提供 CF 适配层意味着维护两套 Future 语义。
 3. **互操作可以显式完成。** Guava 没有内置 `ListenableFuture` 到 `CompletableFuture` 的转换 API；如果调用方确实需要 CF，可以在应用边界通过 `FutureCallback` 完成一个小型适配器，或选用专门维护的互操作库。
 
 ---
@@ -188,7 +188,7 @@ par.map("io-pool", urls, url -> {
 parallel-in-scope 要求输入是一个**已物化的 `List<T>`**，这是刻意的：
 
 1. **总量必须提前已知。** `ParOptions.formalized()` 会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
-2. **滑动窗口需要随机访问。** `ConcurrentLimitExecutor.submitAll()` 按索引提交任务，`SettableFuture` 按索引占位。流式输入无法提供这种随机访问模式。
+2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交任务，`SettableFuture` 按索引占位。流式输入无法提供这种随机访问模式。
 3. **背压语义冲突。** 响应式流的背压机制和滑动窗口是两种不同的流控范式。让它们共存在同一个执行模型中会互相干扰，语义变得不可预测。
 
 **替代方案：** 先收集再提交。如果数据源是流式的，在入口处物化为列表：

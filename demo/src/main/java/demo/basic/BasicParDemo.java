@@ -1,9 +1,9 @@
 package demo.basic;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>创建并配置 Par 实例
- *   <li>使用 BatchExecutionOptions 设置并行度
+ *   <li>使用 MultiTaskOptions 设置并行度
  *   <li>使用 Par.map() 并行处理集合
  *   <li>获取和处理结果
  * </ul>
@@ -45,14 +45,16 @@ public class BasicParDemo {
             System.out.println("输入数据: " + numbers);
 
             // 5. 配置并行选项
-            BatchExecutionOptions options =
-                    BatchExecutionOptions.of("basic-demo").parallelism(3).build();
+            MultiTaskOptions options = MultiTaskOptions.of("basic-demo")
+                    .parallelism(3)
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .build();
 
             System.out.println("并行度: " + options.parallelism());
 
             // 6. 执行并行处理
             System.out.println("\n开始并行处理...");
-            AsyncBatchResult<Integer> result = par.map(
+            TaskBatchResult<Integer> result = par.map(
                     numbers,
                     n -> {
                         String threadName = Thread.currentThread().getName();

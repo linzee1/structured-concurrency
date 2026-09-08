@@ -1,7 +1,7 @@
 package io.github.huatalk.parallelinscope.scope;
 
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,7 +26,7 @@ public final class MultiTaskContext {
     private final long deadlineNanos;
     private final CancellationToken cancellationToken;
     private final MultiTaskContext parent;
-    private final TaskGraphObservationContext taskGraphObservationContext;
+    private final TaskGraphObservationScope taskGraphObservationScope;
     private final ExecutorIdentity executorIdentity;
     private final String parLabel;
     private final TaskType taskType;
@@ -39,7 +39,7 @@ public final class MultiTaskContext {
             long deadlineNanos,
             CancellationToken cancellationToken,
             MultiTaskContext parent,
-            TaskGraphObservationContext taskGraphObservationContext,
+            TaskGraphObservationScope taskGraphObservationScope,
             ExecutorIdentity executorIdentity,
             String parLabel,
             TaskType taskType,
@@ -51,7 +51,7 @@ public final class MultiTaskContext {
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.parent = parent;
-        this.taskGraphObservationContext = taskGraphObservationContext;
+        this.taskGraphObservationScope = taskGraphObservationScope;
         this.executorIdentity = executorIdentity;
         this.parLabel = parLabel;
         this.taskType = taskType;
@@ -70,7 +70,7 @@ public final class MultiTaskContext {
             MultiTaskOptions options,
             int taskCount,
             @Nullable MultiTaskContext parent,
-            @Nullable TaskGraphObservationContext taskGraphObservationContext) {
+            @Nullable TaskGraphObservationScope taskGraphObservationScope) {
         Objects.requireNonNull(options);
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
         int requested = options.parallelism();
@@ -100,9 +100,9 @@ public final class MultiTaskContext {
             deadline = parent.deadlineNanos;
         }
         CancellationToken token = new CancellationToken(parent == null ? null : parent.cancellationToken, deadline);
-        TaskGraphObservationContext effectiveObservation = taskGraphObservationContext != null
-                ? taskGraphObservationContext
-                : parent == null ? null : parent.taskGraphObservationContext;
+        TaskGraphObservationScope effectiveObservation = taskGraphObservationScope != null
+                ? taskGraphObservationScope
+                : parent == null ? null : parent.taskGraphObservationScope;
         return new MultiTaskContext(
                 options.name(),
                 taskCount,
@@ -126,10 +126,10 @@ public final class MultiTaskContext {
             MultiTaskOptions options,
             int taskCount,
             @Nullable MultiTaskContext parent,
-            @Nullable TaskGraphObservationContext taskGraphObservationContext,
+            @Nullable TaskGraphObservationScope taskGraphObservationScope,
             ExecutorIdentity executorIdentity,
             String parLabel) {
-        MultiTaskContext context = resolve(options, taskCount, parent, taskGraphObservationContext);
+        MultiTaskContext context = resolve(options, taskCount, parent, taskGraphObservationScope);
         return new MultiTaskContext(
                 context.taskName,
                 context.taskCount,
@@ -137,7 +137,7 @@ public final class MultiTaskContext {
                 context.deadlineNanos,
                 context.cancellationToken,
                 context.parent,
-                context.taskGraphObservationContext,
+                context.taskGraphObservationScope,
                 executorIdentity,
                 parLabel,
                 context.taskType,
@@ -156,7 +156,7 @@ public final class MultiTaskContext {
             @Nullable CancellationToken cancellationParent,
             long deadlineCeilingNanos,
             long resolutionTimeNanos,
-            @Nullable TaskGraphObservationContext taskGraphObservationContext,
+            @Nullable TaskGraphObservationScope taskGraphObservationScope,
             ExecutorIdentity executorIdentity,
             String parLabel) {
         Objects.requireNonNull(options, "options cannot be null");
@@ -193,7 +193,7 @@ public final class MultiTaskContext {
                 deadline,
                 new CancellationToken(cancellationParent, deadline),
                 structuralParent,
-                taskGraphObservationContext,
+                taskGraphObservationScope,
                 executorIdentity,
                 parLabel,
                 options.taskType(),
@@ -235,8 +235,8 @@ public final class MultiTaskContext {
         return parent;
     }
 
-    public TaskGraphObservationContext taskGraphObservationContext() {
-        return taskGraphObservationContext;
+    public TaskGraphObservationScope taskGraphObservationScope() {
+        return taskGraphObservationScope;
     }
 
     public ExecutorIdentity executorIdentity() {

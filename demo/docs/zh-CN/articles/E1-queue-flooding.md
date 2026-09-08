@@ -40,7 +40,7 @@ for (int i = 0; i < taskCount; i++) {
 
 **大堂经理只安排前 4 桌入座。第 1 桌吃完走了，经理立刻安排第 5 桌坐下；第 2 桌走了，安排第 6 桌……始终保持 4 桮满座，门口有人等但餐厅内部不堵。**
 
-技术上：`ConcurrentLimitExecutor` 初始只提交 `parallelism` 个任务，每当内部 completion queue 收到一个完成事件，才提交下一个。队列深度永远不超过并行度。
+技术上：`SlidingWindowSubmitter` 初始只提交 `parallelism` 个任务，每当内部 completion queue 收到一个完成事件，才提交下一个。队列深度永远不超过并行度。
 
 两个关键细节：
 
@@ -60,14 +60,14 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 并行度 2：一轮最多 2 桌同时就餐，队列深度最多 2
-BatchExecutionOptions options = BatchExecutionOptions.of("data-process")
+MultiTaskOptions options = MultiTaskOptions.of("data-process")
         .parallelism(2)
         .timeout(java.time.Duration.ofMillis(30000))
         .build();
 
 // 100 个任务——但队列深度始终 <= 2，餐厅内部不堵
 List<Data> items = loadLargeDataset();
-AsyncBatchResult<Result> result = par.map( items, item -> {
+TaskBatchResult<Result> result = par.map( items, item -> {
     return process(item);
 }, options);
 

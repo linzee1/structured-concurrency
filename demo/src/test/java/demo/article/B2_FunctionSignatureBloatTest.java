@@ -3,10 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -112,7 +112,7 @@ public class B2_FunctionSignatureBloatTest {
     @Test
     void parMap_cleanSignature_onlyBusinessParam() throws Exception {
         // 解决方案：Par.map() 隐式传播上下文，lambda 只需业务参数
-        BatchExecutionOptions opts = BatchExecutionOptions.of("fetch-data")
+        MultiTaskOptions opts = MultiTaskOptions.of("fetch-data")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
@@ -122,7 +122,7 @@ public class B2_FunctionSignatureBloatTest {
 
         // lambda 只需要 url 这一个业务参数
         // CancellationToken、超时、并发控制全部由框架隐式处理
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 urls,
                 url -> {
                     // 只关注业务逻辑，无需关心 traceId、timeout、cancelFlag
@@ -148,14 +148,14 @@ public class B2_FunctionSignatureBloatTest {
         // 验证：即使有多种上下文需求，Par.map() 的 lambda 签名依然干净
         AtomicInteger processedCount = new AtomicInteger(0);
 
-        BatchExecutionOptions opts = BatchExecutionOptions.of("complex-task")
+        MultiTaskOptions opts = MultiTaskOptions.of("complex-task")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofMillis(3000))
                 .build();
 
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104);
 
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 orderIds,
                 orderId -> {
                     // 框架已自动处理以下所有基础设施需求：

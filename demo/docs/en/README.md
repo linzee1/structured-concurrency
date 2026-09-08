@@ -4,7 +4,7 @@
 
 The runnable demo classes and tests are language-neutral. The long-form problem articles are currently maintained in Chinese and are indexed separately.
 
-> Demo code targets the `0.2.0-SNAPSHOT` artifact and uses the current `GlobalPar`/`BatchExecutionOptions` API.
+> Demo code targets the `0.2.0-SNAPSHOT` artifact and uses the current `GlobalPar`/`MultiTaskOptions` API.
 
 ## Start Here
 

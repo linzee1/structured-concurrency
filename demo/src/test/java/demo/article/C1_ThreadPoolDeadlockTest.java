@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -79,24 +79,24 @@ class C1_ThreadPoolDeadlockTest {
             Par innerPar = config.par("inner-pool");
 
             // 外层：4 个任务，滑动窗口并行度 2
-            BatchExecutionOptions outerOpts = BatchExecutionOptions.of("outer-task")
+            MultiTaskOptions outerOpts = MultiTaskOptions.of("outer-task")
                     .parallelism(2)
                     .timeout(java.time.Duration.ofMillis(10_000))
                     .taskType(TaskType.IO_BOUND)
                     .build();
 
             List<Integer> items = Arrays.asList(1, 2, 3, 4);
-            AsyncBatchResult<String> result = par.map(
+            TaskBatchResult<String> result = par.map(
                     items,
                     item -> {
                         // 内层：使用独立的 inner-pool，不会和外层死锁
-                        BatchExecutionOptions innerOpts = BatchExecutionOptions.of("inner-task")
+                        MultiTaskOptions innerOpts = MultiTaskOptions.of("inner-task")
                                 .parallelism(2)
                                 .timeout(java.time.Duration.ofMillis(5_000))
                                 .build();
 
                         List<String> subItems = Arrays.asList("a", "b");
-                        AsyncBatchResult<String> innerResult = innerPar.map(
+                        TaskBatchResult<String> innerResult = innerPar.map(
                                 subItems,
                                 sub -> {
                                     return item + "-" + sub;

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import io.github.huatalk.parallelinscope.internal.SubmissionException;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
@@ -254,7 +254,7 @@ class ScopedTaskContractTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         GlobalPar global = globalWithListener(executor, synchronizedEvents());
         try {
-            try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
+            try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
                 Object value = global.par("worker")
                         .map(
                                 Collections.singletonList("outer"),
@@ -278,7 +278,7 @@ class ScopedTaskContractTest {
 
                 assertThat(value).isEqualTo("inner-value");
                 // root->outer plus outer->inner; a missing member/batch edge shows up here.
-                assertThat(TaskGraphObservationContext.data().graph().edges()).hasSize(2);
+                assertThat(TaskGraphObservationScope.data().graph().edges()).hasSize(2);
             }
         } finally {
             global.close();
@@ -352,9 +352,7 @@ class ScopedTaskContractTest {
 
     private static GlobalPar globalWithListener(ExecutorService executor, List<TaskListener.TaskEvent<?>> events) {
         return GlobalPar.builder()
-                .executionPolicy(GlobalExecutionPolicy.builder()
-                        .taskListener(events::add)
-                        .build())
+                .taskListener(events::add)
                 .register("worker", executor)
                 .build();
     }

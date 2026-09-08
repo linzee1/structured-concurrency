@@ -46,9 +46,9 @@ pool.submit(() -> {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 
 // 仅 1 个线程的业务线程池
 ExecutorService pool = Executors.newFixedThreadPool(1);
@@ -57,13 +57,14 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-BatchExecutionOptions opts = BatchExecutionOptions.of("offload-demo")
+MultiTaskOptions opts = MultiTaskOptions.of("offload-demo")
         .parallelism(1)
+        .timeout(java.time.Duration.ofMillis(5000))
         .build();
 
 // Par.map() 不会死锁——提交循环运行在 Par-Submitter 线程上
 List<Integer> input = Arrays.asList(1, 2, 3);
-AsyncBatchResult<Integer> result = par.map( input, x -> {
+TaskBatchResult<Integer> result = par.map( input, x -> {
     Thread.sleep(100);
     return x * 2;
 }, opts);

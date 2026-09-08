@@ -1,4 +1,4 @@
-# AsyncBatchResult Report Testing Design
+# TaskBatchResult Report Testing Design
 
 ## Goals
 

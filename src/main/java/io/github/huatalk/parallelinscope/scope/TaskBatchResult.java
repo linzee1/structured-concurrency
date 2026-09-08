@@ -19,12 +19,12 @@ import javax.annotation.Nullable;
  * @param <T> the result type of individual tasks
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public final class AsyncBatchResult<T> {
+public final class TaskBatchResult<T> {
 
     private final ListenableFuture<?> submitCanceller;
     private final List<ListenableFuture<T>> results;
 
-    private AsyncBatchResult(@Nullable ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
+    private TaskBatchResult(@Nullable ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = results;
     }
@@ -57,8 +57,8 @@ public final class AsyncBatchResult<T> {
      * @param results the individual result futures
      * @return a new batch result
      */
-    public static <T> AsyncBatchResult<T> of(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
-        return new AsyncBatchResult<>(submitCanceller, results);
+    public static <T> TaskBatchResult<T> of(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
+        return new TaskBatchResult<>(submitCanceller, results);
     }
 
     /**
@@ -68,8 +68,8 @@ public final class AsyncBatchResult<T> {
      * @param results the individual result futures
      * @return a new batch result
      */
-    public static <T> AsyncBatchResult<T> of(List<ListenableFuture<T>> results) {
-        return new AsyncBatchResult<>(Futures.immediateVoidFuture(), results);
+    public static <T> TaskBatchResult<T> of(List<ListenableFuture<T>> results) {
+        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results);
     }
 
     /**

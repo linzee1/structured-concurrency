@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Behavior pins for small scope primitives: {@link ExecutorIdentity} identity semantics,
- * {@link GlobalExecutionPolicy} defaults, {@link MultiTaskContext#resolve} boundary matrix,
+ * {@link GlobalPar} task-listener defaults, {@link MultiTaskContext#resolve} boundary matrix,
  * {@link GlobalPar} topology shutdown states with its scheduler adapter, and {@link ScopedCallable}
  * timing bookkeeping.
  */
@@ -48,22 +48,40 @@ class ScopePrimitivesTest {
         }
     }
 
-    // ==================== GlobalExecutionPolicy ====================
+    // ==================== GlobalPar task listeners ====================
 
     @Test
-    void executionPolicyExposesListenerSnapshotSemantics() {
-        GlobalExecutionPolicy policy = GlobalExecutionPolicy.builder().build();
-        assertThat(policy.taskListeners()).isEmpty();
+    void taskListenersExposeImmutableSnapshotSemantics() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar empty = GlobalPar.builder().register("worker", executor).build();
+        try {
+            assertThat(empty.taskListeners()).isEmpty();
+            assertThat(empty.taskListenersFor("worker")).isEmpty();
+        } finally {
+            empty.close();
+            executor.shutdownNow();
+        }
 
-        GlobalExecutionPolicy.Builder builder = GlobalExecutionPolicy.builder();
+        GlobalPar.Builder builder = GlobalPar.builder();
         assertThatThrownBy(() -> builder.taskListener(null)).isInstanceOf(NullPointerException.class);
 
         TaskListener listener = event -> {};
-        GlobalExecutionPolicy snapshotted =
-                GlobalExecutionPolicy.builder().taskListener(listener).build();
-        assertThat(snapshotted.taskListeners()).containsExactly(listener);
-        assertThatThrownBy(() -> snapshotted.taskListeners().add(listener))
-                .isInstanceOf(UnsupportedOperationException.class);
+        ExecutorService snapshottedExecutor = Executors.newSingleThreadExecutor();
+        GlobalPar snapshotted = GlobalPar.builder()
+                .taskListener(listener)
+                .register("worker", snapshottedExecutor)
+                .build();
+        try {
+            assertThat(snapshotted.taskListeners()).containsExactly(listener);
+            assertThat(snapshotted.taskListenersFor("worker")).containsExactly(listener);
+            assertThatThrownBy(() -> snapshotted.taskListeners().add(listener))
+                    .isInstanceOf(UnsupportedOperationException.class);
+            assertThatThrownBy(() -> snapshotted.taskListenersFor("worker").add(listener))
+                    .isInstanceOf(UnsupportedOperationException.class);
+        } finally {
+            snapshotted.close();
+            snapshottedExecutor.shutdownNow();
+        }
     }
 
     // ==================== MultiTaskContext.resolve ====================

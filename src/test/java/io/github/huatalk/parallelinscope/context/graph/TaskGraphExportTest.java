@@ -5,13 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
+import io.github.huatalk.parallelinscope.scope.*;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -42,21 +37,19 @@ class TaskGraphExportTest {
 
     @AfterEach
     void clearThreadState() {
-        TaskGraphObservationContext.restore(null);
+        TaskGraphObservationScope.restore(null);
     }
 
     @Test
     void acyclicChainAndBranchExportCleanGraph() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationContext.logTaskPair(
-                    null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationContext.logTaskPair(
-                    "b", "task-b", "c", "task-c", legacyEdge("pool-b", "pool-c", false));
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "d", "task-d", legacyEdge("pool-a", "pool-d", true));
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+            TaskGraphObservationScope.logTaskPair(null, "root", "a", "task-a", legacyEdge("root-exec", "pool-a", true));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationScope.logTaskPair("b", "task-b", "c", "task-c", legacyEdge("pool-b", "pool-c", false));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "d", "task-d", legacyEdge("pool-a", "pool-d", true));
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data.taskCycle()).isFalse();
             assertThat(data.selfLoop()).isFalse();
             assertThat(data.executorCycle()).isFalse();
@@ -77,14 +70,14 @@ class TaskGraphExportTest {
     @Test
     void taskCycleAndSelfLoopAreDetectedAndExported() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
-            TaskGraphObservationContext.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool-a", "pool-a", true));
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", legacyEdge("pool-b", "pool-a", true));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "a", "task-a", legacyEdge("pool-a", "pool-a", true));
             // Parallel edge: same endpoint pair as the first entry, kept as a second TaskEdge.
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", legacyEdge("pool-a", "pool-b", true));
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data.taskCycle()).isTrue();
             assertThat(data.selfLoop()).isTrue();
             assertThat(data.executorCycle()).isTrue();
@@ -104,15 +97,15 @@ class TaskGraphExportTest {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder().build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
-            TaskGraphObservationContext.logTaskPair(
+            TaskGraphObservationScope.logTaskPair(
                     "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity, "pool-b", "pool-a"));
-            TaskGraphObservationContext.logTaskPair(
+            TaskGraphObservationScope.logTaskPair(
                     "b", "task-b", "a", "task-a", identityEdge(secondIdentity, firstIdentity, "pool-a", "pool-b"));
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data.taskCycle()).isTrue();
             assertThat(data.executorCycle()).isTrue();
             assertThat(data.executorSelfLoop()).isFalse();
@@ -135,17 +128,17 @@ class TaskGraphExportTest {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder().build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(first);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(second);
             // Same executor NAME on both ends, but two distinct executor objects and a single
             // direction: the name graph must not be mistaken for a real resource cycle.
-            TaskGraphObservationContext.logTaskPair(
+            TaskGraphObservationScope.logTaskPair(
                     "a", "task-a", "b", "task-b", identityEdge(firstIdentity, secondIdentity, "pool", "pool"));
-            TaskGraphObservationContext.logTaskPair(
+            TaskGraphObservationScope.logTaskPair(
                     "b", "task-b", "c", "task-c", identityEdge(firstIdentity, secondIdentity, "pool", "pool"));
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data.taskCycle()).isFalse();
             assertThat(data.executorCycle()).isFalse();
             assertThat(data.executorSelfLoop()).isFalse();
@@ -184,12 +177,12 @@ class TaskGraphExportTest {
                         .build())
                 .build();
         TaskGraphData captured;
-        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
-            AsyncBatchResult<Integer> outer = global.par("outer")
+        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            TaskBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                AsyncBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par("inner")
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -208,7 +201,7 @@ class TaskGraphExportTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
-            captured = TaskGraphObservationContext.data();
+            captured = TaskGraphObservationScope.data();
             // root -> outer batch, outer batch -> inner batch.
             assertThat(captured.graph().nodes()).hasSize(3);
             assertThat(captured.graph().edges()).hasSize(2);
@@ -243,12 +236,12 @@ class TaskGraphExportTest {
                 .register("outer", outerExecutor)
                 .register("inner", innerExecutor)
                 .build();
-        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
-            AsyncBatchResult<Integer> outer = global.par("outer")
+        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            TaskBatchResult<Integer> outer = global.par("outer")
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                AsyncBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par("inner")
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -267,7 +260,7 @@ class TaskGraphExportTest {
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             // Task graph is still recorded, but executor-level detection sees nothing.
             assertThat(data.graph().edges()).hasSize(2);
             assertThat(data.executorGraph().edges()).isEmpty();
@@ -290,8 +283,8 @@ class TaskGraphExportTest {
     void directExecutorServiceRecordsTaskGraphButSkipsExecutorGraphs() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global = GlobalPar.builder().register("direct", direct).build();
-        try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
-            AsyncBatchResult<Integer> batch = global.par("direct")
+        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            TaskBatchResult<Integer> batch = global.par("direct")
                     .map(
                             Collections.singletonList(1),
                             value -> value + 1,
@@ -301,7 +294,7 @@ class TaskGraphExportTest {
 
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             // Fork edge is recorded regardless of executor implementation.
             assertThat(data.graph().nodes()).hasSize(2);
             assertThat(data.graph().edges()).hasSize(1);

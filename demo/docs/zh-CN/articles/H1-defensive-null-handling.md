@@ -41,10 +41,10 @@ for (String item : emptyList) {
 
 `parallel-in-scope` 的 `Par.map()` 内置了防御性处理。在执行并行逻辑之前，框架会检查输入列表：
 
-- **`null` 列表**：直接返回空的 `AsyncBatchResult`，不抛异常，不提交任何任务
-- **空列表**：同样返回空的 `AsyncBatchResult`，零开销
+- **`null` 列表**：直接返回空的 `TaskBatchResult`，不抛异常，不提交任何任务
+- **空列表**：同样返回空的 `TaskBatchResult`，零开销
 
-这意味着调用方无需任何防御代码，直接把结果交给下游即可。`AsyncBatchResult.getResults()` 返回空列表，`report()` 返回空的状态统计，不会出现 NPE。
+这意味着调用方无需任何防御代码，直接把结果交给下游即可。`TaskBatchResult.results()` 返回空列表，`report()` 返回空的状态统计，不会出现 NPE。
 
 这种设计遵循"库应该宽容地接受输入"的原则：框架替你兜底，让业务代码专注于核心逻辑。
 
@@ -59,22 +59,24 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-BatchExecutionOptions opts = BatchExecutionOptions.of("user-query").build();
+MultiTaskOptions opts = MultiTaskOptions.of("user-query")
+        .timeout(java.time.Duration.ofMillis(5000))
+        .build();
 
 // 无需防御，null 列表安全返回
 List<String> nullList = null;
-AsyncBatchResult<String> r1 = par.map( nullList, id -> queryUser(id), opts);
-assert r1.getResults().isEmpty();  // true
+TaskBatchResult<String> r1 = par.map( nullList, id -> queryUser(id), opts);
+assert r1.results().isEmpty();  // true
 
 // 空列表同样安全
 List<String> emptyList = Collections.emptyList();
-AsyncBatchResult<String> r2 = par.map( emptyList, id -> queryUser(id), opts);
-assert r2.getResults().isEmpty();  // true
+TaskBatchResult<String> r2 = par.map( emptyList, id -> queryUser(id), opts);
+assert r2.results().isEmpty();  // true
 
 // 正常列表不受影响
 List<String> ids = Arrays.asList("user-1", "user-2", "user-3");
-AsyncBatchResult<String> r3 = par.map( ids, id -> queryUser(id), opts);
-assert r3.getResults().size() == 3;  // true
+TaskBatchResult<String> r3 = par.map( ids, id -> queryUser(id), opts);
+assert r3.results().size() == 3;  // true
 ```
 
 ---

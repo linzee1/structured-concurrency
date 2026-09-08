@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -103,14 +103,14 @@ public class D1_GetTimeoutStillRunningTest {
         AtomicBoolean task1Completed = new AtomicBoolean(false);
         AtomicBoolean task2Completed = new AtomicBoolean(false);
 
-        BatchExecutionOptions opts = BatchExecutionOptions.of("cancel-demo")
+        MultiTaskOptions opts = MultiTaskOptions.of("cancel-demo")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofMillis(500))
                 .taskType(TaskType.IO_BOUND)
                 .build();
 
         List<Integer> input = Arrays.asList(1, 2);
-        AsyncBatchResult<Integer> result = par.map(
+        TaskBatchResult<Integer> result = par.map(
                 input,
                 x -> {
                     try {

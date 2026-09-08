@@ -322,7 +322,7 @@ class TaskGroupTest {
                     () -> {
                         memberToken.set(
                                 TaskExecutionContext.current().batchContext().cancellationToken());
-                        AsyncBatchResult<Integer> nested = global.par("inner")
+                        TaskBatchResult<Integer> nested = global.par("inner")
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> {
@@ -353,7 +353,12 @@ class TaskGroupTest {
             assertThat(nestedRunning.await(2, TimeUnit.SECONDS)).isTrue();
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            // Two timers share the group deadline: the group token's own and the nested batch's
+            // (both inherit the same instant). If the group timer wins, the group converges as
+            // TIMEOUT; if the nested timer wins, the member surfaces the nested cancellation as a
+            // failure while the group token is still RUNNING, and the group converges as
+            // MEMBER_CANCELED. Either way the deadline reached every level (asserted below).
+            assertThat(result.outcome()).isIn(TaskOutcome.TIMEOUT, TaskOutcome.MEMBER_CANCELED);
             // The member token is never bound, so only constructor-listener propagation from the
             // group token can move it; await the cascade, which runs after the group converges.
             org.awaitility.Awaitility.await()
@@ -652,7 +657,7 @@ class TaskGroupTest {
                     () -> {
                         long memberDeadline =
                                 TaskExecutionContext.current().batchContext().deadlineNanos();
-                        AsyncBatchResult<Long> nested = global.par("inner")
+                        TaskBatchResult<Long> nested = global.par("inner")
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> TaskExecutionContext.current()
@@ -702,7 +707,7 @@ class TaskGroupTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("no enclosing deadline to inherit");
 
-            AsyncBatchResult<Long> batch = global.par("outer")
+            TaskBatchResult<Long> batch = global.par("outer")
                     .map(
                             Arrays.asList(1),
                             ignored -> {
@@ -748,7 +753,7 @@ class TaskGroupTest {
                 .register("inner", inner)
                 .build();
         try {
-            AsyncBatchResult<MultiTaskContext> result = global.par("outer")
+            TaskBatchResult<MultiTaskContext> result = global.par("outer")
                     .map(
                             Arrays.asList(1),
                             ignored -> {
@@ -790,7 +795,7 @@ class TaskGroupTest {
                 .build();
         AtomicReference<TaskGroup> nestedGroup = new AtomicReference<>();
         try {
-            AsyncBatchResult<Object> result = global.par("outer")
+            TaskBatchResult<Object> result = global.par("outer")
                     .map(
                             Arrays.asList(1),
                             ignored -> {
@@ -896,7 +901,7 @@ class TaskGroupTest {
             AtomicReference<TaskGroup> publishedGroup = new AtomicReference<>();
             AtomicReference<String> observedReason = new AtomicReference<>();
             CountDownLatch groupBuilt = new CountDownLatch(1);
-            AsyncBatchResult<String> outerBatch = global.par("outer")
+            TaskBatchResult<String> outerBatch = global.par("outer")
                     .map(
                             Arrays.asList("x"),
                             ignored -> {

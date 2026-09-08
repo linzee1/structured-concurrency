@@ -24,7 +24,7 @@ import java.util.function.Consumer;
  * </ul>
  *
  * <p>The entry points keep their distinct topologies on top of this: the batch path drives a
- * sliding window through {@link ConcurrentLimitExecutor}, while the task group freezes every
+ * sliding window through {@link SlidingWindowSubmitter}, while the task group freezes every
  * prepared member before submitting any of them.
  */
 public final class TaskSubmissions {

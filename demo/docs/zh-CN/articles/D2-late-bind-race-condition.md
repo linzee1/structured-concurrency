@@ -31,12 +31,12 @@ for (int i = 0; i < taskCount; i++) {
 
 `parallel-in-scope` 为批次建立一个统一超时：
 
-1. `ConcurrentLimitExecutor.submitAll()` 提交初始窗口，并为其余逻辑任务创建 Future 槽位；异步提交循环随后按完成事件补充任务。
+1. `SlidingWindowSubmitter.submitAll()` 提交初始窗口，并为其余逻辑任务创建 Future 槽位；异步提交循环随后按完成事件补充任务。
 2. `CancellationToken.lateBind()` 将全部逻辑 Future 和提交循环绑定到同一个聚合 Future。
 3. `FluentFuture.withTimeout()` 只为这个聚合 Future 设置一次超时，形成整个批次共享的截止时间。
 4. 截止时间到达或任一任务失败时，提交循环和所有未完成任务一起取消。
 
-这种设计让 `BatchExecutionOptions.timeout()` 成为清晰的批次级契约：计时从批次调度建立完成后开始，后续任务不会因为提交较晚而延长整个批次的期限。
+这种设计让 `MultiTaskOptions.timeout()` 成为清晰的批次级契约：计时从批次调度建立完成后开始，后续任务不会因为提交较晚而延长整个批次的期限。
 
 ## 代码
 
@@ -46,14 +46,13 @@ GlobalPar config = GlobalPar.builder()
         .register("my-pool", pool)
         .build();
 
-BatchExecutionOptions options = BatchExecutionOptions.of("data-task")
+MultiTaskOptions options = MultiTaskOptions.of("data-task")
         .parallelism(10)
         .timeout(java.time.Duration.ofMillis(5000))
         .taskType(TaskType.IO_BOUND)
         .build();
 
-AsyncBatchResult<Result> result = config.defaultPar().map(
-        "my-pool",
+TaskBatchResult<Result> result = config.par("my-pool").map(
         loadLargeDataset(),
         this::process,
         options);

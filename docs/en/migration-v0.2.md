@@ -8,7 +8,7 @@ Version `0.2.0` replaces the mutable configuration-and-resolver API with an immu
 | `new Par(config)` | `global.par(name)` |
 | `ParOptions` | `MultiTaskOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
-| `ParConfig` timeout/listener defaults | `GlobalExecutionPolicy` |
+| `ParConfig` timeout/listener defaults | `GlobalPar.Builder.taskListener(...)` (timeouts stay per-call) |
 | `ParConfig` livelock settings | `GlobalParDeadlockPolicy` |
 | `ParConfig` purge settings | `GlobalParPurgePolicy` |
 | executor-name resolution at call time | executor binding at `GlobalPar` build time |
@@ -32,7 +32,7 @@ declarations: `timeout(Duration)` sets an explicit positive timeout, and `inheri
 declares that the enclosing scope's deadline is inherited. `build()` rejects a builder that
 declares neither (`IllegalArgumentException`: call `timeout(Duration)` or `inheritTimeout()`) or
 both. The accessor changed from `Duration timeout()` to `Optional<Duration> timeout()`; an empty
-value means inherit. `GlobalExecutionPolicy.defaultTimeoutMillis` is removed so no silent global
+value means inherit. The former global default timeout is removed so no silent global
 default remains. `MultiTaskContext.resolve` consequently no longer takes the policy; drop
 that argument.
 
@@ -72,7 +72,7 @@ Task outcome classification is unified into a single enum, `TaskOutcome`, replac
 former member-reason values so it serves both batch reports and group member results. Mapping from
 the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
 `TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
-Consequently `AsyncBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
+Consequently `TaskBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
 `TaskGroupMemberResult` exposes its member outcome as `outcome()` returning `TaskOutcome` (renamed
 from the earlier `completionReason()`).
 
@@ -83,8 +83,8 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 |---|---|
 | `Par.getGlobalPar()` | `Par.globalPar()` |
 | `Par.getDisplayName()` | `Par.displayName()` |
-| `AsyncBatchResult.getSubmitCanceller()` | `AsyncBatchResult.submitCanceller()` |
-| `AsyncBatchResult.getResults()` | `AsyncBatchResult.results()` |
+| `AsyncBatchResult.getSubmitCanceller()` | `TaskBatchResult.submitCanceller()` |
+| `AsyncBatchResult.getResults()` | `TaskBatchResult.results()` |
 | `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
 | `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
@@ -101,7 +101,8 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `TaskEdge.getExecutorIdentity()/getSourceExecutorIdentity()` | `executorIdentity()` / `sourceExecutorIdentity()` |
 | `TaskEdge.isExecutorDeadlockProne()` | `executorDeadlockProne()` |
 | `DeadlockDetectionListener.getTaskEdges()/getExecutorEdges()` | `taskEdges()` / `executorEdges()` |
-| `TaskGraphObservationContext.isClosed()` | `closed()` |
+| `TaskGraphObservationScope.isClosed()` | `closed()` |
+| `MultiTaskContext.taskGraphObservationContext()` | `MultiTaskContext.taskGraphObservationScope()` |
 | `DrainingBlockingQueue.isShutdown()/isDraining()/isDrained()` | `shutdown()` / `draining()` / `drained()` |
 | `SmartBlockingQueue.getCapacity()` / `VariableLinkedBlockingQueue.getCapacity()` | `capacity()` |
 | `ActionGate.isDue()` | `due()` |
@@ -150,3 +151,19 @@ originated from a member.
 
 `ExecutionPhase.CANCELLED_BEFORE_RUN` is respelled `CANCELED_BEFORE_RUN` to match the single-L
 `CANCELED` spelling used across the library.
+
+`GlobalExecutionPolicy` is removed: its only content was the `TaskListener` list, so listeners are
+now registered directly on `GlobalPar.Builder`. `GlobalExecutionPolicy.builder().taskListener(l).build()`
+passed to `executionPolicy(policy)` becomes `taskListener(l)` on the `GlobalPar` builder, and a
+per-Par override `parPolicyOverride(name, policy)` becomes one `parTaskListener(name, l)` call per
+listener — repeated calls for the same name append instead of failing, and the override still
+replaces the default list for that entry. The `GlobalPar.executionPolicy()` /
+`executionPolicyFor(name)` accessors are replaced by `taskListeners()` / `taskListenersFor(name)`.
+
+`AsyncBatchResult` is renamed to `TaskBatchResult` (its nested `BatchReport` keeps its name): the
+result of a batch of tasks, not an async-specific construct. The internal
+`ConcurrentLimitExecutor` is renamed to `SlidingWindowSubmitter`, matching what it actually does —
+submitting a sliding window of prepared tasks. `TaskGraphObservationContext` is renamed to
+`TaskGraphObservationScope`: it is a closeable observation scope, and the naming rule is now that
+`Scope` marks lifecycle scopes while `Context` marks data carriers. The
+`GlobalPar.openTaskGraphObservation()` entry point keeps its name.

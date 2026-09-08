@@ -29,13 +29,13 @@ GlobalPar global = GlobalPar.builder()
         .defaultPar("io")
         .build();
 
-BatchExecutionOptions options = BatchExecutionOptions.of("fetch-user")
+MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
         .taskType(TaskType.IO_BOUND)
         .parallelism(4)
         .timeout(Duration.ofSeconds(3))
         .build();
 
-AsyncBatchResult<User> result = global.par("io")
+TaskBatchResult<User> result = global.par("io")
         .map(userIds, userService::findById, options);
 ```
 

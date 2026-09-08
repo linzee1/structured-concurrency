@@ -36,7 +36,7 @@ for (Future<List<User>> f : futures) {
 
 1. 把 ID 列表按片大小切分成 `List<List<Long>>` 分片列表
 2. 调用 `par.map( shards, shard -> userDao.selectByIds(shard), options)`
-3. 从 `AsyncBatchResult` 中收集每个分片的结果
+3. 从 `TaskBatchResult` 中收集每个分片的结果
 
 `Par.map()` 的滑动窗口调度确保并发度受控（通过 `parallelism` 参数），不会一次性打满数据库连接池。内置超时和异常处理让代码从上百行缩减到十几行。
 
@@ -44,8 +44,8 @@ for (Future<List<User>> f : futures) {
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 
 // 1. 配置线程池和 Par 实例
@@ -64,18 +64,18 @@ for (int i = 0; i < allIds.size(); i += shardSize) {
 }
 
 // 3. 并行查询，parallelism=5 表示最多同时 5 个分片在执行
-BatchExecutionOptions options = BatchExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
+MultiTaskOptions options = MultiTaskOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
         .parallelism(5)
         .timeout(java.time.Duration.ofMillis(30000))
         .build();
 
-AsyncBatchResult<List<User>> result = par.map( shards, shard -> {
+TaskBatchResult<List<User>> result = par.map( shards, shard -> {
     return userDao.selectByIds(shard);
 }, options);
 
 // 4. 收集所有分片的结果
 List<User> allUsers = new ArrayList<>();
-for (ListenableFuture<List<User>> future : result.getResults()) {
+for (ListenableFuture<List<User>> future : result.results()) {
     allUsers.addAll(future.get());
 }
 

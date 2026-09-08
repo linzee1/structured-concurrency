@@ -34,11 +34,11 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 ## 解决方法
 
-`parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `BatchExecutionOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
+`parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `MultiTaskOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
 
 1. **请求取消**：通过 `CancellationToken` 的 `lateBind` 机制，批次超时后取消所有未完成任务，并尝试中断正在执行的任务线程。
 
-2. **协作式取消**：对于不会因中断自动退出的任务，可在循环或阶段边界调用 `Checkpoints.checkpoint("api-call", true)`（名称需与 `BatchExecutionOptions` 的任务名一致），主动检测当前 scope 的取消状态并提前退出。
+2. **协作式取消**：对于不会因中断自动退出的任务，可在循环或阶段边界调用 `Checkpoints.checkpoint("api-call", true)`（名称需与 `MultiTaskOptions` 的任务名一致），主动检测当前 scope 的取消状态并提前退出。
 
 3. **批量管理**：无需逐个处理每个 Future，`Par.map()` 统一管理所有任务的生命周期，超时后自动取消剩余任务。
 
@@ -54,16 +54,15 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 设置选项：2 并发，500ms 超时
-BatchExecutionOptions opts = BatchExecutionOptions.of("api-call")
+MultiTaskOptions opts = MultiTaskOptions.of("api-call")
         .parallelism(2)
         .timeout(java.time.Duration.ofMillis(500))
-        .timeUnit(TimeUnit.MILLISECONDS)
         .taskType(TaskType.IO_BOUND)
         .build();
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2");
-AsyncBatchResult<String> result = par.map( urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     // 模拟长时间 IO 操作（响应中断）
     Thread.sleep(5000);
     return fetchContent(url);

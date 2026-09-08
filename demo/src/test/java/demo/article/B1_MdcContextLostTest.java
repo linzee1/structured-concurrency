@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -95,7 +95,7 @@ public class B1_MdcContextLostTest {
     @Test
     void parMap_executesAllTasksWithCleanResult() throws Exception {
         // 设置并行选项
-        BatchExecutionOptions opts = BatchExecutionOptions.of("mdc-demo")
+        MultiTaskOptions opts = MultiTaskOptions.of("mdc-demo")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
@@ -105,7 +105,7 @@ public class B1_MdcContextLostTest {
 
         // 使用 Par.map() 并行处理
         // 框架显式管理取消、deadline 和任务身份，并传播用户的 TransmittableThreadLocal。
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 orderIds,
                 orderId -> {
                     // 业务代码只关注业务逻辑
@@ -151,7 +151,7 @@ public class B1_MdcContextLostTest {
      */
     @Test
     void parMap_frameworkContextAutoPropagated() throws Exception {
-        BatchExecutionOptions opts = BatchExecutionOptions.of("ttl-verify")
+        MultiTaskOptions opts = MultiTaskOptions.of("ttl-verify")
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
@@ -160,7 +160,7 @@ public class B1_MdcContextLostTest {
 
         // 开发者只传业务参数，框架在任务执行期间安装自己的上下文。
         CopyOnWriteArrayList<String> taskNames = new CopyOnWriteArrayList<>();
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 orderIds,
                 orderId -> {
                     // 业务代码不需要传递取消令牌或 deadline。

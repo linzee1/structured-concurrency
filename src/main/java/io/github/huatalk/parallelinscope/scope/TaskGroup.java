@@ -7,7 +7,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
 import io.github.huatalk.parallelinscope.internal.ExecutionPhaseHintFuture;
 import io.github.huatalk.parallelinscope.internal.SubmissionException;
@@ -366,11 +366,11 @@ public final class TaskGroup implements AutoCloseable {
         MultiTaskOptions options = spec.groupOptions();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         MultiTaskContext structuralParent = currentTask == null ? null : currentTask.batchContext();
-        TaskGraphObservationContext currentObservation = TaskGraphObservationContext.current();
-        TaskGraphObservationContext observation = structuralParent != null
-                        && structuralParent.taskGraphObservationContext() != null
-                        && structuralParent.taskGraphObservationContext().owner() == env
-                ? structuralParent.taskGraphObservationContext()
+        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
+        TaskGraphObservationScope observation = structuralParent != null
+                        && structuralParent.taskGraphObservationScope() != null
+                        && structuralParent.taskGraphObservationScope().owner() == env
+                ? structuralParent.taskGraphObservationScope()
                 : structuralParent == null && currentObservation != null && currentObservation.owner() == env
                         ? currentObservation
                         : null;
@@ -391,12 +391,12 @@ public final class TaskGroup implements AutoCloseable {
         CancellationToken groupToken = new CancellationToken(
                 structuralParent == null ? null : structuralParent.cancellationToken(), groupDeadline);
         Map<String, MemberState> states = new LinkedHashMap<>();
-        TaskGraphObservationContext previousObservation = TaskGraphObservationContext.current();
+        TaskGraphObservationScope previousObservation = TaskGraphObservationScope.current();
         try {
             if (observation != null && !observation.closed()) {
-                TaskGraphObservationContext.install(observation);
+                TaskGraphObservationScope.install(observation);
             } else {
-                TaskGraphObservationContext.restore(null);
+                TaskGraphObservationScope.restore(null);
             }
             List<Par> memberPars = new ArrayList<>();
             for (TaskGroupSpec.MemberSpec<?> member : spec.members()) {
@@ -435,7 +435,7 @@ public final class TaskGroup implements AutoCloseable {
             for (MemberState state : states.values()) state.future.cancel(true);
             throw failure;
         } finally {
-            TaskGraphObservationContext.restore(previousObservation);
+            TaskGraphObservationScope.restore(previousObservation);
         }
         TaskGroup group = new TaskGroup(options.name(), start, groupDeadline, options.listeners(), groupToken, states);
         env.retainUntilComplete(new ArrayList<>(group.members.values()));
@@ -502,7 +502,7 @@ public final class TaskGroup implements AutoCloseable {
                 1,
                 context.remaining().toMillis(),
                 blockingRisk == BlockingRisk.BOUNDED_PLATFORM_POOL);
-        TaskGraphObservationContext.logTaskPair(
+        TaskGraphObservationScope.logTaskPair(
                 parent.batchId(), parent.taskName(), context.batchId(), context.taskName(), edge);
     }
 }

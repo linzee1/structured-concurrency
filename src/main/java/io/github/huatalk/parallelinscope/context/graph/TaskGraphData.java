@@ -25,7 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * single request. Records parent-child task relationships as edges with {@link TaskEdge} metadata
  * (parallelism, task type, executor name, task count, timeout).
  *
- * <p>Instances are created and owned by {@code TaskGraphObservationContext}; at request end the
+ * <p>Instances are created and owned by {@code TaskGraphObservationScope}; at request end the
  * context builds directed graphs at both task level and executor level, checking for cycles
  * (potential deadlocks) and self-loops.
  *

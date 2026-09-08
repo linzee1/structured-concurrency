@@ -28,7 +28,7 @@ SubmissionScope                    └─ executor.execute(...) ─┘
 TaskExecutionContext.current()                 └─ user callable ─┘
 
 请求级观测（可选）
-TaskGraphObservationContext ─────────────────────────────────────────
+TaskGraphObservationScope ─────────────────────────────────────────
 ```
 
 ### 4.2 TaskGroup
@@ -51,7 +51,7 @@ memberCount / terminalCount
 group CancellationToken（内部，不作为公共控制入口）
 completion SettableFuture
 failedMemberName
-TaskGraphObservationContext snapshot（可空）
+TaskGraphObservationScope snapshot（可空）
 listener snapshot
 ```
 
@@ -129,7 +129,7 @@ try {
 
 它的生命周期只覆盖一次提交调用，不覆盖排队或任务执行。必须保留栈式恢复，以支持拒绝后 inline 执行期间再次嵌套提交的情况。
 
-### 4.7 TaskGraphObservationContext
+### 4.7 TaskGraphObservationScope
 
 `submit()` 解析提交线程上同一个 `GlobalPar` 当前有效的 observation；不存在或 owner 不匹配时按 null 处理。成员执行必须使用该解析结果，而不是把 Group membership 写成 TaskGraph edge。
 
@@ -159,7 +159,7 @@ static MultiTaskContext resolve(
         @Nullable CancellationToken cancellationParent,
         long deadlineCeilingNanos,
         long resolutionTimeNanos,
-        @Nullable TaskGraphObservationContext observation,
+        @Nullable TaskGraphObservationScope observation,
         ExecutorIdentity executorIdentity,
         String parLabel);
 ```

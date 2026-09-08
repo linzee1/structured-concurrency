@@ -18,7 +18,7 @@ Normal cancellation is a control-flow event, so `LeanCancellationException` avoi
 
 ## Sliding-window scheduling
 
-Submitting every item at once can flood a queue and make nested calls deadlock. `ConcurrentLimitExecutor` keeps only a bounded window of work in flight. CPU and I/O task types can use different scheduling policies, but both remain inside the same structured scope.
+Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. CPU and I/O task types can use different scheduling policies, but both remain inside the same structured scope.
 
 ## Explicit execution context and deadlock visibility
 
@@ -26,7 +26,7 @@ Submitting every item at once can flood a queue and make nested calls deadlock. 
 the current task's cancellation and nesting ownership. A separate internal submission scope exists
 only while work is handed to an executor, so `SmartBlockingQueue` can apply batch enqueue policy
 before a task starts. Neither context is relayed through arbitrary user executor submissions.
-`TaskGraphObservationContext` records task and executor relationships in a request-scoped graph so
+`TaskGraphObservationScope` records task and executor relationships in a request-scoped graph so
 the library can detect cycles that a thread dump would otherwise reveal only after production
 impact. This is executor deadlock detection, not a replacement for lock analysis.
 

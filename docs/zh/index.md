@@ -32,4 +32,4 @@
 
 | 文档 | 内容 |
 |---|---|
-| [AsyncBatchResult 测试设计](testing/async-batch-result-report-test-design.md) | 稳定契约与并发断言 |
+| [TaskBatchResult 测试设计](testing/task-batch-result-report-test-design.md) | 稳定契约与并发断言 |

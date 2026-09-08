@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -44,10 +44,10 @@ class G2_BatchResultReportTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void report_allSuccessfulTasksHasExactCountAndNoException() throws Exception {
         List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6);
-        AsyncBatchResult<Integer> result = par.map(items, value -> value * 2, options("all-success", 3));
+        TaskBatchResult<Integer> result = par.map(items, value -> value * 2, options("all-success", 3));
 
         awaitTerminalStates(result);
-        AsyncBatchResult.BatchReport report = result.report();
+        TaskBatchResult.BatchReport report = result.report();
 
         assertThat(totalStateCount(report)).isEqualTo(items.size());
         assertThat(report.firstException()).isNull();
@@ -62,7 +62,7 @@ class G2_BatchResultReportTest {
         CountDownLatch blockSibling = new CountDownLatch(1);
         RuntimeException rootFailure = new RuntimeException("root failure");
 
-        AsyncBatchResult<Integer> result = par.map(
+        TaskBatchResult<Integer> result = par.map(
                 Arrays.asList(0, 1, 2, 3, 4, 5),
                 value -> {
                     if (value == 0) {
@@ -82,16 +82,19 @@ class G2_BatchResultReportTest {
                 options("fail-fast-report", 2));
 
         awaitTerminalStates(result);
-        AsyncBatchResult.BatchReport report = result.report();
+        TaskBatchResult.BatchReport report = result.report();
         String reportString = result.reportString();
 
         assertThat(totalStateCount(report)).isEqualTo(taskCount);
         assertThat(report.firstException()).isSameAs(rootFailure);
-        assertThat(reportString).contains("FAILED:").contains("CANCELLED:").contains("firstException=root failure");
+        assertThat(reportString)
+                .contains("USER_FAILURE:")
+                .contains("MEMBER_CANCELED:")
+                .contains("firstException=root failure");
     }
 
-    private static BatchExecutionOptions options(String taskName, int parallelism) {
-        return BatchExecutionOptions.of(taskName)
+    private static MultiTaskOptions options(String taskName, int parallelism) {
+        return MultiTaskOptions.of(taskName)
                 .parallelism(parallelism)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
@@ -108,7 +111,7 @@ class G2_BatchResultReportTest {
         }
     }
 
-    private static void awaitTerminalStates(AsyncBatchResult<?> result) throws Exception {
+    private static void awaitTerminalStates(TaskBatchResult<?> result) throws Exception {
         for (com.google.common.util.concurrent.ListenableFuture<?> future : result.results()) {
             try {
                 future.get(5, TimeUnit.SECONDS);
@@ -118,7 +121,7 @@ class G2_BatchResultReportTest {
         }
     }
 
-    private static int totalStateCount(AsyncBatchResult.BatchReport report) {
+    private static int totalStateCount(TaskBatchResult.BatchReport report) {
         return report.stateCounts().values().stream()
                 .mapToInt(Integer::intValue)
                 .sum();

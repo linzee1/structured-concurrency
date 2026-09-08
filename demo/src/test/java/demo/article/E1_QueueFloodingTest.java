@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -102,13 +102,13 @@ class E1_QueueFloodingTest {
 
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchExecutionOptions options = BatchExecutionOptions.of("queue-flood-test")
+            MultiTaskOptions options = MultiTaskOptions.of("queue-flood-test")
                     .parallelism(parallelism)
                     .timeout(java.time.Duration.ofMillis(30000))
                     .taskType(TaskType.IO_BOUND)
                     .build();
 
-            AsyncBatchResult<Void> result = par.map(
+            TaskBatchResult<Void> result = par.map(
                     input,
                     item -> {
                         int cur = concurrency.incrementAndGet();

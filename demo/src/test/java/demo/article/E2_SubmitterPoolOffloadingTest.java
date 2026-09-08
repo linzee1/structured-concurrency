@@ -3,10 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -80,13 +80,15 @@ public class E2_SubmitterPoolOffloadingTest {
                     .build();
             Par par = config.defaultPar();
 
-            BatchExecutionOptions opts =
-                    BatchExecutionOptions.of("offload-demo").parallelism(1).build();
+            MultiTaskOptions opts = MultiTaskOptions.of("offload-demo")
+                    .parallelism(1)
+                    .timeout(java.time.Duration.ofMillis(5000))
+                    .build();
 
             List<Integer> input = Arrays.asList(1, 2, 3);
 
             // Par.map() 不会死锁，因为提交循环运行在 Par-Submitter 线程上
-            AsyncBatchResult<Integer> result = par.map(
+            TaskBatchResult<Integer> result = par.map(
                     input,
                     x -> {
                         try {

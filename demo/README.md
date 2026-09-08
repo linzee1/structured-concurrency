@@ -63,7 +63,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.huatalk.parallelinscope.scope` (GlobalPar, Par, BatchExecutionOptions, AsyncBatchResult)
+- `io.github.huatalk.parallelinscope.scope` (GlobalPar, Par, BatchExecutionOptions, TaskBatchResult)
 - `io.github.huatalk.parallelinscope.spi` (TaskListener, DeadlockDetectionListener)
 
 **禁止访问**：

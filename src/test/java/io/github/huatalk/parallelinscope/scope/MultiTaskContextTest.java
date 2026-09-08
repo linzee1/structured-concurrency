@@ -3,14 +3,13 @@ package io.github.huatalk.parallelinscope.scope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class MultiTaskContextTest {
     @Test
     void childDeadlineCannotOutliveParentDeadline() {
-        GlobalExecutionPolicy policy = GlobalExecutionPolicy.builder().build();
         MultiTaskContext parent = MultiTaskContext.resolve(
                 MultiTaskOptions.of("outer").timeout(Duration.ofMillis(100)).build(), 1, null);
         MultiTaskContext child = MultiTaskContext.resolve(
@@ -22,7 +21,6 @@ class MultiTaskContextTest {
 
     @Test
     void resolvesParallelismAndRuntimeMetadata() {
-        GlobalExecutionPolicy policy = GlobalExecutionPolicy.builder().build();
         MultiTaskOptions options = MultiTaskOptions.of("io")
                 .parallelism(99)
                 .taskType(TaskType.IO_BOUND)
@@ -51,7 +49,7 @@ class MultiTaskContextTest {
     @Test
     void inheritsParentObservationAndCreatesLinkedCancellationToken() {
         GlobalPar global = GlobalPar.builder().build();
-        TaskGraphObservationContext observation = global.openTaskGraphObservation();
+        TaskGraphObservationScope observation = global.openTaskGraphObservation();
         try {
             MultiTaskContext parent = MultiTaskContext.resolve(
                     MultiTaskOptions.of("parent")
@@ -67,7 +65,7 @@ class MultiTaskContextTest {
             assertThat(parent.taskCount()).isEqualTo(2);
             assertThat(parent.parent()).isNull();
             assertThat(child.parent()).isSameAs(parent);
-            assertThat(child.taskGraphObservationContext()).isSameAs(observation);
+            assertThat(child.taskGraphObservationScope()).isSameAs(observation);
             assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
             assertThat(child.executorIdentity()).isNull();
             assertThat(child.parLabel()).isNull();

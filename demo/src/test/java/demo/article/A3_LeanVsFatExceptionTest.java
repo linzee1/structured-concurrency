@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -99,7 +99,7 @@ public class A3_LeanVsFatExceptionTest {
     @Test
     void parMap_withShortTimeout_completesEfficiently() {
         // 解决方案：Par.map() 配合短超时，内部使用轻量级异常处理取消
-        BatchExecutionOptions opts = BatchExecutionOptions.of("lean-cancel-demo")
+        MultiTaskOptions opts = MultiTaskOptions.of("lean-cancel-demo")
                 .parallelism(4)
                 .timeout(java.time.Duration.ofMillis(200))
                 .taskType(TaskType.IO_BOUND)
@@ -109,7 +109,7 @@ public class A3_LeanVsFatExceptionTest {
         List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());
 
         long start = System.currentTimeMillis();
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 items,
                 id -> {
                     try {
