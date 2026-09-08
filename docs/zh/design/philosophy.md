@@ -262,13 +262,13 @@ ParOptions ioOpts = ParOptions.ioTask("fetchRemote")
 ```java
 @Override
 public boolean offer(E e) {
-    MultiTaskContext batch = SubmissionScope.currentBatch();
+    MultiTaskContext unit = SubmissionScope.current();
     // CPU 密集型任务：拒绝入队，触发 CallerRunsPolicy 同步执行
-    if (batch != null && batch.taskType() == TaskType.CPU_BOUND) {
+    if (unit != null && unit.taskType() == TaskType.CPU_BOUND) {
         return false;
     }
     // 显式拒绝入队的场景
-    if (batch != null && batch.rejectEnqueue()) {
+    if (unit != null && unit.rejectEnqueue()) {
         return false;
     }
     return delegate.offer(e);  // 组合模式，委托给内部队列
@@ -287,7 +287,7 @@ public boolean offer(E e) {
 
 ## 六、上下文边界：只表达实际执行与实际提交
 
-任务执行时，`TaskExecutionContext.current()` 是当前任务的唯一来源；取消、deadline 和嵌套批次关系都从它的 `batchContext()` 读取。任务尚未开始时没有“当前任务”，线程池只需要知道正在提交哪个批次，内部 `SubmissionScope` 因而只在提交调用的短窗口中存在，用于让 `SmartBlockingQueue` 读取入队策略。
+任务执行时，`TaskExecutionContext.current()` 是当前任务的唯一来源；取消、deadline 和嵌套批次关系都从它的 `multiTaskContext()` 读取。任务尚未开始时没有“当前任务”，线程池只需要知道正在提交哪个批次，内部 `SubmissionScope` 因而只在提交调用的短窗口中存在，用于让 `SmartBlockingQueue` 读取入队策略。
 
 这两个作用域都不通过任意用户线程池提交传播。结构化的子任务必须由 `Par.map()` 创建，避免任意 `Runnable` 被误认为取消树或任务图中的子节点。
 

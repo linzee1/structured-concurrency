@@ -16,6 +16,7 @@
 - Rename `AsyncBatchResult` to `TaskBatchResult` (the nested `BatchReport` keeps its name).
 - Rename the internal `ConcurrentLimitExecutor` to `SlidingWindowSubmitter`.
 - Rename `TaskGraphObservationContext` to `TaskGraphObservationScope`: it is a closeable observation scope, and the naming rule is now that `Scope` marks lifecycle scopes (`SubmissionScope`, `TaskGraphObservationScope`) while `Context` marks data carriers. `MultiTaskContext.taskGraphObservationContext()` is renamed to `taskGraphObservationScope()` accordingly; `GlobalPar.openTaskGraphObservation()` keeps its name.
+- Neutralize the batch-biased `MultiTaskContext` vocabulary, since one context backs both `Par.map` batches and task-group members: `batchId()` → `unitId()`, `taskName()` → `name()`, `parLabel()` → `executorLabel()`, `parent()` → `structuralParent()` (a member's cancellation parent is the group token inside `cancellationToken()`, not this field). `TaskContext.batchContext()` becomes `multiTaskContext()` and `SubmissionScope.currentBatch()` becomes `current()`. Deadline resolution for batches, group members, and groups now shares a single `MultiTaskContext.resolveDeadlineNanos` path.
 
 ## [0.2.0] - 2026-07-22
 

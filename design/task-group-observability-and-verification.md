@@ -7,16 +7,17 @@
 
 ### 10.1 成员级 TaskListener
 
-真正进入 `ScopedCallable.call()` 的成员继续触发现有 `TaskListener.TaskEvent`：
+真正进入 `ScopedCallable.call()` 的成员继续触发现有 `TaskListener`，投递统一的 `TaskCompletion` 记录：
 
-- 成功结果、用户异常；
+- 成功结果、用户异常（`result()`/`failure()`）；
 - submit/start/end timing；
-- queue wait 分类；
-- `TaskContext` 和 Batch taskName。
+- queue wait 分类（`enqueued()` 由等待时长派生）；
+- 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
+- 完成时刻直接观测的 `outcome()`（`SUCCESS`/`USER_FAILURE` 或从 token 读出的取消态）；组收敛后的快照可能携带更丰富的事后归因（如 `FAIL_FAST`）。
 
-执行前取消或提交失败的成员没有真实 start/end，不得伪造 TaskEvent。它们必须在 `TaskGroupResult` 和 Group listener 中可见。
+执行前取消或提交失败的成员没有真实 start/end，不得伪造 TaskCompletion 事件。它们必须在 `TaskGroupResult` 和 Group listener 中可见。
 
-Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskEvent/结果关联，不需要新增 current group context。首版不要求修改 `TaskContext` 增加 groupId/memberName。
+Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskCompletion/结果关联，不需要新增 current group context。TaskCompletion 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
 
 ### 10.2 TaskGroupListener
 
@@ -126,8 +127,8 @@ fake-group-batch -> A/B/C
 24. 每个运行成员看到自己的 `TaskExecutionContext.current()`；执行后恢复 previous/null；
 25. inline 嵌套执行呈现 outer -> member -> outer；
 26. `SubmissionScope` 仅覆盖 executor submission，并在 rejection/inline/异常后恢复；
-27. TaskListener 中 current task 为 null，TaskEvent 指向正确成员 TaskContext；
-28. 执行前取消和 submission failure 不产生虚假 TaskEvent；
+27. TaskListener 中 current task 为 null，TaskCompletion 的 taskName/unitId/taskIndex 指向正确成员；
+28. 执行前取消和 submission failure 不产生虚假 TaskCompletion 事件；
 29. Group listener 只调用一次，异常不改变结果；
 30. TTL 值以 `submit()` 的 prepare 阶段为捕获时点传播并恢复；`task()` 时的值不构成快照，普通 ThreadLocal 不承诺传播。
 

@@ -33,7 +33,7 @@ class MultiTaskContextTest {
 
         assertThat(context.effectiveParallelism()).isEqualTo(3);
         assertThat(context.executorIdentity()).isSameAs(identity);
-        assertThat(context.parLabel()).isEqualTo("http");
+        assertThat(context.executorLabel()).isEqualTo("http");
         assertThat(context.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(context.rejectEnqueue()).isFalse();
         assertThat(context.remaining().isNegative()).isFalse();
@@ -61,14 +61,14 @@ class MultiTaskContextTest {
             MultiTaskContext child = MultiTaskContext.resolve(
                     MultiTaskOptions.of("child").timeout(Duration.ofSeconds(30)).build(), 1, parent);
 
-            assertThat(parent.taskName()).isEqualTo("parent");
+            assertThat(parent.name()).isEqualTo("parent");
             assertThat(parent.taskCount()).isEqualTo(2);
-            assertThat(parent.parent()).isNull();
-            assertThat(child.parent()).isSameAs(parent);
+            assertThat(parent.structuralParent()).isNull();
+            assertThat(child.structuralParent()).isSameAs(parent);
             assertThat(child.taskGraphObservationScope()).isSameAs(observation);
             assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
             assertThat(child.executorIdentity()).isNull();
-            assertThat(child.parLabel()).isNull();
+            assertThat(child.executorLabel()).isNull();
         } finally {
             observation.close();
             global.close();

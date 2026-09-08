@@ -18,7 +18,7 @@
 
 早期 `0.2.x` 快照曾将该类型命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`。请将 import、变量声明和 `Par.map` 参数统一改为 `MultiTaskOptions`；在 `0.x` 阶段不保留兼容别名。
 
-单次调用的运行时上下文也因同样理由改名：原 `BatchExecutionContext` 现为 `MultiTaskContext`，因为它同时支撑 `Par.map` 批次与任务组成员。请更新 import 与 `resolve(...)` 调用点；`batchId()`、`batchContext()` 等访问器名称不变。
+单次调用的运行时上下文也因同样理由改名：原 `BatchExecutionContext` 现为 `MultiTaskContext`，因为它同时支撑 `Par.map` 批次与任务组成员。请更新 import 与 `resolve(...)` 调用点。原先偏向批次语义的访问器随后也按同一双重职责中性化：`batchId()` → `unitId()`、`taskName()` → `name()`、`parLabel()` → `executorLabel()`、`parent()` → `structuralParent()`（组成员的取消父级是 `cancellationToken()` 内部的组 token，而非此字段）。`SubmissionScope.currentBatch()` 改名为 `current()`。`TaskContext`（其 `batchContext()` 在 0.2 周期内曾短暂改名 `multiTaskContext()`）最终被移除而非改名：其只读内容打平进统一的 `TaskCompletion` 记录，详见下文。
 
 批次与任务组的选项类型已统一为单一的 `MultiTaskOptions`；原先的 `BatchExecutionOptions`
 和 `TaskGroupOptions` 已删除。`taskName()`/`groupName()` 访问器及对应的 builder 方法统一为
@@ -52,8 +52,15 @@ callable, options)`、一次性的 `TaskGroup.submit(global, spec)` 和 `TaskRef
 
 早期快照还曾将这套检测命名为 `GlobalParLivelockPolicy` 和 `LivelockListener`。请分别改为 `GlobalParDeadlockPolicy` 和 `DeadlockDetectionListener`；当前检测针对依赖图中的潜在死锁结构，不证明运行时已经死锁，也不检测活锁。
 
-`TaskListener.TaskEvent` 现在通过 `getTaskContext()` 暴露已完成任务，并通过
-`isSuccessful()`、`getResult()` 和 `getException()` 表达执行结果。成功任务也可能返回
+已完成任务的记录统一为单个类 `io.github.huatalk.parallelinscope.scope.TaskCompletion`：
+`TaskListener` 在任务完成时收到它，`TaskGroupResult.members()` 也以它为每个成员的终端快照。
+它同时取代旧的 `TaskListener.TaskEvent` 与 `TaskGroupMemberResult`，以打平字段暴露任务身份与
+计时——`taskName()`、`unitId()`、`taskIndex()`、`submitTimeNanos()`、`startTimeNanos()`、
+`endTimeNanos()`——外加 `outcome()`、`successful()`、`result()`、`failure()` 和
+`enqueued()`（现由队列等待时长派生）。原先的只读 `TaskContext` 视图已移除，此前可经
+`TaskContext.multiTaskContext()` 触及的引擎管道（取消令牌、deadline、结构父级）不再出现在
+监听器/结果 API 面上。`result()` 仅在监听器投递成功任务时非 null——组成员的结果留在其
+future 中——`taskIndex()` 对组成员恒为 0。成功任务也可能返回
 null，因此不要用 result 是否为 null 判断成败。监听器回调不属于已完成任务的动态执行作用域，
 应读取 event，而不是依赖 `TaskExecutionContext.current()`。
 
@@ -64,7 +71,8 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 `TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELED`，
 `TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
 `TaskBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
-`TaskGroupMemberResult` 的成员终态由 `outcome()` 暴露并返回 `TaskOutcome`（由早期的
+组成员的终端快照（`TaskGroupResult.members()` 的值，统一为 `TaskCompletion` 类型）的成员终态
+由 `outcome()` 暴露并返回 `TaskOutcome`（由早期的
 `completionReason()` 改名而来）。
 
 ## 终态词汇统一
@@ -78,8 +86,15 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 
 `CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELED` → `FAIL_FAST`，
 `TIMEOUT_CANCELED` → `TIMEOUT`，`MUTUAL_CANCELED` → `CANCELED`，`PROPAGATING_CANCELED` →
-`PROPAGATED_CANCELED`。`RUNNING`、`SUCCESS` 不变，`code()` 值与
-`shouldInterruptCurrentThread()` 语义不变。
+`PROPAGATED_CANCELED`。`RUNNING`、`SUCCESS` 不变；`code()` 已删除（整数编码是没有消费方的
+实现细节），`shouldInterruptCurrentThread()` 语义不变，改为直接的枚举比较。
+
+批次报告现在基于批次 token 的已提交状态精确归因被取消的元素（`Par.map` 返回的结果始终
+携带 token）：deadline 到期记 `TIMEOUT`，兄弟失败级联记 `FAIL_FAST`，整批取消或取消自上
+传播记 `GROUP_CANCELED`，无框架路径提交（用户直消）记 `MEMBER_CANCELED`。批次内所有元素
+共享同一 token，因此直接取消并触发级联的那个元素同样记 `FAIL_FAST`；需要逐个元素区分
+发起者时请使用任务组。通过 `TaskBatchResult.of(...)` 自行构造且不带 token 的结果保持粗粒度
+视图：取消一律记 `MEMBER_CANCELED`。
 
 `ExecutionPhase.CANCELLED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
 单 L `CANCELED` 拼写一致。

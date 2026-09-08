@@ -56,7 +56,7 @@ ExecutionPhaseHintFuture<Object> prepared = TaskSubmissions.prepare(taskContext,
 
 registerAll(preparedTasks); // 所有 future 同时成为完整冻结集合
 
-TaskSubmissions.submitScoped(prepared, batchContext, executor, cpuBound); // executor.execute outside group lock
+TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.execute outside group lock
 ```
 
 必须保证：
@@ -109,7 +109,7 @@ scope/
   TaskGroupSpec.java
   TaskRef.java
   TaskGroupResult.java
-  TaskGroupMemberResult.java
+  TaskCompletion.java
   TaskOutcome.java
 
 spi/

@@ -15,7 +15,7 @@ public final class TaskGroupResult {
     private final long deadlineNanos;
     private final TaskOutcome outcome;
     private final @Nullable String failedMemberName;
-    private final Map<String, TaskGroupMemberResult> members;
+    private final Map<String, TaskCompletion<?>> members;
 
     TaskGroupResult(
             String groupId,
@@ -25,7 +25,7 @@ public final class TaskGroupResult {
             long deadlineNanos,
             TaskOutcome outcome,
             @Nullable String failedMemberName,
-            Map<String, TaskGroupMemberResult> members) {
+            Map<String, TaskCompletion<?>> members) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
         this.groupName = Objects.requireNonNull(groupName, "groupName cannot be null");
         this.startTimeNanos = startTimeNanos;
@@ -65,7 +65,8 @@ public final class TaskGroupResult {
         return failedMemberName;
     }
 
-    public Map<String, TaskGroupMemberResult> members() {
+    /** Returns each member's terminal snapshot, keyed by registered member name. */
+    public Map<String, TaskCompletion<?>> members() {
         return members;
     }
 

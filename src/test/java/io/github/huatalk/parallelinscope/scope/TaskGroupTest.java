@@ -320,14 +320,15 @@ class TaskGroupTest {
                     new TaskRef<>("member") {},
                     "outer",
                     () -> {
-                        memberToken.set(
-                                TaskExecutionContext.current().batchContext().cancellationToken());
+                        memberToken.set(TaskExecutionContext.current()
+                                .multiTaskContext()
+                                .cancellationToken());
                         TaskBatchResult<Integer> nested = global.par("inner")
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> {
                                             nestedToken.set(TaskExecutionContext.current()
-                                                    .batchContext()
+                                                    .multiTaskContext()
                                                     .cancellationToken());
                                             nestedRunning.countDown();
                                             try {
@@ -404,7 +405,7 @@ class TaskGroupTest {
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELED);
             assertThat(result.members().values())
-                    .extracting(TaskGroupMemberResult::outcome)
+                    .extracting(TaskCompletion::outcome)
                     .containsOnly(TaskOutcome.GROUP_CANCELED);
         } finally {
             global.close();
@@ -471,7 +472,7 @@ class TaskGroupTest {
             assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.members().get("later").outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(calls).hasValue(0);
-            assertThat(SubmissionScope.currentBatch()).isNull();
+            assertThat(SubmissionScope.current()).isNull();
         } finally {
             global.close();
             rejecting.shutdownNow();
@@ -604,7 +605,7 @@ class TaskGroupTest {
             TaskRef<Long> member = spec.task(
                     new TaskRef<>("member") {},
                     "direct",
-                    () -> TaskExecutionContext.current().batchContext().deadlineNanos(),
+                    () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member").inheritTimeout().build());
 
             TaskGroup group = TaskGroup.submit(global, spec.build());
@@ -626,7 +627,7 @@ class TaskGroupTest {
             TaskRef<Long> member = spec.task(
                     new TaskRef<>("member") {},
                     "direct",
-                    () -> TaskExecutionContext.current().batchContext().deadlineNanos(),
+                    () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member")
                             .timeout(Duration.ofMillis(100))
                             .build());
@@ -655,13 +656,14 @@ class TaskGroupTest {
                     new TaskRef<>("member") {},
                     "outer",
                     () -> {
-                        long memberDeadline =
-                                TaskExecutionContext.current().batchContext().deadlineNanos();
+                        long memberDeadline = TaskExecutionContext.current()
+                                .multiTaskContext()
+                                .deadlineNanos();
                         TaskBatchResult<Long> nested = global.par("inner")
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> TaskExecutionContext.current()
-                                                .batchContext()
+                                                .multiTaskContext()
                                                 .deadlineNanos(),
                                         MultiTaskOptions.of("nested")
                                                 .inheritTimeout()
@@ -712,7 +714,7 @@ class TaskGroupTest {
                             Arrays.asList(1),
                             ignored -> {
                                 long outerDeadline = TaskExecutionContext.current()
-                                        .batchContext()
+                                        .multiTaskContext()
                                         .deadlineNanos();
                                 TaskGroupSpec.Builder spec = TaskGroupSpec.builder(MultiTaskOptions.of("nested-group")
                                         .inheritTimeout()
@@ -758,14 +760,14 @@ class TaskGroupTest {
                             Arrays.asList(1),
                             ignored -> {
                                 MultiTaskContext expectedParent =
-                                        TaskExecutionContext.current().batchContext();
+                                        TaskExecutionContext.current().multiTaskContext();
                                 TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("nested"));
                                 TaskRef<MultiTaskContext> child = spec.task(
                                         new TaskRef<>("child") {},
                                         "inner",
                                         () -> TaskExecutionContext.current()
-                                                .batchContext()
-                                                .parent(),
+                                                .multiTaskContext()
+                                                .structuralParent(),
                                         memberOptions("child"));
                                 TaskGroup group = TaskGroup.submit(global, spec.build());
                                 try {
@@ -906,7 +908,7 @@ class TaskGroupTest {
                             Arrays.asList("x"),
                             ignored -> {
                                 outerToken.set(TaskExecutionContext.current()
-                                        .batchContext()
+                                        .multiTaskContext()
                                         .cancellationToken());
                                 TaskGroupSpec.Builder spec = TaskGroupSpec.builder(groupOptions("outer-cancel"));
                                 spec.task(

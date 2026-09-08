@@ -2,7 +2,9 @@ package io.github.huatalk.parallelinscope.scope;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.internal.FutureInspector;
+import io.github.huatalk.parallelinscope.internal.TokenOutcomes;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -21,10 +23,15 @@ import javax.annotation.Nullable;
  */
 public final class TaskBatchResult<T> {
 
+    private final @Nullable CancellationToken cancellationToken;
     private final ListenableFuture<?> submitCanceller;
     private final List<ListenableFuture<T>> results;
 
-    private TaskBatchResult(@Nullable ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
+    private TaskBatchResult(
+            @Nullable CancellationToken cancellationToken,
+            @Nullable ListenableFuture<?> submitCanceller,
+            List<ListenableFuture<T>> results) {
+        this.cancellationToken = cancellationToken;
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = results;
     }
@@ -52,41 +59,94 @@ public final class TaskBatchResult<T> {
     /**
      * Creates a result for a batch whose submissions may still be running.
      *
+     * <p>Without the batch's cancellation token, cancellation attribution in {@link #report()}
+     * stays coarse: every cancelled element reads {@link TaskOutcome#MEMBER_CANCELED}.
+     *
      * @param <T> the element result type
      * @param submitCanceller the future running the remaining submissions
      * @param results the individual result futures
      * @return a new batch result
      */
     public static <T> TaskBatchResult<T> of(ListenableFuture<?> submitCanceller, List<ListenableFuture<T>> results) {
-        return new TaskBatchResult<>(submitCanceller, results);
+        return new TaskBatchResult<>(null, submitCanceller, results);
     }
 
     /**
      * Creates a result for a fully submitted batch.
+     *
+     * <p>Without the batch's cancellation token, cancellation attribution in {@link #report()}
+     * stays coarse: every cancelled element reads {@link TaskOutcome#MEMBER_CANCELED}.
      *
      * @param <T> the element result type
      * @param results the individual result futures
      * @return a new batch result
      */
     public static <T> TaskBatchResult<T> of(List<ListenableFuture<T>> results) {
-        return new TaskBatchResult<>(Futures.immediateVoidFuture(), results);
+        return new TaskBatchResult<>(null, Futures.immediateVoidFuture(), results);
+    }
+
+    /**
+     * Creates a result for a batch whose submissions may still be running, carrying the batch's
+     * cancellation token so {@link #report()} attributes cancellations precisely.
+     *
+     * @param <T> the element result type
+     * @param cancellationToken the token the batch's futures are bound to
+     * @param submitCanceller the future running the remaining submissions
+     * @param results the individual result futures
+     * @return a new batch result
+     */
+    public static <T> TaskBatchResult<T> of(
+            CancellationToken cancellationToken,
+            ListenableFuture<?> submitCanceller,
+            List<ListenableFuture<T>> results) {
+        return new TaskBatchResult<>(
+                java.util.Objects.requireNonNull(cancellationToken, "cancellationToken cannot be null"),
+                submitCanceller,
+                results);
+    }
+
+    /**
+     * Creates a result for a fully submitted batch, carrying the batch's cancellation token so
+     * {@link #report()} attributes cancellations precisely.
+     *
+     * @param <T> the element result type
+     * @param cancellationToken the token the batch's futures are bound to
+     * @param results the individual result futures
+     * @return a new batch result
+     */
+    public static <T> TaskBatchResult<T> of(CancellationToken cancellationToken, List<ListenableFuture<T>> results) {
+        return new TaskBatchResult<>(
+                java.util.Objects.requireNonNull(cancellationToken, "cancellationToken cannot be null"),
+                Futures.immediateVoidFuture(),
+                results);
     }
 
     /**
      * Generates execution report: counts tasks by outcome and extracts first failure exception.
+     *
+     * <p>When this result carries the batch's cancellation token, cancelled elements are
+     * attributed from the token's committed state (see {@link TokenOutcomes}): {@code TIMEOUT} for
+     * deadline expiry, {@code FAIL_FAST} for the cascade after a sibling failure, {@code
+     * GROUP_CANCELED} for batch-level or propagated cancellation, and {@code MEMBER_CANCELED} when
+     * no framework path committed (a direct cancellation). A failure that merely signals observed
+     * cancellation (a cooperative checkpoint or an interrupt racing the cascade cancel) is
+     * attributed the same way instead of reading {@code USER_FAILURE}. The batch shares one token
+     * across all elements, so an element whose direct cancellation <em>triggered</em> the fail-fast
+     * cascade also reads {@code FAIL_FAST}; distinguishing the initiator per element requires a
+     * {@code TaskGroup}.
      *
      * @return a BatchReport containing outcome counts and the first exception (if any)
      */
     public BatchReport report() {
         Map<TaskOutcome, Integer> outcomeMap = results.stream()
                 .collect(Collectors.toMap(
-                        FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(TaskOutcome.class)));
+                        this::outcomeOf, x -> 1, Integer::sum, () -> new EnumMap<>(TaskOutcome.class)));
         Throwable firstException = null;
         if (outcomeMap.containsKey(TaskOutcome.USER_FAILURE)
                 || outcomeMap.containsKey(TaskOutcome.SUBMISSION_FAILURE)) {
             firstException = results.stream()
                     .filter(x -> {
-                        TaskOutcome outcome = FutureInspector.state(x);
+                        TaskOutcome outcome = outcomeOf(x);
                         return outcome == TaskOutcome.USER_FAILURE || outcome == TaskOutcome.SUBMISSION_FAILURE;
                     })
                     .map(FutureInspector::exceptionNow)
@@ -94,6 +154,28 @@ public final class TaskBatchResult<T> {
                     .orElse(null);
         }
         return new BatchReport(outcomeMap, firstException);
+    }
+
+    /**
+     * Classifies one element's future, refining it through the batch token when one was supplied
+     * at construction. Two future-layer results are refined: a cancelled future reads the token's
+     * committed state, and so does a failure that merely signals observed cancellation (a
+     * checkpoint or an interrupt can win the race against the cascade cancel on the element
+     * future).
+     */
+    private TaskOutcome outcomeOf(ListenableFuture<T> future) {
+        TaskOutcome outcome = FutureInspector.outcome(future);
+        if (cancellationToken == null) {
+            return outcome;
+        }
+        if (outcome == TaskOutcome.MEMBER_CANCELED) {
+            return TokenOutcomes.forCanceled(cancellationToken, TaskOutcome.MEMBER_CANCELED);
+        }
+        if (outcome == TaskOutcome.USER_FAILURE
+                && TokenOutcomes.causedByCancellation(FutureInspector.exceptionNow(future))) {
+            return TokenOutcomes.forCanceled(cancellationToken, TaskOutcome.USER_FAILURE);
+        }
+        return outcome;
     }
 
     /**

@@ -67,7 +67,7 @@ public final class Par {
     }
 
     ExecutionPhaseHintFuture<Object> prepareGroupTask(
-            Callable<Object> callable, MultiTaskContext batchContext, TaskExecutionContext taskContext) {
+            Callable<Object> callable, MultiTaskContext unit, TaskExecutionContext taskContext) {
         return TaskSubmissions.prepare(
                 taskContext, callable, globalPar.taskListenersFor(displayName), runtime.phaseObserver());
     }
@@ -110,7 +110,7 @@ public final class Par {
         if (!options.timeout().isPresent() && currentTask == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
-        MultiTaskContext parent = currentTask == null ? null : currentTask.batchContext();
+        MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
         TaskGraphObservationScope observation = parent != null
                         && parent.taskGraphObservationScope() != null
@@ -119,52 +119,52 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == globalPar
                         ? currentObservation
                         : null;
-        MultiTaskContext batchContext =
+        MultiTaskContext unit =
                 MultiTaskContext.resolve(options, taskCount, parent, observation, runtime.identity(), displayName);
-        return executeGlobal(list, item -> () -> function.apply(item), batchContext);
+        return executeGlobal(list, item -> () -> function.apply(item), unit);
     }
 
     private <T, R> TaskBatchResult<R> executeGlobal(
-            @Nullable List<T> list, Function<T, Callable<R>> callableMapper, MultiTaskContext batchContext) {
+            @Nullable List<T> list, Function<T, Callable<R>> callableMapper, MultiTaskContext unit) {
         if (list == null || list.isEmpty()) return emptyBatchResult();
         TaskEdge edge = new TaskEdge(
-                batchContext.effectiveParallelism(),
-                batchContext.taskType(),
-                batchContext.executorIdentity(),
-                batchContext.parent() == null ? null : batchContext.parent().executorIdentity(),
-                batchContext.parLabel(),
-                batchContext.parent() == null ? "NA" : batchContext.parent().parLabel(),
+                unit.effectiveParallelism(),
+                unit.taskType(),
+                unit.executorIdentity(),
+                unit.structuralParent() == null ? null : unit.structuralParent().executorIdentity(),
+                unit.executorLabel(),
+                unit.structuralParent() == null ? "NA" : unit.structuralParent().executorLabel(),
                 list.size(),
-                batchContext.remaining().toMillis(),
+                unit.remaining(),
                 runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
-        logForking(batchContext, edge);
+        logForking(unit, edge);
         com.google.common.base.Ticker ticker = com.google.common.base.Ticker.systemTicker();
         List<ExecutionPhaseHintFuture<R>> tasks = java.util.stream.IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(batchContext, index, ticker.read()),
+                        new TaskExecutionContext(unit, index, ticker.read()),
                         callableMapper.apply(list.get(index)),
                         globalPar.taskListenersFor(displayName),
                         runtime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
-                        runtime.submissionExecutor(), batchContext, globalPar.submitterPool())
+                        runtime.submissionExecutor(), unit, globalPar.submitterPool())
                 .submitAll(tasks);
-        batchContext.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
+        unit.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
         globalPar.retainUntilComplete(result.results());
         return result;
     }
 
     /**
-     * Records one parent-to-child batch edge. Batch IDs, rather than reusable task names, preserve
+     * Records one parent-to-child unit edge. Unit IDs, rather than reusable task names, preserve
      * graph correctness when the same named operation is invoked concurrently.
      */
     private static void logForking(MultiTaskContext context, TaskEdge edge) {
-        MultiTaskContext parent = context.parent();
+        MultiTaskContext parent = context.structuralParent();
         TaskGraphObservationScope.logTaskPair(
-                parent == null ? null : parent.batchId(),
-                parent == null ? null : parent.taskName(),
-                context.batchId(),
-                context.taskName(),
+                parent == null ? null : parent.unitId(),
+                parent == null ? null : parent.name(),
+                context.unitId(),
+                context.name(),
                 edge);
     }
 

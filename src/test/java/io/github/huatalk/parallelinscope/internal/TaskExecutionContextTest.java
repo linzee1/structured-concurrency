@@ -20,8 +20,8 @@ class TaskExecutionContextTest {
         first.markStarted(30L);
         first.markEnded(40L);
 
-        assertThat(first.batchContext()).isSameAs(batch);
-        assertThat(second.batchContext()).isSameAs(batch);
+        assertThat(first.multiTaskContext()).isSameAs(batch);
+        assertThat(second.multiTaskContext()).isSameAs(batch);
         assertThat(first.taskIndex()).isEqualTo(0);
         assertThat(second.taskIndex()).isEqualTo(1);
         assertThat(first.submitTimeNanos()).isEqualTo(10L);

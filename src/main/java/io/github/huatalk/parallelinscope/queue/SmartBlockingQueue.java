@@ -63,9 +63,9 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      */
     @Override
     public boolean offer(E o) {
-        MultiTaskContext batch = SubmissionScope.currentBatch();
-        if (batch != null) {
-            if (batch.taskType() == TaskType.CPU_BOUND || batch.rejectEnqueue()) return false;
+        MultiTaskContext unit = SubmissionScope.current();
+        if (unit != null) {
+            if (unit.taskType() == TaskType.CPU_BOUND || unit.rejectEnqueue()) return false;
             return delegate.offer(o);
         }
         return delegate.offer(o);
