@@ -43,6 +43,16 @@ Two invariants to respect:
   tasks beyond the window are returned as `SettableFuture` placeholders
   bridged via `setFuture()` when a slot frees.
 
+## Working Principles
+
+- Analyze every requirement's implementation from first principles by
+  default: start from the project's axioms (structured concurrency;
+  maximize the safety and convenience of user-facing concurrency) in
+  `design/first-principles.md`, apply its evaluation checklist to any new
+  capability or concept, and only then drop into the specific contract
+  documents. Prefer parameterizing existing mechanisms over adding new
+  concepts.
+
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
@@ -108,7 +118,8 @@ user explicitly asks for subagent delegation.
 Before changing the execution engine, cancellation, task groups, or queue
 behavior, read `design/AGENTS.md` first and load only the documents whose
 summaries match your task — do not pre-read everything.
-Overview: task group contract → `design/task-group-*.md`; cancellation
+Overview: axioms and new-feature evaluation → `design/first-principles.md`;
+task group contract → `design/task-group-*.md`; cancellation
 propagation mechanics → `design/cancellation-propagation.md`; queue
 lifecycle contract → `design/draining-queue-contract.md`; design rationale
 and rejected ideas → `docs/zh/design/philosophy.md` and
