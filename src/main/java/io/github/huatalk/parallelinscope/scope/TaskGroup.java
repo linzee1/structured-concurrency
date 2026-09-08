@@ -36,10 +36,10 @@ import javax.annotation.Nullable;
 /**
  * A fixed, heterogeneous set of named tasks submitted at one explicit boundary.
  *
- * <p>A group is described by a reusable {@link TaskGroupSpec} and submitted via {@link
- * #submit(GlobalPar, TaskGroupSpec)}, which builds, starts, and submits all members in one call.
+ * <p>A group is described by a reusable {@link TaskGroupDefinition} and submitted via {@link
+ * #submit(GlobalPar, TaskGroupDefinition)}, which builds, starts, and submits all members in one call.
  * Member futures are looked up by name ({@link #members()}, {@link #findMember(String)}) or through
- * the typed {@link TaskRef} tokens registered while configuring the spec ({@link #future(TaskRef)}).
+ * the typed {@link TaskRef} tokens registered while configuring the definition ({@link #future(TaskRef)}).
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
  * deadline, or any single member deadline cancels every unfinished member. All outcomes are
@@ -347,10 +347,10 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Builds a group from the spec and submits all of its members at one boundary.
+     * Builds a group from the definition and submits all of its members at one boundary.
      *
      * <p>The structural parent, graph observation, and group deadline are resolved from the calling
-     * thread at submit time, so a {@link TaskGroupSpec} may be reused across submissions. A group
+     * thread at submit time, so a {@link TaskGroupDefinition} may be reused across submissions. A group
      * options timeout of {@link MultiTaskOptions.Builder#inheritTimeout()} requires an enclosing
      * scoped task; without one this method throws {@link IllegalArgumentException}.
      *
@@ -358,17 +358,17 @@ public final class TaskGroup implements AutoCloseable {
      *     the group inherits a deadline that does not exist
      * @throws IllegalStateException if the given GlobalPar has begun shutdown
      */
-    public static TaskGroup submit(GlobalPar env, TaskGroupSpec spec) {
+    public static TaskGroup submit(GlobalPar env, TaskGroupDefinition definition) {
         Objects.requireNonNull(env, "env cannot be null");
-        Objects.requireNonNull(spec, "spec cannot be null");
-        TaskGroup group = env.whileOpen(() -> buildWhileOpen(env, spec));
+        Objects.requireNonNull(definition, "definition cannot be null");
+        TaskGroup group = env.whileOpen(() -> buildWhileOpen(env, definition));
         group.start(env);
         group.submitPrepared();
         return group;
     }
 
-    private static TaskGroup buildWhileOpen(GlobalPar env, TaskGroupSpec spec) {
-        MultiTaskOptions options = spec.groupOptions();
+    private static TaskGroup buildWhileOpen(GlobalPar env, TaskGroupDefinition definition) {
+        MultiTaskOptions options = definition.groupOptions();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
@@ -397,7 +397,7 @@ public final class TaskGroup implements AutoCloseable {
                 TaskGraphObservationScope.restore(null);
             }
             List<Par> memberPars = new ArrayList<>();
-            for (TaskGroupSpec.MemberSpec<?> member : spec.members()) {
+            for (TaskGroupDefinition.TaskDefinition<?> member : definition.tasks()) {
                 Par par = env.par(member.executorName());
                 memberPars.add(par);
                 MultiTaskContext unit = MultiTaskContext.resolve(

@@ -7,7 +7,7 @@
 
 ### 7.1 配置期校验
 
-`TaskGroupSpec.Builder.task()` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
+`TaskGroupDefinition.Builder.task()` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
 
 - memberName 为空或重复；
 - 参数为 null。
@@ -16,7 +16,7 @@
 `IllegalArgumentException`。`task()` 不检查或消耗 deadline，因为 Group 的逻辑执行时间从
 submit 开始。
 
-executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 spec 校验失败。被目标 executor 拒绝的 CPU-bound 成员按现有策略在提交线程 inline 执行，属于正常执行路径；非 CPU-bound 成员被拒绝时不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）。
+executor rejection 只有实际提交时才能知道，因此属于 submit 后的成员运行结果，不是 definition 校验失败。被目标 executor 拒绝的 CPU-bound 成员按现有策略在提交线程 inline 执行，属于正常执行路径；非 CPU-bound 成员被拒绝时不运行用户 callable，公开 future 以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）。
 
 ### 7.2 submit 线性化与步骤
 
@@ -106,7 +106,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 ```text
 scope/
   TaskGroup.java
-  TaskGroupSpec.java
+  TaskGroupDefinition.java
   TaskRef.java
   TaskGroupResult.java
   TaskCompletion.java

@@ -12,13 +12,13 @@
 GlobalPar ────────────────────────────────────────────────────────────
 
 配置生命周期
-TaskGroupSpec.Builder ── task* ── build ── TaskGroupSpec（不可变、可复用）
+TaskGroupDefinition.Builder ── task* ── build ── TaskGroupDefinition（不可变、可复用）
 
 请求/显式协调生命周期
 TaskGroup ── created/running ── all terminal ── closed
 
 每个成员对象生命周期
-MemberSpec ── added ── frozen ─┐
+TaskDefinition ── added ── frozen ─┐
 MemberState ──────────────────────── prepared/submitted/running ── terminal
 MultiTaskContext ────────────────────────────────────────────────
 TaskExecutionContext ─ created ─ queued ─ run ─ completed/event ─────
@@ -33,9 +33,9 @@ TaskGraphObservationScope ──────────────────
 
 ### 4.2 TaskGroup
 
-`TaskGroupSpec` 只保存组级 options 和有序成员定义，是纯数据、可复用对象；外层上下文、
+`TaskGroupDefinition` 只保存组级 options 和有序成员定义，是纯数据、可复用对象；外层上下文、
 observation 和 deadline 归属在每次 `TaskGroup.submit()` 时按提交线程解析。成员定义
-（`MemberSpec`）是 spec 的不可变组成部分，不新增公共 Context。spec 不属于任何物理线程。
+（`TaskDefinition`）是 definition 的不可变组成部分，不新增公共 Context。definition 不属于任何物理线程。
 
 `TaskGroup` 本身就是组级运行状态，MUST NOT 再新增 `TaskGroupContext` 或 `CurrentTaskGroupTl`。
 
@@ -180,7 +180,7 @@ member deadline           = min(member requested deadline, group deadline)
 
 ### 5.2 Group 在一个正在执行的 scoped task 中创建
 
-`TaskGroup.submit()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 spec 无论之后从哪个线程提交，归属都由该次提交现场决定：
+`TaskGroup.submit()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 definition 无论之后从哪个线程提交，归属都由该次提交现场决定：
 
 ```text
 outerBatch = currentTask.multiTaskContext()
@@ -202,15 +202,15 @@ Group 本身不是一个虚构 Batch，也不创建 Group TaskGraph node。每�
 
 ## 6. 状态机与完成条件
 
-`TaskGroupSpec` 是不可变纯数据，不存在配置/消费状态机；只有运行 Group 有生命周期：
+`TaskGroupDefinition` 是不可变纯数据，不存在配置/消费状态机；只有运行 Group 有生命周期：
 
 ```text
 Group:   RUNNING -----all members terminal--> CLOSED
 ```
 
-- `TaskGroupSpec.Builder` 非线程安全，调用方必须在一个配置流程中完成定义后 `build()`；build 出的
-  spec 可安全共享并重复提交；
-- 每次 `TaskGroup.submit()` 独立创建运行对象；spec 没有"已消费"状态；
+- `TaskGroupDefinition.Builder` 非线程安全，调用方必须在一个配置流程中完成定义后 `build()`；build 出的
+  definition 可安全共享并重复提交；
+- 每次 `TaskGroup.submit()` 独立创建运行对象；definition 没有"已消费"状态；
 - 返回的 Group 从一开始就持有完整、不可扩展的成员集合；
 - `CLOSED` 只表示全部公开成员 future 已终态且不可变结果已经发布。
 
@@ -237,13 +237,13 @@ null --all success-----------> SUCCESS
   成功时，Group 原因固定为 `MEMBER_CANCELED`；
 - `CLOSED` 只在 `terminalCount == memberCount` 时发布；
 - Group 原因可以先固定，但 completion future 仍必须等所有公开成员 future 达到终态；
-- 空 spec submit 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
+- 空 definition submit 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
 
 建议 Group registry 在发布前构造完成，此后只读；完成原因和计数转换使用原子操作或一把私有 lock。成员 future 的完成 callback 在 lock 内只更新小型状态和决定后续动作，取消 future、触发 listener 等外部调用必须在 lock 外执行，防止重入和长时间占锁。
 
 ## 12. GlobalPar 关闭与资源所有权
 
-- `TaskGroupSpec` 是纯配置对象，创建它不验证 GlobalPar 状态，也不长期 retain；
+- `TaskGroupDefinition` 是纯配置对象，创建它不验证 GlobalPar 状态，也不长期 retain；
 - `TaskGroup.submit()` 的冻结、运行对象创建和全量成员 admission 必须整体通过一次 `GlobalPar.whileOpen()`，使 submit 要么在线性化点先于 close 接纳完整组，要么完整拒绝；不得出现只接纳一部分成员；
 - submit 完成 admission 后，即使 GlobalPar 随后关闭，冻结成员也必须完成取消、timeout、listener 和结果收敛；
 - 每个冻结成员通过 `retainUntilComplete()` 计入活动运行；可以增加 group-aware retain helper，但不得提前关闭 timer/submitter/maintenance 服务；

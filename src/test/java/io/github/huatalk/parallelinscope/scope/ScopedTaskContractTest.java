@@ -216,24 +216,24 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TaskGroupSpec.Builder spec = TaskGroupSpec.builder(MultiTaskOptions.of("cancel")
+                TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(MultiTaskOptions.of("cancel")
                         .timeout(Duration.ofSeconds(30))
                         .build());
-                spec.task(
+                definition.task(
                         new TaskRef<>("blocker") {},
                         "worker",
                         () -> runUnlessQueued("blocker", release, queuedRuns),
                         MultiTaskOptions.of("blocker")
                                 .timeout(Duration.ofSeconds(30))
                                 .build());
-                TaskRef<Object> queued = spec.task(
+                TaskRef<Object> queued = definition.task(
                         new TaskRef<>("queued") {},
                         "worker",
                         () -> runUnlessQueued("queued", release, queuedRuns),
                         MultiTaskOptions.of("queued")
                                 .timeout(Duration.ofSeconds(30))
                                 .build());
-                TaskGroup group = TaskGroup.submit(global, spec.build());
+                TaskGroup group = TaskGroup.submit(global, definition.build());
                 assertThat(group.future(queued).cancel(true)).isTrue();
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(result.members().get("queued").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
@@ -313,10 +313,10 @@ class ScopedTaskContractTest {
                     .results()
                     .get(0);
         }
-        TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
+        TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
                 MultiTaskOptions.of("contract").timeout(Duration.ofSeconds(30)).build());
-        TaskRef<Object> ref = spec.task(new TaskRef<>(name) {}, "worker", task, options);
-        TaskGroup group = TaskGroup.submit(global, spec.build());
+        TaskRef<Object> ref = definition.task(new TaskRef<>(name) {}, "worker", task, options);
+        TaskGroup group = TaskGroup.submit(global, definition.build());
         LAST_GROUP.set(group);
         return group.future(ref);
     }
