@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> 本文部分示例保留 v0.2 前的历史 API。当前应用装配使用 `GlobalPar.builder()` 和 `BatchExecutionOptions`，请以 [v0.2 迁移指南](../migration-v0.2.md) 为准。
+> 本文部分示例保留 v0.2 前的历史 API。当前应用装配使用 `GlobalPar.builder()` 和 `MultiTaskOptions`，请以 [v0.2 迁移指南](../migration-v0.2.md) 为准。
 
 
 > 本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。

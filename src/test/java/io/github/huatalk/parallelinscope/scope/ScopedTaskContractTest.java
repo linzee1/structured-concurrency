@@ -96,8 +96,8 @@ class ScopedTaskContractTest {
                 TaskGroupResult result = lastGroupResult(global);
                 // The member observer is registered before the group token bind, so the group
                 // converges while its token is still RUNNING: a lone member failure reads as
-                // CANCELED, with the failure attributed to the member.
-                assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.CANCELED);
+                // MEMBER_CANCELED, with the failure attributed to the member.
+                assertThat(result.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
                 assertThat(result.failedMemberName()).isEqualTo("task");
                 assertThat(result.members().get("task").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
@@ -221,14 +221,14 @@ class ScopedTaskContractTest {
                         .timeout(Duration.ofSeconds(30))
                         .build());
                 spec.task(
-                        "blocker",
+                        new TaskRef<>("blocker") {},
                         "worker",
                         () -> runUnlessQueued("blocker", release, queuedRuns),
                         MultiTaskOptions.of("blocker")
                                 .timeout(Duration.ofSeconds(30))
                                 .build());
                 TaskRef<Object> queued = spec.task(
-                        "queued",
+                        new TaskRef<>("queued") {},
                         "worker",
                         () -> runUnlessQueued("queued", release, queuedRuns),
                         MultiTaskOptions.of("queued")
@@ -239,7 +239,7 @@ class ScopedTaskContractTest {
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(result.members().get("queued").outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
             }
-            assertThat(phases).contains(ExecutionPhase.CANCELLED_BEFORE_RUN);
+            assertThat(phases).contains(ExecutionPhase.CANCELED_BEFORE_RUN);
             assertThat(queuedRuns).hasValue(0);
         } finally {
             release.countDown();
@@ -316,7 +316,7 @@ class ScopedTaskContractTest {
         }
         TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
                 MultiTaskOptions.of("contract").timeout(Duration.ofSeconds(30)).build());
-        TaskRef<Object> ref = spec.task(name, "worker", task, options);
+        TaskRef<Object> ref = spec.task(new TaskRef<>(name) {}, "worker", task, options);
         TaskGroup group = TaskGroup.submit(global, spec.build());
         LAST_GROUP.set(group);
         return group.future(ref);

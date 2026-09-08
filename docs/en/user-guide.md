@@ -72,10 +72,12 @@ it does not create execution contexts, capture TTL values, start timers, or subm
 freezes the complete member set, prepares every member, and then submits them.
 
 Groups and batches share one option type, `MultiTaskOptions`: the group reads name, timeout,
-and listeners, while each member reads the execution subset (parallelism, task type, enqueue
-policy, timeout). Members typically declare `inheritTimeout()` so they run under the group
-deadline; an explicit member timeout is capped by it. A group that declares `inheritTimeout()`
-must be submitted from inside a scoped task, otherwise `submit` is rejected.
+and listeners, while each member reads the execution subset (task type, enqueue policy, timeout).
+A member is a single task, so its `parallelism` is resolved but never read — nested work submitted
+inside a member reads the parallelism of that nested submission's own options. Members typically
+declare `inheritTimeout()` so they run under the group deadline; an explicit member timeout is
+capped by it. A group that declares `inheritTimeout()` must be submitted from inside a scoped
+task, otherwise `submit` is rejected.
 
 ```java
 TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
@@ -84,10 +86,12 @@ TaskGroupSpec.Builder spec = TaskGroupSpec.builder(
                 .build());
 
 TaskRef<User> user = spec.task(
-        "user", "database", userRepository::load,
+        new TaskRef<User>("user") {},
+        "database", userRepository::load,
         MultiTaskOptions.of("load-user").inheritTimeout().build());
 TaskRef<List<Order>> orders = spec.task(
-        "orders", "http", orderClient::load,
+        new TaskRef<List<Order>>("orders") {},
+        "http", orderClient::load,
         MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
@@ -97,11 +101,13 @@ try (TaskGroup group = TaskGroup.submit(global, spec.build())) {
 }
 ```
 
-A `TaskRef` is a type-safe token handed out while configuring the spec; after submission,
-`group.future(ref)` resolves the member's future. Group completion always returns a
-`TaskGroupResult`; `FAILED`, `TIMEOUT`, and `CANCELED` are result reasons rather than failures of
-the completion future. Individual member futures retain normal Guava success, failure, and
-cancellation behavior.
+A `TaskRef` is a type-safe token created as an anonymous subclass so the member's result type is
+captured at runtime; it is registered while configuring the spec, and after submission
+`group.future(ref)` resolves the member's future, rejecting a ref whose raw result type does not
+cover the registered one. Group completion always returns a
+`TaskGroupResult`; the group outcome (`result.outcome()`, a `TaskOutcome`) is result data rather
+than a failure of the completion future. Individual member futures retain normal Guava success,
+failure, and cancellation behavior.
 
 Group cancellation is fully structured, matching batch semantics: the first member failure, a
 direct cancellation of any member future or member token, the group deadline, or any single member
@@ -113,7 +119,7 @@ member deadlines start at the submission boundary, and member deadlines are capp
 deadline. A group submitted inside a scoped task inherits outer cancellation and its deadline
 ceiling; cancellation propagated from an ancestor keeps its originating reason
 (`CancellationToken.originState()`), so an ancestor deadline expiring still converges the group as
-`TIMEOUT` rather than a plain `CANCELED`. Each member remains a real child task, while membership
+`TIMEOUT` rather than a plain `GROUP_CANCELED`. Each member remains a real child task, while membership
 itself does not add dependency edges between siblings.
 
 ## Cancellation and nested batches
@@ -197,7 +203,7 @@ queue.awaitDrained();   // optional: wait until drained
 Job job = queue.take(); // real element before drained; poison after drained
 ```
 
-Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](../../zh/design/draining-blocking-queue-contract.md).
+Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](../../design/draining-queue-contract.md).
 
 ## Operational rules
 

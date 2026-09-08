@@ -341,7 +341,7 @@ public final class GlobalPar implements AutoCloseable {
         if (!(runtime.suppliedExecutor() instanceof ThreadPoolExecutor)) return;
         Runnable observer = purger.cancellationObserverFor((ThreadPoolExecutor) runtime.suppliedExecutor());
         runtime.setPhaseObserver(phase -> {
-            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) observer.run();
+            if (phase == ExecutionPhase.CANCELED_BEFORE_RUN) observer.run();
         });
     }
 

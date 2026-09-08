@@ -40,10 +40,12 @@ deadline。没有外层 deadline 可继承时，入口点直接拒绝：顶层 `
 任务组 API 现在以不可变、可复用的 spec 为中心。请把早期的 builder 流程——
 `GlobalPar.taskGroupBuilder(options)`、`ParallelTaskGroup.Builder.addTask(name, par, callable,
 options)`、一次性的 `buildAndSubmitAll()` 和 `ParallelTaskGroup.TaskHandle<T>`——替换为
-`TaskGroupSpec.builder(groupOptions)`、`TaskGroupSpec.Builder.task(memberName, executorName,
+`TaskGroupSpec.builder(groupOptions)`、`TaskGroupSpec.Builder.task(ref, executorName,
 callable, options)`、一次性的 `TaskGroup.submit(global, spec)` 和 `TaskRef<T>`。
-成员按注册名而不是 `Par` 对象引用执行器。`task()` 返回的 `TaskRef<T>` 是不携带执行状态的类型化
-令牌；提交后通过 `group.future(ref)` 取回成员 future。spec 不捕获线程上下文，结构父任务与观测
+成员按注册名而不是 `Par` 对象引用执行器。`TaskRef<T>` 由调用方以匿名子类形式创建——
+`new TaskRef<List<Order>>("orders") {}`——因此令牌同时携带成员名并在运行时捕获结果类型；
+将它传给 `task()`，提交后通过 `group.future(ref)` 取回成员 future，若令牌的 raw 结果类型
+不能覆盖注册类型则会被拒绝。spec 不捕获线程上下文，结构父任务与观测
 作用域在每次 `submit` 时按提交线程解析，因此同一个 spec 可以重复提交。组入口类本身也由
 `ParallelTaskGroup` 改名为 `TaskGroup`，归入 `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener`
 家族。早期 builder API 从未作为稳定契约发布，因此不提供兼容 shim。
@@ -62,6 +64,24 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 `TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELED`，
 `TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
 `AsyncBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
-`TaskGroupMemberResult.completionReason()` 返回 `TaskOutcome`。
+`TaskGroupMemberResult` 的成员终态由 `outcome()` 暴露并返回 `TaskOutcome`（由早期的
+`completionReason()` 改名而来）。
+
+## 终态词汇统一
+
+`TaskGroupCompletionReason` 已删除，组级结果复用 `TaskOutcome`：
+`TaskGroupResult.completionReason()` 改名为 `outcome()`，返回 `TaskOutcome`。映射关系：
+`SUCCESS` → `TaskOutcome.SUCCESS`；`TIMEOUT` → `TaskOutcome.TIMEOUT`；`FAILED` → 失败组员
+自己的 outcome（`USER_FAILURE` 或 `SUBMISSION_FAILURE`，见 `failedMemberName()`）；
+`CANCELED` → 组被整体取消或取消自上传播时为 `GROUP_CANCELED`，取消源自组员时为
+`MEMBER_CANCELED`。
+
+`CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELED` → `FAIL_FAST`，
+`TIMEOUT_CANCELED` → `TIMEOUT`，`MUTUAL_CANCELED` → `CANCELED`，`PROPAGATING_CANCELED` →
+`PROPAGATED_CANCELED`。`RUNNING`、`SUCCESS` 不变，`code()` 值与
+`shouldInterruptCurrentThread()` 语义不变。
+
+`ExecutionPhase.CANCELLED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
+单 L `CANCELED` 拼写一致。
 
 旧的 `ParConfig`、`ParOptions`、`ExecutorResolver`、`GlobalParConfig` 及旧版 `Par` 入口都不是兼容别名。迁移时请同时更新 import、构建方式和调用方式。注册的执行器仍由应用拥有并负责关闭。

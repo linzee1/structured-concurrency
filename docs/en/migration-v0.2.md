@@ -48,11 +48,14 @@ Earlier snapshots also exposed this detector as `GlobalParLivelockPolicy` and `L
 The task-group API now centers on an immutable, reusable spec. Replace the earlier builder
 ceremony — `GlobalPar.taskGroupBuilder(options)`, `ParallelTaskGroup.Builder.addTask(name, par,
 callable, options)`, the one-shot `buildAndSubmitAll()`, and `ParallelTaskGroup.TaskHandle<T>` —
-with `TaskGroupSpec.builder(groupOptions)`, `TaskGroupSpec.Builder.task(memberName, executorName,
+with `TaskGroupSpec.builder(groupOptions)`, `TaskGroupSpec.Builder.task(ref, executorName,
 callable, options)`, the one-shot `TaskGroup.submit(global, spec)`, and `TaskRef<T>`.
-Members reference their executor by registered name instead of a `Par` object. `task()` returns a
-typed `TaskRef<T>` token that carries no execution state; after submission, resolve the member's
-future with `group.future(ref)`. A spec captures no thread context, so the structural parent and
+Members reference their executor by registered name instead of a `Par` object. A `TaskRef<T>` is
+created by the caller as an anonymous subclass — `new TaskRef<List<Order>>("orders") {}` — so the
+token carries the member name and captures the result type at runtime; pass it to `task()`, and
+after submission resolve the member's future with `group.future(ref)`, which rejects a token whose
+raw result type does not cover the registered one. A spec captures no thread context, so the
+structural parent and
 observation scope are resolved from the submitting thread at each `submit` call, and one spec may
 be submitted repeatedly. The group entry class itself was renamed from `ParallelTaskGroup` to
 `TaskGroup`, joining its `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener` family. There is no
@@ -70,7 +73,8 @@ former member-reason values so it serves both batch reports and group member res
 the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
 `TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
 Consequently `AsyncBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
-`TaskGroupMemberResult.completionReason()` returns `TaskOutcome`.
+`TaskGroupMemberResult` exposes its member outcome as `outcome()` returning `TaskOutcome` (renamed
+from the earlier `completionReason()`).
 
 Accessors converge on the bare `x()` style; no `getX()`/`isX()` forms remain in the public API or
 internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call sites mechanically:
@@ -85,6 +89,7 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
 | `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
 | `CancellationToken.getState()` / `State.getCode()` | `state()` / `code()` |
+| `TaskGroupMemberResult.completionReason()` | `TaskGroupMemberResult.outcome()` |
 | `TaskEvent.getTaskContext()/getTaskName()` | `taskContext()` / `taskName()` |
 | `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
 | `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `successful()` / `result()` / `enqueued()` / `exception()` |
@@ -126,4 +131,22 @@ uses, so batch reports keep distinguishing the cancelled element via `TaskOutcom
 Task groups changed semantics accordingly: cancelling one member (its future or its token) now
 cascades to the whole group, matching batch fail-fast behavior. The directly cancelled member
 reports `MEMBER_CANCELED`, unfinished siblings report `GROUP_CANCELED`, and the group converges
-on `CANCELED`.
+on `GROUP_CANCELED`.
+
+## Terminal vocabulary unification
+
+`TaskGroupCompletionReason` is removed; the group-level result reuses `TaskOutcome`.
+`TaskGroupResult.completionReason()` is renamed to `outcome()` and now returns `TaskOutcome`.
+Mapping from the removed enum: `SUCCESS` → `TaskOutcome.SUCCESS`; `TIMEOUT` → `TaskOutcome.TIMEOUT`;
+`FAILED` → the failed member's own outcome (`USER_FAILURE` or `SUBMISSION_FAILURE`, see
+`failedMemberName()`); `CANCELED` → `GROUP_CANCELED` when the group was canceled as a whole or the
+cancellation propagated from an enclosing scope, and `MEMBER_CANCELED` when the cancellation
+originated from a member.
+
+`CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELED` →
+`FAIL_FAST`, `TIMEOUT_CANCELED` → `TIMEOUT`, `MUTUAL_CANCELED` → `CANCELED`, and
+`PROPAGATING_CANCELED` → `PROPAGATED_CANCELED`. `RUNNING` and `SUCCESS` are unchanged, and the
+`code()` values and `shouldInterruptCurrentThread()` semantics are unchanged.
+
+`ExecutionPhase.CANCELLED_BEFORE_RUN` is respelled `CANCELED_BEFORE_RUN` to match the single-L
+`CANCELED` spelling used across the library.

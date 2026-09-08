@@ -171,18 +171,18 @@ AsyncBatchResult<?> result = ConcurrentLimitExecutor
     .create(executor, options, submitterPool)
     .submitAll(wrappedTasks);
 
-// 阶段 2：绑定结果 Future、提交循环、超时、fail-fast 和父级取消
-cancellationToken.lateBind(
-    result.getResults(), options.forTimeout(), result.getSubmitCanceller());
+// 阶段 2：绑定结果 Future、提交循环、超时和 fail-fast
+//（deadline 存在 token 内部，构造时已与 parent 取 min）
+cancellationToken.bind(
+    result.results(), result.submitCanceller(), timer);
 ```
 
 > 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
 
-`lateBind()` 依次绑定三条链路：
+父级取消传播在 token 构造期挂接（parent 完成时子 token 转为 `PROPAGATED_CANCELED`）；`bind()` 再绑定两条链路：
 
-1. **父级取消传播** — 如果存在 parent token，监听 parent 的取消事件，级联取消
-2. **Fail-fast** — `Futures.allAsList(futures)` 将所有子 Future 绑定在一起，任一失败立即触发取消
-3. **超时** — `FluentFuture.withTimeout()` 在全局定时器上设置超时
+1. **Fail-fast** — `Futures.allAsList(futures)` 将所有子 Future 绑定在一起，任一失败立即触发取消
+2. **超时** — `FluentFuture.withTimeout()` 在全局定时器上按 token 内 deadline 设置超时
 
 **晚绑定的本质是显式分离"提交调度"和"取消绑定"。** `submitAll()` 返回按输入顺序排列的 Future（尚未实际提交的任务由占位 Future 表示），随后再把这些 Future、提交循环和超时连接到同一个取消令牌。
 
@@ -218,15 +218,15 @@ Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS` 和 `NO_OP`）：
+`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS`）：
 
 | 状态 | Code | 含义 |
 |---|---|---|
 | `RUNNING` | 0 | 正常执行 |
-| `FAIL_FAST_CANCELED` | -1 | 某个子任务失败，触发 fail-fast |
-| `TIMEOUT_CANCELED` | -2 | 批次超时 |
-| `MUTUAL_CANCELED` | -3 | 多个取消源同时触发 |
-| `PROPAGATING_CANCELED` | -4 | 父任务取消，级联传播 |
+| `FAIL_FAST` | -1 | 某个子任务失败，触发 fail-fast |
+| `TIMEOUT` | -2 | 批次超时 |
+| `CANCELED` | -3 | 被显式 `cancel()` |
+| `PROPAGATED_CANCELED` | -4 | 父任务取消，级联传播 |
 
 `shouldInterruptCurrentThread()` 方法简单判断 `code < 0`——如果是负数，说明被取消了，检查点立即抛出异常。
 

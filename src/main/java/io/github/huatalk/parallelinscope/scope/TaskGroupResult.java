@@ -13,7 +13,7 @@ public final class TaskGroupResult {
     private final long startTimeNanos;
     private final long endTimeNanos;
     private final long deadlineNanos;
-    private final TaskGroupCompletionReason completionReason;
+    private final TaskOutcome outcome;
     private final @Nullable String failedMemberName;
     private final Map<String, TaskGroupMemberResult> members;
 
@@ -23,7 +23,7 @@ public final class TaskGroupResult {
             long startTimeNanos,
             long endTimeNanos,
             long deadlineNanos,
-            TaskGroupCompletionReason completionReason,
+            TaskOutcome outcome,
             @Nullable String failedMemberName,
             Map<String, TaskGroupMemberResult> members) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
@@ -31,7 +31,7 @@ public final class TaskGroupResult {
         this.startTimeNanos = startTimeNanos;
         this.endTimeNanos = endTimeNanos;
         this.deadlineNanos = deadlineNanos;
-        this.completionReason = Objects.requireNonNull(completionReason, "completionReason cannot be null");
+        this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
         this.failedMemberName = failedMemberName;
         this.members = Collections.unmodifiableMap(new LinkedHashMap<>(members));
     }
@@ -56,8 +56,9 @@ public final class TaskGroupResult {
         return deadlineNanos;
     }
 
-    public TaskGroupCompletionReason completionReason() {
-        return completionReason;
+    /** Returns the terminal outcome of the group as a whole. */
+    public TaskOutcome outcome() {
+        return outcome;
     }
 
     public @Nullable String failedMemberName() {

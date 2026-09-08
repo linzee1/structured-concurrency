@@ -12,7 +12,7 @@ public enum ExecutionPhase {
     /** The future's {@code run()} method claimed execution. */
     RUNNING,
     /** Cancellation won before {@code run()} claimed execution. */
-    CANCELLED_BEFORE_RUN,
+    CANCELED_BEFORE_RUN,
     /** Cancellation succeeded after {@code run()} claimed execution. */
     CANCEL_REQUESTED_RUNNING,
     /** The future's {@code run()} method returned. */
