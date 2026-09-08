@@ -2,6 +2,7 @@ package io.github.huatalk.parallelinscope.scope;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
@@ -160,6 +161,17 @@ public final class GlobalPar implements AutoCloseable {
         return pars;
     }
 
+    /**
+     * Creates a configuration-only builder for one fixed heterogeneous task group. The builder is
+     * one-shot; freeze and submit with {@link ParallelTaskGroup.Builder#buildAndSubmitAll()}.
+     *
+     * @throws IllegalStateException if this GlobalPar has begun shutdown
+     */
+    public ParallelTaskGroup.Builder taskGroupBuilder(TaskGroupOptions options) {
+        Objects.requireNonNull(options, "options cannot be null");
+        return whileOpen(() -> new ParallelTaskGroup.Builder(this, options));
+    }
+
     /** Package-private diagnostic topology for scope tests and internal maintenance. */
     Map<String, ExecutorRuntime> runtimes() {
         return runtimes;
@@ -255,7 +267,8 @@ public final class GlobalPar implements AutoCloseable {
         }
     }
 
-    <T> void retainUntilComplete(List<com.google.common.util.concurrent.ListenableFuture<T>> results) {
+    /** Keeps a submitted batch's futures from being dropped until every one reaches a terminal state. */
+    void retainUntilComplete(List<? extends ListenableFuture<?>> results) {
         if (results.isEmpty()) return;
         activeBatches.incrementAndGet();
         Futures.successfulAsList(results)

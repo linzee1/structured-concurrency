@@ -5,8 +5,22 @@ target/
 .idea/
 *.iml
 
+# Eclipse
+.classpath
+.factorypath
+.project
+.settings/
+
 # OS
 .DS_Store
+
+# Scratch and editor reports (regenerated locally, never committed)
+index.html
+script.js
+styles.css
+graph-viz/
+tmp/
+todo/
 
 # Claude
 .claude/

@@ -211,8 +211,8 @@ class ScopePrimitivesTest {
         GlobalPar global =
                 GlobalPar.builder().register("a", poolA).register("b", poolB).build();
         try {
-            ExecutorRuntime runtimeA = global.par("a").getRuntimeForTest();
-            ExecutorRuntime runtimeB = global.par("b").getRuntimeForTest();
+            ExecutorRuntime runtimeA = global.par("a").runtime();
+            ExecutorRuntime runtimeB = global.par("b").runtime();
             assertThat(runtimeA).isNotNull();
             assertThat(runtimeB).isNotNull();
             assertThat(runtimeA).isNotSameAs(runtimeB);
