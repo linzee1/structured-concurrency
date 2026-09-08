@@ -26,10 +26,10 @@ class TaskGraphBatchIdentityTest {
             TaskGraphObservationContext.logTaskPair(null, "root", second.batchId(), second.taskName(), edge());
 
             TaskGraphData data = TaskGraphObservationContext.data();
-            assertThat(data.getGraph().nodes()).contains(first.batchId(), second.batchId());
+            assertThat(data.graph().nodes()).contains(first.batchId(), second.batchId());
             assertThat(first.batchId()).isNotEqualTo(second.batchId());
-            assertThat(data.getGraph().edges()).hasSize(2);
-            assertThat(data.isSelfLoop()).isFalse();
+            assertThat(data.graph().edges()).hasSize(2);
+            assertThat(data.selfLoop()).isFalse();
         } finally {
             global.close();
         }
@@ -47,9 +47,9 @@ class TaskGraphBatchIdentityTest {
             TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(TaskGraphObservationContext.hasTaskCycle()).isTrue();
             assertThat(TaskGraphObservationContext.hasSelfLoop()).isTrue();
-            assertThat(data.getGraph().edgeValueOrDefault("a", "b", java.util.Collections.emptyList()))
+            assertThat(data.graph().edgeValueOrDefault("a", "b", java.util.Collections.emptyList()))
                     .hasSize(2);
-            assertThat(data.getGraph()).isSameAs(data.getGraph());
+            assertThat(data.graph()).isSameAs(data.graph());
         } finally {
             global.close();
         }
@@ -152,7 +152,7 @@ class TaskGraphBatchIdentityTest {
         }
 
         assertThat(event.get()).isNotNull();
-        assertThat(event.get().getExecutorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
+        assertThat(event.get().executorEdges()).contains("pool-a -> pool-b", "pool-b -> pool-a");
     }
 
     private static BatchExecutionContext context() {

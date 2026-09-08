@@ -1,5 +1,6 @@
 package io.github.huatalk.parallelinscope.internal;
 
+import io.github.huatalk.parallelinscope.scope.TaskOutcome;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -13,26 +14,35 @@ public final class FutureInspector {
     private FutureInspector() {}
 
     /**
-     * Returns the current state of the given future.
+     * Returns the current {@link TaskOutcome} of the given future.
+     *
+     * <p>Futures that carry a phase hint ({@link ExecutionPhaseHintFuture}) report a richer outcome
+     * — distinguishing submission failure from user failure — because they track it themselves. Any
+     * other {@code Future} exposes only done/cancelled state, so the mapping is conservative: a
+     * failed future reads as {@link TaskOutcome#USER_FAILURE} and a cancelled one as {@link
+     * TaskOutcome#MEMBER_CANCELED}.
      *
      * @param future the future to inspect
-     * @return the current {@link FutureState}
+     * @return the current {@link TaskOutcome}
      */
-    public static FutureState state(Future<?> future) {
+    public static TaskOutcome state(Future<?> future) {
+        if (future instanceof ExecutionPhaseHintFuture) {
+            return ((ExecutionPhaseHintFuture<?>) future).outcome();
+        }
         if (!future.isDone()) {
-            return FutureState.RUNNING;
+            return TaskOutcome.RUNNING;
         }
         if (future.isCancelled()) {
-            return FutureState.CANCELLED;
+            return TaskOutcome.MEMBER_CANCELED;
         }
         try {
             future.get();
-            return FutureState.SUCCESS;
+            return TaskOutcome.SUCCESS;
         } catch (ExecutionException e) {
-            return FutureState.FAILED;
+            return TaskOutcome.USER_FAILURE;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return FutureState.FAILED;
+            return TaskOutcome.USER_FAILURE;
         }
     }
 
@@ -41,7 +51,7 @@ public final class FutureInspector {
      *
      * @param future the future to inspect (must be done and failed)
      * @return the cause exception
-     * @throws IllegalStateException if the future is not in FAILED state
+     * @throws IllegalStateException if the future is not in a failed state
      */
     public static Throwable exceptionNow(Future<?> future) {
         if (!future.isDone()) {

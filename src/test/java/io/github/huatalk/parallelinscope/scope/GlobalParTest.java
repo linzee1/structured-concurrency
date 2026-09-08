@@ -33,7 +33,7 @@ class GlobalParTest {
                             ignored -> context.get(),
                             BatchExecutionOptions.of("ttl").parallelism(1).build());
 
-            assertThat(result.getResults())
+            assertThat(result.results())
                     .extracting(future -> future.get(2, TimeUnit.SECONDS))
                     .containsExactly("request-42", "request-42");
 
@@ -63,8 +63,8 @@ class GlobalParTest {
                     .build();
 
             assertThat(global.defaultPar()).isSameAs(global.par("one"));
-            assertThat(global.par("one").getDisplayName()).isEqualTo("one");
-            assertThat(global.par("one").getGlobalPar()).isSameAs(global);
+            assertThat(global.par("one").displayName()).isEqualTo("one");
+            assertThat(global.par("one").globalPar()).isSameAs(global);
             assertThat(global.par("one").runtime()).isSameAs(global.par("same").runtime());
         } finally {
             executor.shutdownNow();
@@ -96,7 +96,7 @@ class GlobalParTest {
                             value -> value + 1,
                             BatchExecutionOptions.of("increment").build());
 
-            assertThat(result.getResults().get(0).get()).isEqualTo(3);
+            assertThat(result.results().get(0).get()).isEqualTo(3);
         } finally {
             executor.shutdownNow();
         }
@@ -113,14 +113,14 @@ class GlobalParTest {
                                     null,
                                     value -> value,
                                     BatchExecutionOptions.of("empty").build())
-                            .getResults())
+                            .results())
                     .isEmpty();
             assertThat(global.par("io")
                             .map(
                                     Collections.<Integer>emptyList(),
                                     value -> value,
                                     BatchExecutionOptions.of("empty").build())
-                            .getResults())
+                            .results())
                     .isEmpty();
             global.close();
         } finally {
@@ -149,16 +149,16 @@ class GlobalParTest {
                                                 BatchExecutionOptions.of("inner")
                                                         .build());
                                 try {
-                                    return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
+                                    return inner.results().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
                             BatchExecutionOptions.of("outer").build());
 
-            assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
+            assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(TaskGraphObservationContext.data()).isSameAs(expectedGraph);
-            assertThat(expectedGraph.getGraph().edges()).isNotEmpty();
+            assertThat(expectedGraph.graph().edges()).isNotEmpty();
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -191,16 +191,16 @@ class GlobalParTest {
                                                 BatchExecutionOptions.of("inner")
                                                         .build());
                                 try {
-                                    return inner.getResults().get(0).get(2, TimeUnit.SECONDS);
+                                    return inner.results().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
                             BatchExecutionOptions.of("outer").build());
 
-            assertThat(outer.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
+            assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(graphOnOuterWorker.get()).isSameAs(expectedGraph);
-            assertThat(expectedGraph.getGraph().edges()).hasSize(2);
+            assertThat(expectedGraph.graph().edges()).hasSize(2);
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -229,14 +229,14 @@ class GlobalParTest {
                                                         .parallelism(1)
                                                         .build());
                                 try {
-                                    return inner.getResults().get(1).get(2, TimeUnit.SECONDS);
+                                    return inner.results().get(1).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
                             BatchExecutionOptions.of("outer").parallelism(1).build());
 
-            assertThat(outer.getResults().get(0).get(3, TimeUnit.SECONDS)).isEqualTo(3);
+            assertThat(outer.results().get(0).get(3, TimeUnit.SECONDS)).isEqualTo(3);
         } finally {
             global.close();
             outerExecutor.shutdownNow();
@@ -261,8 +261,8 @@ class GlobalParTest {
                                     .taskType(TaskType.CPU_BOUND)
                                     .build());
 
-            assertThat(result.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
-            assertThat(global.isClosed()).isTrue();
+            assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(global.closed()).isTrue();
         } finally {
             global.close();
             rejectedExecutor.shutdownNow();
@@ -316,11 +316,11 @@ class GlobalParTest {
             io.github.huatalk.parallelinscope.context.TaskGraphObservationContext observation =
                     global.openTaskGraphObservation();
             assertThat(observation.owner()).isSameAs(global);
-            assertThat(observation.isClosed()).isFalse();
+            assertThat(observation.closed()).isFalse();
             assertThat(TaskGraphObservationContext.current()).isSameAs(observation);
             observation.close();
             observation.close();
-            assertThat(observation.isClosed()).isTrue();
+            assertThat(observation.closed()).isTrue();
             assertThat(TaskGraphObservationContext.current()).isNull();
         } finally {
             global.close();
@@ -335,7 +335,7 @@ class GlobalParTest {
         try {
             global.close();
 
-            assertThat(global.isClosed()).isTrue();
+            assertThat(global.closed()).isTrue();
             assertThat(executor.isShutdown()).isFalse();
             assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> global.par("io")
@@ -372,12 +372,12 @@ class GlobalParTest {
                 global.close();
             });
             assertThat(closeStarted.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(global.isClosed()).isTrue();
+            assertThat(global.closed()).isTrue();
 
             releaseSetup.countDown();
             setup.get(5, TimeUnit.SECONDS);
             close.get(5, TimeUnit.SECONDS);
-            assertThat(global.isClosed()).isTrue();
+            assertThat(global.closed()).isTrue();
             assertThatThrownBy(() -> global.par("io")
                             .map(
                                     Collections.singletonList(1),
@@ -416,9 +416,9 @@ class GlobalParTest {
             releaseFirstTask.countDown();
 
             assertThat(executor.isShutdown()).isFalse();
-            assertThat(result.getResults().get(0).get(5, TimeUnit.SECONDS)).isEqualTo(2);
-            assertThat(result.getResults().get(1).get(5, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(result.getResults().get(2).get(5, TimeUnit.SECONDS)).isEqualTo(4);
+            assertThat(result.results().get(0).get(5, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(result.results().get(1).get(5, TimeUnit.SECONDS)).isEqualTo(3);
+            assertThat(result.results().get(2).get(5, TimeUnit.SECONDS)).isEqualTo(4);
         } finally {
             releaseFirstTask.countDown();
             global.close();

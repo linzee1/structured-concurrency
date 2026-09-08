@@ -136,7 +136,7 @@ class E1_QueueFloodingTest {
             gate.countDown();
 
             // Wait for all futures to complete
-            for (com.google.common.util.concurrent.ListenableFuture<Void> f : result.getResults()) {
+            for (com.google.common.util.concurrent.ListenableFuture<Void> f : result.results()) {
                 f.get(10, TimeUnit.SECONDS);
             }
         } finally {

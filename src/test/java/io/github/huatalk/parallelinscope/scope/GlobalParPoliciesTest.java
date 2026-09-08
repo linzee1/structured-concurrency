@@ -28,7 +28,7 @@ class GlobalParPoliciesTest {
                 .parPolicyOverride("billing", GlobalExecutionPolicy.builder().build())
                 .build();
         try {
-            assertThat(global.isClosed()).isFalse();
+            assertThat(global.closed()).isFalse();
         } finally {
             global.close();
         }

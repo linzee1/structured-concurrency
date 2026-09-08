@@ -59,7 +59,7 @@ public interface TaskListener {
         }
 
         /** Returns the completed task's context. */
-        public TaskContext getTaskContext() {
+        public TaskContext taskContext() {
             return taskContext;
         }
 
@@ -68,7 +68,7 @@ public interface TaskListener {
          *
          * @return the logical task name
          */
-        public String getTaskName() {
+        public String taskName() {
             return taskContext.batchContext().taskName();
         }
 
@@ -77,7 +77,7 @@ public interface TaskListener {
          *
          * @return the ticker reading in nanoseconds
          */
-        public long getSubmitTimeNanos() {
+        public long submitTimeNanos() {
             return taskContext.submitTimeNanos();
         }
 
@@ -86,7 +86,7 @@ public interface TaskListener {
          *
          * @return the ticker reading in nanoseconds
          */
-        public long getStartTimeNanos() {
+        public long startTimeNanos() {
             return taskContext.startTimeNanos();
         }
 
@@ -95,17 +95,17 @@ public interface TaskListener {
          *
          * @return the ticker reading in nanoseconds
          */
-        public long getEndTimeNanos() {
+        public long endTimeNanos() {
             return taskContext.endTimeNanos();
         }
 
         /** Returns whether the task completed successfully, including with a null result. */
-        public boolean isSuccessful() {
+        public boolean successful() {
             return successful;
         }
 
         /** Returns the task result, or null for a failed task or a successful null result. */
-        public @Nullable T getResult() {
+        public @Nullable T result() {
             return result;
         }
 
@@ -114,7 +114,7 @@ public interface TaskListener {
          *
          * @return {@code true} if the measured queue wait exceeded the threshold
          */
-        public boolean isEnqueued() {
+        public boolean enqueued() {
             return enqueued;
         }
 
@@ -124,7 +124,7 @@ public interface TaskListener {
          * @return the failure, or {@code null} on success
          */
         @Nullable
-        public Throwable getException() {
+        public Throwable exception() {
             return exception;
         }
 

@@ -40,7 +40,7 @@ class ConcurrentLimitExecutorBatchContextTest {
             ConcurrentLimitExecutor<Integer> executor =
                     new ConcurrentLimitExecutor<>(workers, batch, submitter, phase -> {});
 
-            assertThat(executor.submitAll(Arrays.asList(() -> 1, () -> 2)).getResults())
+            assertThat(executor.submitAll(Arrays.asList(() -> 1, () -> 2)).results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2);
             await().atMost(1, TimeUnit.SECONDS)
@@ -60,7 +60,7 @@ class ConcurrentLimitExecutorBatchContextTest {
         try {
             ConcurrentLimitExecutor<Integer> executor =
                     new ConcurrentLimitExecutor<>(workers, context(0, 1, TaskType.IO_BOUND), submitter, phase -> {});
-            assertThat(executor.submitAll(Arrays.asList()).getResults()).isEmpty();
+            assertThat(executor.submitAll(Arrays.asList()).results()).isEmpty();
         } finally {
             workers.shutdownNow();
             submitter.shutdownNow();
@@ -75,7 +75,7 @@ class ConcurrentLimitExecutorBatchContextTest {
             ConcurrentLimitExecutor<Integer> executor =
                     new ConcurrentLimitExecutor<>(workers, context(3, 3, TaskType.IO_BOUND), submitter, phase -> {});
             assertThat(executor.submitAll(Arrays.asList(() -> 1, () -> 2, () -> 3))
-                            .getResults())
+                            .results())
                     .extracting(f -> f.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2, 3);
         } finally {
@@ -99,9 +99,9 @@ class ConcurrentLimitExecutorBatchContextTest {
                     },
                     () -> 2,
                     () -> 3));
-            assertThat(batch.getSubmitCanceller().cancel(true)).isTrue();
+            assertThat(batch.submitCanceller().cancel(true)).isTrue();
             release.countDown();
-            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.getResults()) {
+            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
                 try {
                     result.get(2, TimeUnit.SECONDS);
                 } catch (java.util.concurrent.ExecutionException | java.util.concurrent.CancellationException ignored) {
@@ -125,8 +125,8 @@ class ConcurrentLimitExecutorBatchContextTest {
                     new ConcurrentLimitExecutor<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter, phase -> {});
             io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
                     executor.submitAll(Arrays.asList(() -> 1, () -> 2, () -> 3));
-            assertThat(batch.getResults()).hasSize(3);
-            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.getResults()) {
+            assertThat(batch.results()).hasSize(3);
+            for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
                 assertThatThrownBy(result::get).isInstanceOf(java.util.concurrent.ExecutionException.class);
             }
         } finally {
@@ -149,11 +149,11 @@ class ConcurrentLimitExecutorBatchContextTest {
                     },
                     () -> 2,
                     () -> 3));
-            assertThat(batch.getResults().get(1).cancel(true)).isTrue();
+            assertThat(batch.results().get(1).cancel(true)).isTrue();
             release.countDown();
-            assertThat(batch.getResults().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(1);
-            await().atMost(2, TimeUnit.SECONDS).until(batch.getResults().get(2)::isDone);
-            assertThat(batch.getResults().get(2).isCancelled()).isTrue();
+            assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(1);
+            await().atMost(2, TimeUnit.SECONDS).until(batch.results().get(2)::isDone);
+            assertThat(batch.results().get(2).isCancelled()).isTrue();
         } finally {
             workers.shutdownNow();
             submitter.shutdownNow();
@@ -176,7 +176,7 @@ class ConcurrentLimitExecutorBatchContextTest {
                                     () -> runTracked(active, maximum, release, 1),
                                     () -> runTracked(active, maximum, release, 2),
                                     () -> runTracked(active, maximum, release, 3)))
-                            .getResults())
+                            .results())
                     .hasSize(3);
             assertThat(awaitMaximum(maximum, 1)).isTrue();
             assertThat(maximum.get()).isEqualTo(1);
@@ -196,7 +196,7 @@ class ConcurrentLimitExecutorBatchContextTest {
             ConcurrentLimitExecutor<Integer> executor =
                     new ConcurrentLimitExecutor<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter, phase -> {});
             assertThat(executor.submitAll(Arrays.asList(() -> 7))
-                            .getResults()
+                            .results()
                             .get(0)
                             .get())
                     .isEqualTo(7);
@@ -217,10 +217,10 @@ class ConcurrentLimitExecutorBatchContextTest {
             io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
                     executor.submitAll(Arrays.asList(() -> 1, () -> 2));
 
-            assertThat(batch.getResults())
+            assertThat(batch.results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2);
-            assertThat(batch.getSubmitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
         } finally {
             submitter.shutdownNow();
         }
@@ -241,11 +241,11 @@ class ConcurrentLimitExecutorBatchContextTest {
                     },
                     () -> 2));
 
-            assertThatThrownBy(() -> batch.getResults().get(0).get(1, TimeUnit.SECONDS))
+            assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
                     .isInstanceOf(java.util.concurrent.ExecutionException.class)
                     .hasCauseInstanceOf(IllegalStateException.class);
-            assertThat(batch.getResults().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
-            assertThat(batch.getSubmitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThat(batch.results().get(1).get(1, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(batch.submitCanceller().get(1, TimeUnit.SECONDS)).isEqualTo(1);
         } finally {
             submitter.shutdownNow();
         }

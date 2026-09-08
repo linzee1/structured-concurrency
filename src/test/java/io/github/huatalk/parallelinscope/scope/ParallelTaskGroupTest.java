@@ -127,8 +127,8 @@ class ParallelTaskGroupTest {
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.FAILED);
             assertThat(result.failedMemberName()).isEqualTo("failure");
             assertThat(result.members().get("failure").completionReason())
-                    .isEqualTo(TaskGroupMemberReason.USER_FAILURE);
-            assertThat(result.members().get("slow").completionReason()).isEqualTo(TaskGroupMemberReason.FAIL_FAST);
+                    .isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.members().get("slow").completionReason()).isEqualTo(TaskOutcome.FAIL_FAST);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -156,7 +156,7 @@ class ParallelTaskGroupTest {
             TaskGroupResult first =
                     groupDeadline.buildAndSubmitAll().completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(first.completionReason()).isEqualTo(TaskGroupCompletionReason.TIMEOUT);
-            assertThat(first.members().get("slow").completionReason()).isEqualTo(TaskGroupMemberReason.TIMEOUT);
+            assertThat(first.members().get("slow").completionReason()).isEqualTo(TaskOutcome.TIMEOUT);
 
             ParallelTaskGroup.Builder memberDeadline = global.taskGroupBuilder(TaskGroupOptions.of("member-timeout")
                     .timeout(Duration.ofSeconds(2))
@@ -174,7 +174,7 @@ class ParallelTaskGroupTest {
             TaskGroupResult second =
                     memberDeadline.buildAndSubmitAll().completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(second.completionReason()).isEqualTo(TaskGroupCompletionReason.TIMEOUT);
-            assertThat(second.members().get("slow").completionReason()).isEqualTo(TaskGroupMemberReason.TIMEOUT);
+            assertThat(second.members().get("slow").completionReason()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -210,8 +210,8 @@ class ParallelTaskGroupTest {
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.CANCELED);
             assertThat(result.members().get("canceled").completionReason())
-                    .isEqualTo(TaskGroupMemberReason.MEMBER_CANCELED);
-            assertThat(result.members().get("sibling").completionReason()).isEqualTo(TaskGroupMemberReason.SUCCESS);
+                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(result.members().get("sibling").completionReason()).isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             release.countDown();
             global.close();
@@ -248,7 +248,7 @@ class ParallelTaskGroupTest {
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.CANCELED);
             assertThat(result.members().values())
                     .extracting(TaskGroupMemberResult::completionReason)
-                    .containsOnly(TaskGroupMemberReason.GROUP_CANCELED);
+                    .containsOnly(TaskOutcome.GROUP_CANCELED);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -321,8 +321,8 @@ class ParallelTaskGroupTest {
 
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.FAILED);
             assertThat(result.members().get("rejected").completionReason())
-                    .isEqualTo(TaskGroupMemberReason.SUBMISSION_FAILURE);
-            assertThat(result.members().get("later").completionReason()).isEqualTo(TaskGroupMemberReason.FAIL_FAST);
+                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.members().get("later").completionReason()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(calls).hasValue(0);
             assertThat(SubmissionScope.currentBatch()).isNull();
         } finally {
@@ -442,7 +442,7 @@ class ParallelTaskGroupTest {
                                 }
                             },
                             BatchExecutionOptions.of("outer").build());
-            assertThat(result.getResults().get(0).get(2, TimeUnit.SECONDS)).isNotNull();
+            assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isNotNull();
         } finally {
             global.close();
             outer.shutdownNow();

@@ -134,9 +134,9 @@ class A2_NestedCancelPropagationTest {
                                 innerOptions);
 
                         // 等待内层结果（阻塞导致外层超时）
-                        for (int i = 0; i < innerResult.getResults().size(); i++) {
+                        for (int i = 0; i < innerResult.results().size(); i++) {
                             try {
-                                innerResult.getResults().get(i).get();
+                                innerResult.results().get(i).get();
                             } catch (Exception e) {
                                 // 被取消或失败
                             }

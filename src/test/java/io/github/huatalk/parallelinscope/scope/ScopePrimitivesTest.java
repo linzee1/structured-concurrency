@@ -150,11 +150,11 @@ class ScopePrimitivesTest {
         assertThat(callable.waitTime()).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(4));
         assertThat(callable.executionTime()).isGreaterThan(0L);
         assertThat(callable.totalTime()).isEqualTo(callable.waitTime() + callable.executionTime());
-        assertThat(callable.getCancellationToken()).isNotNull();
+        assertThat(callable.cancellationToken()).isNotNull();
 
         ScopedCallable<Integer> unlabelled = new ScopedCallable<>(task(context, 0), () -> 1, null);
         unlabelled.call();
-        assertThat(unlabelled.getExecutorName()).isNotEmpty();
+        assertThat(unlabelled.executorName()).isNotEmpty();
     }
 
     @Test
@@ -172,7 +172,7 @@ class ScopePrimitivesTest {
                     "par-label");
             ScopedCallable<String> labelledCall =
                     new ScopedCallable<>(task(labelled, 0), () -> "ok", java.util.Collections.emptyList());
-            assertThat(labelledCall.getExecutorName()).isEqualTo("par-label");
+            assertThat(labelledCall.executorName()).isEqualTo("par-label");
 
             BatchExecutionContext anonymous = BatchExecutionContext.resolve(
                     GlobalExecutionPolicy.builder().build(),
@@ -184,7 +184,7 @@ class ScopePrimitivesTest {
                     null);
             ScopedCallable<String> anonymousCall =
                     new ScopedCallable<>(task(anonymous, 0), () -> "ok", java.util.Collections.emptyList());
-            assertThat(anonymousCall.getExecutorName()).isEqualTo("NA");
+            assertThat(anonymousCall.executorName()).isEqualTo("NA");
 
             assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
                     .isInstanceOf(NullPointerException.class);
@@ -230,11 +230,11 @@ class ScopePrimitivesTest {
     @Test
     void globalParReportsClosedOnlyAfterCloseAndIsIdempotent() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        assertThat(global.isClosed()).isFalse();
+        assertThat(global.closed()).isFalse();
         global.close();
-        assertThat(global.isClosed()).isTrue();
+        assertThat(global.closed()).isTrue();
         global.close(); // idempotent
-        assertThat(global.isClosed()).isTrue();
+        assertThat(global.closed()).isTrue();
         assertThatThrownBy(global::openTaskGraphObservation).isInstanceOf(IllegalStateException.class);
     }
 

@@ -25,4 +25,13 @@
 null，因此不要用 result 是否为 null 判断成败。监听器回调不属于已完成任务的动态执行作用域，
 应读取 event，而不是依赖 `TaskExecutionContext.current()`。
 
+任务终态分类已统一为单个枚举 `TaskOutcome`，取代原先的
+`io.github.huatalk.parallelinscope.internal.FutureState` 与
+`io.github.huatalk.parallelinscope.scope.TaskGroupMemberReason`。`TaskOutcome` 在原成员原因值
+之上补充了 `RUNNING`，因此可同时服务批量报告与组成员结果。映射关系：`FutureState.FAILED` →
+`TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELED`，
+`TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
+`AsyncBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
+`TaskGroupMemberResult.completionReason()` 返回 `TaskOutcome`。
+
 旧的 `ParConfig`、`ParOptions`、`ExecutorResolver`、`GlobalParConfig` 及旧版 `Par` 入口都不是兼容别名。迁移时请同时更新 import、构建方式和调用方式。注册的执行器仍由应用拥有并负责关闭。

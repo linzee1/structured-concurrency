@@ -151,8 +151,8 @@ class F1_CpuTaskQueuingTest {
                     options);
 
             // 等待所有任务完成
-            for (int i = 0; i < result.getResults().size(); i++) {
-                result.getResults().get(i).get(30, TimeUnit.SECONDS);
+            for (int i = 0; i < result.results().size(); i++) {
+                result.results().get(i).get(30, TimeUnit.SECONDS);
             }
 
             // 滑动窗口确保并发度受控

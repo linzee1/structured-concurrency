@@ -139,8 +139,8 @@ class G6_BatchDbQueryTest {
 
         // 收集所有分片结果
         List<User> allUsers = new ArrayList<>();
-        for (int i = 0; i < result.getResults().size(); i++) {
-            allUsers.addAll(result.getResults().get(i).get(30, TimeUnit.SECONDS));
+        for (int i = 0; i < result.results().size(); i++) {
+            allUsers.addAll(result.results().get(i).get(30, TimeUnit.SECONDS));
         }
 
         long elapsed = System.currentTimeMillis() - start;
@@ -193,8 +193,8 @@ class G6_BatchDbQueryTest {
                 options);
 
         // 等待所有分片完成
-        for (int i = 0; i < result.getResults().size(); i++) {
-            result.getResults().get(i).get(30, TimeUnit.SECONDS);
+        for (int i = 0; i < result.results().size(); i++) {
+            result.results().get(i).get(30, TimeUnit.SECONDS);
         }
 
         // 并发峰值受控

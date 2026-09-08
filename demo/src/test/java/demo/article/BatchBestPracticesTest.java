@@ -157,8 +157,8 @@ public class BatchBestPracticesTest {
 
         // 合并分片结果
         List<Long> queriedIds = new ArrayList<>();
-        for (int i = 0; i < result.getResults().size(); i++) {
-            queriedIds.addAll(result.getResults().get(i).get(30, TimeUnit.SECONDS));
+        for (int i = 0; i < result.results().size(); i++) {
+            queriedIds.addAll(result.results().get(i).get(30, TimeUnit.SECONDS));
         }
 
         long elapsed = System.currentTimeMillis() - start;

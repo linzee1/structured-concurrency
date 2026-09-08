@@ -58,7 +58,7 @@ class CancellationTokenLateBindRaceTest {
         token.lateBind(futures, Duration.ofHours(1), Futures.immediateVoidFuture(), timer);
 
         assertThat(task).isCancelled();
-        assertThat(token.getState()).isEqualTo(CancellationToken.State.MUTUAL_CANCELED);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.MUTUAL_CANCELED);
     }
 
     /**
@@ -77,7 +77,7 @@ class CancellationTokenLateBindRaceTest {
                 Collections.singletonList(firstTask), Duration.ofSeconds(5), Futures.immediateVoidFuture(), timer);
         firstTask.set("ok");
         Thread.sleep(50);
-        assertThat(token.getState()).isEqualTo(CancellationToken.State.SUCCESS);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
 
         token.lateBind(
                 Collections.singletonList(secondTask), Duration.ofSeconds(5), Futures.immediateVoidFuture(), timer);
@@ -85,7 +85,7 @@ class CancellationTokenLateBindRaceTest {
         // The second futures are not tracked; the token stays SUCCESS and the second task is not
         // cancelled by the framework.
         assertThat(secondTask).isNotCancelled();
-        assertThat(token.getState()).isEqualTo(CancellationToken.State.SUCCESS);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
     }
 
     /**

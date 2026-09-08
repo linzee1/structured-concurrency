@@ -67,7 +67,7 @@ public class CancellationPropagationCartesianTest {
             }
 
             awaitCancelled(fixture.future);
-            assertThat(child.getState().shouldInterruptCurrentThread()).isTrue();
+            assertThat(child.state().shouldInterruptCurrentThread()).isTrue();
             if (childWork == ChildWork.RUNNING) {
                 awaitTrue(fixture.interrupted);
             } else {
@@ -96,7 +96,7 @@ public class CancellationPropagationCartesianTest {
                     timer);
 
             assertThat(childFuture).isCancelled();
-            assertThat(child.getState())
+            assertThat(child.state())
                     .as("parent cancellation should have one state regardless of bind timing")
                     .isEqualTo(CancellationToken.State.PROPAGATING_CANCELED);
         } finally {

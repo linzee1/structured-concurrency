@@ -74,7 +74,7 @@ public class BatchProcessingDemo {
 
             // 6. 性能分析（使用实际计算结果，而非输入数据）
             List<Integer> computedResults = new ArrayList<>();
-            for (java.util.concurrent.Future<Integer> future : result.getResults()) {
+            for (java.util.concurrent.Future<Integer> future : result.results()) {
                 try {
                     computedResults.add(future.get());
                 } catch (Exception e) {

@@ -22,36 +22,36 @@ class ActionGateTest {
     void countBoundaryControlsWhenActionIsDue() {
         ActionGate gate = ActionGate.every(3);
 
-        assertFalse(gate.isDue());
-        assertFalse(gate.isDue());
-        assertTrue(gate.isDue());
+        assertFalse(gate.due());
+        assertFalse(gate.due());
+        assertTrue(gate.due());
     }
 
     @Test
     void combinedModeRequiresInvocationAndTimeBoundaries() {
         ActionGate gate = ActionGate.whenBoth(3, Duration.ofHours(1));
 
-        assertFalse(gate.isDue());
-        assertFalse(gate.isDue());
-        assertFalse(gate.isDue());
+        assertFalse(gate.due());
+        assertFalse(gate.due());
+        assertFalse(gate.due());
     }
 
     @Test
     void combinedModeKeepsInvocationBoundarySatisfiedWhileWaitingForTime() {
         ActionGate gate = ActionGate.whenBoth(3, Duration.ofMillis(20));
 
-        assertFalse(gate.isDue());
-        assertFalse(gate.isDue());
-        assertFalse(gate.isDue());
+        assertFalse(gate.due());
+        assertFalse(gate.due());
+        assertFalse(gate.due());
 
-        await().atMost(Duration.ofSeconds(1)).until(gate::isDue);
+        await().atMost(Duration.ofSeconds(1)).until(gate::due);
     }
 
     @Test
     void timeBoundaryEventuallyOpens() {
         ActionGate gate = ActionGate.every(Duration.ofMillis(20));
 
-        await().atMost(Duration.ofSeconds(1)).until(gate::isDue);
+        await().atMost(Duration.ofSeconds(1)).until(gate::due);
     }
 
     @Test
@@ -86,7 +86,7 @@ class ActionGateTest {
                 () -> gate.runIfDue(() -> {
                     throw new IllegalStateException("action failed");
                 }));
-        assertFalse(gate.isDue());
+        assertFalse(gate.due());
     }
 
     @Test
@@ -134,7 +134,7 @@ class ActionGateTest {
             for (int i = 0; i < invocationCount; i++) {
                 results.add(executor.submit(() -> {
                     start.await();
-                    return gate.isDue();
+                    return gate.due();
                 }));
             }
             start.countDown();

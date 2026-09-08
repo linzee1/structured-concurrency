@@ -131,7 +131,7 @@ public class B2_FunctionSignatureBloatTest {
                 opts);
 
         // Par.map() returns immediately; wait for the terminal states before reporting.
-        Futures.allAsList(result.getResults()).get();
+        Futures.allAsList(result.results()).get();
 
         // 验证所有任务成功完成
         String report = result.reportString();

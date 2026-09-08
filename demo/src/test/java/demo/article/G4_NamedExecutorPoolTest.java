@@ -139,14 +139,14 @@ class G4_NamedExecutorPoolTest {
                     cpuOpts);
 
             // 验证：IO 任务确实跑在 io-pool 上
-            for (int i = 0; i < ioResult.getResults().size(); i++) {
-                String result = ioResult.getResults().get(i).get(5, TimeUnit.SECONDS);
+            for (int i = 0; i < ioResult.results().size(); i++) {
+                String result = ioResult.results().get(i).get(5, TimeUnit.SECONDS);
                 assertThat(result).as("IO 任务应跑在 io-pool 上").contains("io-pool");
             }
 
             // 验证：CPU 任务确实跑在 cpu-pool 上
-            for (int i = 0; i < cpuResult.getResults().size(); i++) {
-                String result = cpuResult.getResults().get(i).get(5, TimeUnit.SECONDS);
+            for (int i = 0; i < cpuResult.results().size(); i++) {
+                String result = cpuResult.results().get(i).get(5, TimeUnit.SECONDS);
                 assertThat(result).as("CPU 任务应跑在 cpu-pool 上").contains("cpu-pool");
             }
 

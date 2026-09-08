@@ -100,7 +100,7 @@ public class E2_SubmitterPoolOffloadingTest {
 
             // 收集结果
             List<Integer> results = new ArrayList<>();
-            for (Future<Integer> f : result.getResults()) {
+            for (Future<Integer> f : result.results()) {
                 results.add(f.get(5, TimeUnit.SECONDS));
             }
 

@@ -79,9 +79,9 @@ public class H1_NullEmptyInputTest {
         AsyncBatchResult<String> result = par.map(nullList, item -> item.toUpperCase(), opts);
 
         // 安全返回，结果列表为空
-        assertThat(result.getResults()).isEmpty();
+        assertThat(result.results()).isEmpty();
         // report() 也不会抛异常，状态统计为空
-        assertThat(result.report().getStateCounts()).isEmpty();
+        assertThat(result.report().stateCounts()).isEmpty();
     }
 
     /** 解决方案：Par.map() 对空列表同样安全返回，零开销。 */
@@ -92,8 +92,8 @@ public class H1_NullEmptyInputTest {
         List<String> emptyList = Collections.emptyList();
         AsyncBatchResult<String> result = par.map(emptyList, item -> item.toUpperCase(), opts);
 
-        assertThat(result.getResults()).isEmpty();
-        assertThat(result.report().getStateCounts()).isEmpty();
+        assertThat(result.results()).isEmpty();
+        assertThat(result.report().stateCounts()).isEmpty();
     }
 
     /** 正常输入不受影响：Par.map() 对非空列表正常并行执行。 */
@@ -105,10 +105,10 @@ public class H1_NullEmptyInputTest {
         AsyncBatchResult<String> result = par.map(input, item -> item.toUpperCase(), opts);
 
         // 3 个任务全部提交
-        assertThat(result.getResults()).hasSize(3);
+        assertThat(result.results()).hasSize(3);
         // 验证结果值
         List<String> values = new ArrayList<>();
-        for (com.google.common.util.concurrent.ListenableFuture<String> future : result.getResults()) {
+        for (com.google.common.util.concurrent.ListenableFuture<String> future : result.results()) {
             try {
                 values.add(future.get());
             } catch (Exception e) {

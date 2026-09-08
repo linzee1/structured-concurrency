@@ -26,9 +26,51 @@ against an earlier task-group draft, replace `openTaskGroup()`, dynamic `submit(
 typed `ParallelTaskGroup.TaskHandle<T>`; call `future()` only after build. There is no compatibility
 shim because the dynamic-admission API was not released as a stable contract.
 
-`TaskListener.TaskEvent` now exposes the completed task through `getTaskContext()` and its outcome
-through `isSuccessful()`, `getResult()`, and `getException()`. A successful task may return null, so
-use `isSuccessful()` rather than testing the result for null. Listener callbacks run outside the
+`TaskListener.TaskEvent` now exposes the completed task through `taskContext()` and its outcome
+through `successful()`, `result()`, and `exception()`. A successful task may return null, so
+use `successful()` rather than testing the result for null. Listener callbacks run outside the
 completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
+
+Task outcome classification is unified into a single enum, `TaskOutcome`, replacing both
+`io.github.huatalk.parallelinscope.internal.FutureState` and
+`io.github.huatalk.parallelinscope.scope.TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
+former member-reason values so it serves both batch reports and group member results. Mapping from
+the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
+`TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
+Consequently `AsyncBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
+`TaskGroupMemberResult.completionReason()` returns `TaskOutcome`.
+
+Accessors converge on the bare `x()` style; no `getX()`/`isX()` forms remain in the public API or
+internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call sites mechanically:
+
+| Earlier snapshot | `0.2.0` |
+|---|---|
+| `Par.getGlobalPar()` | `Par.globalPar()` |
+| `Par.getDisplayName()` | `Par.displayName()` |
+| `AsyncBatchResult.getSubmitCanceller()` | `AsyncBatchResult.submitCanceller()` |
+| `AsyncBatchResult.getResults()` | `AsyncBatchResult.results()` |
+| `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
+| `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
+| `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
+| `CancellationToken.getState()` / `State.getCode()` | `state()` / `code()` |
+| `TaskEvent.getTaskContext()/getTaskName()` | `taskContext()` / `taskName()` |
+| `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
+| `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `successful()` / `result()` / `enqueued()` / `exception()` |
+| `ScopedCallable.getTaskExecutionContext()/getCancellationToken()/getExecutorName()` | `taskExecutionContext()` / `cancellationToken()` / `executorName()` |
+| `TaskGraphData.getGraph()/getExecutorGraph()` | `graph()` / `executorGraph()` |
+| `TaskGraphData.isTaskCycle()/isSelfLoop()/isExecutorCycle()/isExecutorSelfLoop()` | `taskCycle()` / `selfLoop()` / `executorCycle()` / `executorSelfLoop()` |
+| `TaskEdge.getParallelism()/getTaskType()/getTaskCount()/getTimeoutMillis()` | `parallelism()` / `taskType()` / `taskCount()` / `timeoutMillis()` |
+| `TaskEdge.getExecutorName()/getSourceExecutorName()` | `executorName()` / `sourceExecutorName()` |
+| `TaskEdge.getExecutorIdentity()/getSourceExecutorIdentity()` | `executorIdentity()` / `sourceExecutorIdentity()` |
+| `TaskEdge.isExecutorDeadlockProne()` | `executorDeadlockProne()` |
+| `DeadlockDetectionListener.getTaskEdges()/getExecutorEdges()` | `taskEdges()` / `executorEdges()` |
+| `TaskGraphObservationContext.isClosed()` | `closed()` |
+| `DrainingBlockingQueue.isShutdown()/isDraining()/isDrained()` | `shutdown()` / `draining()` / `drained()` |
+| `SmartBlockingQueue.getCapacity()` / `VariableLinkedBlockingQueue.getCapacity()` | `capacity()` |
+| `ActionGate.isDue()` | `due()` |
+
+Methods implementing JDK or third-party contracts keep their mandated names
+(`Monitor.Guard.isSatisfied()`, `ExecutorService.isShutdown()/isTerminated()`,
+`Thread.getState()`, `Map.Entry.getKey()/getValue()`).
 
 The old `ParConfig`, `ParOptions`, `ExecutorResolver`, `GlobalParConfig`, and legacy `Par` entry points are not compatibility aliases. Update imports, construction, and method calls together. Registered executors remain borrowed and are still owned and shut down by the application.

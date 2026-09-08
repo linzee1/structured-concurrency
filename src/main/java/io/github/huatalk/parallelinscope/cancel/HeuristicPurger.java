@@ -157,7 +157,7 @@ public final class HeuristicPurger {
     /** Reads one queue's capacity without requiring a concrete queue type. */
     private static int capacityOf(BlockingQueue<?> queue) {
         if (queue instanceof SmartBlockingQueue) {
-            return ((SmartBlockingQueue<?>) queue).getCapacity();
+            return ((SmartBlockingQueue<?>) queue).capacity();
         }
         return queue.size() + queue.remainingCapacity();
     }

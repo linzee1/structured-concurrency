@@ -53,10 +53,10 @@ class QuickStartTest {
         AsyncBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
 
         // 验证：逐个获取结果
-        assertThat(result1.getResults()).hasSize(3);
-        assertThat(result1.getResults().get(0).get()).isEqualTo(1);
-        assertThat(result1.getResults().get(1).get()).isEqualTo(4);
-        assertThat(result1.getResults().get(2).get()).isEqualTo(9);
+        assertThat(result1.results()).hasSize(3);
+        assertThat(result1.results().get(0).get()).isEqualTo(1);
+        assertThat(result1.results().get(1).get()).isEqualTo(4);
+        assertThat(result1.results().get(2).get()).isEqualTo(9);
 
         // ---- 步骤 3：设置超时 ----
         BatchExecutionOptions timeoutOpts = BatchExecutionOptions.of("square")
@@ -65,7 +65,7 @@ class QuickStartTest {
         AsyncBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
 
         // 验证：超时设置下仍然能正常完成
-        for (Future<Integer> future : result2.getResults()) {
+        for (Future<Integer> future : result2.results()) {
             Integer value = future.get(5, TimeUnit.SECONDS);
             assertThat(value).isPositive();
         }
@@ -79,9 +79,9 @@ class QuickStartTest {
         AsyncBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
 
         // 验证：并发限制下所有结果正确
-        assertThat(result3.getResults()).hasSize(8);
+        assertThat(result3.results()).hasSize(8);
         for (int i = 0; i < bigList.size(); i++) {
-            assertThat(result3.getResults().get(i).get()).isEqualTo(bigList.get(i) * 2);
+            assertThat(result3.results().get(i).get()).isEqualTo(bigList.get(i) * 2);
         }
 
         // ---- 步骤 5：查看结果 ----
@@ -91,8 +91,8 @@ class QuickStartTest {
 
         // report() 结构化报告
         AsyncBatchResult.BatchReport batchReport = result3.report();
-        assertThat(batchReport.getStateCounts())
+        assertThat(batchReport.stateCounts())
                 .containsEntry(io.github.huatalk.parallelinscope.internal.FutureState.SUCCESS, 8);
-        assertThat(batchReport.getFirstException()).isNull();
+        assertThat(batchReport.firstException()).isNull();
     }
 }

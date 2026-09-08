@@ -6,13 +6,13 @@ import javax.annotation.Nullable;
 /** Immutable terminal snapshot for one group member. */
 public final class TaskGroupMemberResult {
     private final String memberName;
-    private final TaskGroupMemberReason completionReason;
+    private final TaskOutcome completionReason;
     private final @Nullable Throwable failure;
     private final TaskContext taskContext;
 
     TaskGroupMemberResult(
             String memberName,
-            TaskGroupMemberReason completionReason,
+            TaskOutcome completionReason,
             @Nullable Throwable failure,
             TaskContext taskContext) {
         this.memberName = Objects.requireNonNull(memberName, "memberName cannot be null");
@@ -25,7 +25,7 @@ public final class TaskGroupMemberResult {
         return memberName;
     }
 
-    public TaskGroupMemberReason completionReason() {
+    public TaskOutcome completionReason() {
         return completionReason;
     }
 
