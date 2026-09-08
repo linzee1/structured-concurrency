@@ -156,7 +156,8 @@ public final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> impleme
             // so a cancel-phase emission can never be swallowed by an observer release racing it.
             synchronized (this) {
                 boolean canceledNow = canceled || isCancelled();
-                if (canceledNow && phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
+                if (canceledNow
+                        && phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
                     notifyPhase(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
                 }
                 // Advance to TERMINAL only if still in a running-phase state; never overwrite the

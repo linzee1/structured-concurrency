@@ -95,12 +95,16 @@ available only after a successful build. Group completion always returns a `Task
 `FAILED`, `TIMEOUT`, and `CANCELED` are result reasons rather than failures of the completion
 future. Individual member futures retain normal Guava success, failure, and cancellation behavior.
 
-The first member failure triggers fail-fast cancellation of unfinished siblings. `group.cancel()`
-and `close()` cancel unfinished members without blocking. Cancelling one member future directly
-does not cancel its siblings. Group and member deadlines start at the build boundary, and member
-deadlines are capped by the group deadline. A group built inside a scoped task inherits outer
-cancellation and its deadline ceiling; each member remains a real child task, while membership
-itself does not add dependency edges between siblings.
+Group cancellation is fully structured, matching batch semantics: the first member failure, a
+direct cancellation of any member future or member token, the group deadline, or any single member
+deadline cancels every unfinished member. `group.cancel()` and `close()` cancel unfinished members
+without blocking. Member outcomes are attributed from the cancellation tokens, so a cancelled
+member reports `MEMBER_CANCELED`, `FAIL_FAST`, `TIMEOUT`, or `GROUP_CANCELED` rather than a bare
+cancellation; a member exceeding its own deadline escalates the group to `TIMEOUT`. Group and
+member deadlines start at the build boundary, and member deadlines are capped by the group
+deadline. A group built inside a scoped task inherits outer cancellation and its deadline ceiling;
+each member remains a real child task, while membership itself does not add dependency edges
+between siblings.
 
 ## Cancellation and nested batches
 

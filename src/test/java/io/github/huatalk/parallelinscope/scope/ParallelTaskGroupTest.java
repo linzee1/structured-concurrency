@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.context.SubmissionScope;
 import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import java.time.Duration;
@@ -126,8 +127,7 @@ class ParallelTaskGroupTest {
 
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.FAILED);
             assertThat(result.failedMemberName()).isEqualTo("failure");
-            assertThat(result.members().get("failure").completionReason())
-                    .isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.members().get("failure").completionReason()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.members().get("slow").completionReason()).isEqualTo(TaskOutcome.FAIL_FAST);
         } finally {
             global.close();
@@ -182,7 +182,7 @@ class ParallelTaskGroupTest {
     }
 
     @Test
-    void directMemberCancellationDoesNotCancelSibling() throws Exception {
+    void directMemberCancellationCascadesToUnfinishedSibling() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         GlobalPar global = GlobalPar.builder().register("worker", executor).build();
         CountDownLatch release = new CountDownLatch(1);
@@ -200,20 +200,59 @@ class ParallelTaskGroupTest {
             ParallelTaskGroup.TaskHandle<Integer> sibling = builder.addTask(
                     "sibling",
                     global.par("worker"),
-                    () -> 2,
+                    () -> {
+                        release.await(10, TimeUnit.SECONDS);
+                        return 2;
+                    },
                     BatchExecutionOptions.of("sibling").build());
             ParallelTaskGroup group = builder.buildAndSubmitAll();
             canceled.future().cancel(true);
-            release.countDown();
 
-            assertThat(sibling.future().get(2, TimeUnit.SECONDS)).isEqualTo(2);
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.CANCELED);
-            assertThat(result.members().get("canceled").completionReason())
-                    .isEqualTo(TaskOutcome.MEMBER_CANCELED);
-            assertThat(result.members().get("sibling").completionReason()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.members().get("canceled").completionReason()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+            assertThat(result.members().get("sibling").completionReason()).isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             release.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void memberTimeoutEscalatesToGroupTimeoutAndCancelsSibling() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        try {
+            ParallelTaskGroup.Builder builder = global.taskGroupBuilder(TaskGroupOptions.of("member-timeout")
+                    .timeout(Duration.ofSeconds(2))
+                    .build());
+            builder.addTask(
+                    "slow",
+                    global.par("worker"),
+                    () -> {
+                        Thread.sleep(10_000);
+                        return 1;
+                    },
+                    BatchExecutionOptions.of("slow")
+                            .timeout(Duration.ofMillis(50))
+                            .build());
+            builder.addTask(
+                    "sibling",
+                    global.par("worker"),
+                    () -> {
+                        Thread.sleep(10_000);
+                        return 2;
+                    },
+                    BatchExecutionOptions.of("sibling").build());
+
+            TaskGroupResult result =
+                    builder.buildAndSubmitAll().completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.TIMEOUT);
+            assertThat(result.members().get("slow").completionReason()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.members().get("sibling").completionReason()).isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
             global.close();
             executor.shutdownNow();
         }
@@ -320,8 +359,7 @@ class ParallelTaskGroupTest {
                     builder.buildAndSubmitAll().completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.FAILED);
-            assertThat(result.members().get("rejected").completionReason())
-                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.members().get("rejected").completionReason()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.members().get("later").completionReason()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(calls).hasValue(0);
             assertThat(SubmissionScope.currentBatch()).isNull();
@@ -443,6 +481,126 @@ class ParallelTaskGroupTest {
                             },
                             BatchExecutionOptions.of("outer").build());
             assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isNotNull();
+        } finally {
+            global.close();
+            outer.shutdownNow();
+            inner.shutdownNow();
+        }
+    }
+
+    @Test
+    void groupIdentifiersExposeConfiguredAndGeneratedValues() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        try {
+            ParallelTaskGroup group = global.taskGroupBuilder(
+                            TaskGroupOptions.of("named").build())
+                    .buildAndSubmitAll();
+            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(group.groupName()).isEqualTo("named");
+            assertThat(result.groupName()).isEqualTo("named");
+            assertThat(group.groupId()).isNotBlank();
+            assertThat(result.groupId()).isEqualTo(group.groupId());
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void closeAfterCompletionIsNoopAndCloseCancelsUnfinishedMembers() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        CountDownLatch started = new CountDownLatch(1);
+        try {
+            ParallelTaskGroup completed =
+                    global.taskGroupBuilder(TaskGroupOptions.of("done").build()).buildAndSubmitAll();
+            completed.completionFuture().get(2, TimeUnit.SECONDS);
+            completed.close(); // must not disturb the recorded result
+            assertThat(completed.completionFuture().get().completionReason())
+                    .isEqualTo(TaskGroupCompletionReason.SUCCESS);
+
+            ParallelTaskGroup.Builder builder =
+                    global.taskGroupBuilder(TaskGroupOptions.of("close-cancel").build());
+            builder.addTask(
+                    "slow",
+                    global.par("worker"),
+                    () -> {
+                        started.countDown();
+                        Thread.sleep(10_000);
+                        return 1;
+                    },
+                    BatchExecutionOptions.of("slow").build());
+            ParallelTaskGroup unfinished = builder.buildAndSubmitAll();
+            assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
+            unfinished.close();
+            TaskGroupResult result = unfinished.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.CANCELED);
+            assertThat(result.members().get("slow").completionReason()).isEqualTo(TaskOutcome.GROUP_CANCELED);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void outerBatchCancellationPropagatesIntoGroupAsGroupCancellation() throws Exception {
+        ExecutorService outer = Executors.newSingleThreadExecutor();
+        ExecutorService inner = Executors.newSingleThreadExecutor();
+        GlobalPar global = GlobalPar.builder()
+                .register("outer", outer)
+                .register("inner", inner)
+                .build();
+        try {
+            AtomicReference<CancellationToken> outerToken = new AtomicReference<>();
+            AtomicReference<ParallelTaskGroup> publishedGroup = new AtomicReference<>();
+            CountDownLatch groupBuilt = new CountDownLatch(1);
+            AsyncBatchResult<String> outerBatch = global.par("outer")
+                    .map(
+                            Arrays.asList("x"),
+                            ignored -> {
+                                outerToken.set(TaskExecutionContext.current()
+                                        .batchContext()
+                                        .cancellationToken());
+                                ParallelTaskGroup.Builder builder = global.taskGroupBuilder(
+                                        TaskGroupOptions.of("outer-cancel").build());
+                                builder.addTask(
+                                        "slow",
+                                        global.par("inner"),
+                                        () -> {
+                                            Thread.sleep(10_000);
+                                            return 1;
+                                        },
+                                        BatchExecutionOptions.of("slow").build());
+                                ParallelTaskGroup group = builder.buildAndSubmitAll();
+                                publishedGroup.set(group);
+                                groupBuilt.countDown();
+                                // Stay inside the outer task until the group converges, so the
+                                // outer batch token is still RUNNING when the test cancels it.
+                                while (true) {
+                                    try {
+                                        return group.completionFuture()
+                                                .get()
+                                                .completionReason()
+                                                .name();
+                                    } catch (InterruptedException interrupted) {
+                                        // cancellation reached this task before the group settled;
+                                        // keep waiting for the group's terminal reason
+                                    } catch (java.util.concurrent.ExecutionException failure) {
+                                        throw new RuntimeException(failure);
+                                    }
+                                }
+                            },
+                            BatchExecutionOptions.of("outer").build());
+            assertThat(groupBuilt.await(2, TimeUnit.SECONDS)).isTrue();
+            outerToken.get().cancel(true);
+            ParallelTaskGroup group = publishedGroup.get();
+
+            assertThat(outerBatch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo("CANCELED");
+            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            assertThat(result.completionReason()).isEqualTo(TaskGroupCompletionReason.CANCELED);
+            assertThat(result.members().get("slow").completionReason()).isEqualTo(TaskOutcome.GROUP_CANCELED);
         } finally {
             global.close();
             outer.shutdownNow();

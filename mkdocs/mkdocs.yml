@@ -132,6 +132,7 @@ plugins:
                 - 空值注解: reference/nullability-annotations.md
             - 实现与设计:
                 - 设计哲学: design/philosophy.md
+                - Guava 取消传播机制: design/guava-cancellation-propagation.md
                 - Idea Graveyard: design/idea-graveyard.md
             - 测试与案例:
                 - AsyncBatchResult 测试设计: testing/async-batch-result-report-test-design.md

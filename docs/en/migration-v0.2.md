@@ -74,3 +74,24 @@ Methods implementing JDK or third-party contracts keep their mandated names
 `Thread.getState()`, `Map.Entry.getKey()/getValue()`).
 
 The old `ParConfig`, `ParOptions`, `ExecutorResolver`, `GlobalParConfig`, and legacy `Par` entry points are not compatibility aliases. Update imports, construction, and method calls together. Registered executors remain borrowed and are still owned and shut down by the application.
+
+## Cancellation token changes
+
+`CancellationToken.lateBind(futures, timeout, submitCanceller, timer)` is now
+`CancellationToken.bind(futures, submitCanceller, timer)`. The timeout argument moved into the
+token itself: construct it with `new CancellationToken(parent, deadlineNanos)` (the effective
+deadline is the minimum of the requested one and the parent's) and use `deadlineNanos()` /
+`remaining()` to read it. Batches and task groups compute and pass the deadline at construction;
+self-service callers of `bind` should do the same. A deadline that has already expired when
+`bind` runs simply schedules the timeout for immediate execution. `State.NO_OP` was deleted, and
+`addCompletionListener` was replaced by `addStateListener(Consumer<State>)`, which fires
+synchronously after a state transition commits and before the associated cancellation actions run.
+
+Batch-level element cancellation no longer surfaces as a bare cancellation: the token still
+classifies a directly cancelled element through the same fail-fast trigger that a failed element
+uses, so batch reports keep distinguishing the cancelled element via `TaskOutcome`.
+
+Task groups changed semantics accordingly: cancelling one member (its future or its token) now
+cascades to the whole group, matching batch fail-fast behavior. The directly cancelled member
+reports `MEMBER_CANCELED`, unfinished siblings report `GROUP_CANCELED`, and the group converges
+on `CANCELED`.

@@ -252,7 +252,7 @@ TaskGraphObservationContext snapshot（可空）
 listener snapshot
 ```
 
-其中 `first completion reason` 接受 member failure、deadline、group cancel/close、outer cancellation。单个成员被调用方取消只记录成员原因，不立刻固定 Group 原因，以便 build 提交循环中的失败或 timeout 仍可先赢。Group 对象在调用方、成员完成 listener 或 completion future 仍引用它时继续存活；它不属于任何物理线程。
+其中 `first completion reason` 接受 member failure、deadline、group cancel/close、outer cancellation、成员被直接取消。单个成员被调用方直接取消会级联取消整个 Group（见 8.2）。Group 对象在调用方、成员完成 listener 或 completion future 仍引用它时继续存活；它不属于任何物理线程。
 
 ### 4.3 MemberState
 
@@ -512,17 +512,16 @@ outer task token（可空）
    └─ member C token
 ```
 
-member token 的取消不得反向取消 Group 或 sibling。
+成员 deadline 先于 Group deadline 到期时，成员 token 上的 timeout 监听器必须把超时升级为 `groupToken.timeoutCancel()`，使 Group 收敛为 `TIMEOUT` 而不是 fail-fast 的 `FAILED`。
 
 ### 8.2 成员主动取消
 
-调用方对成员 future 调用 `cancel()`：
+调用方对成员 future（或成员 token）调用 `cancel()`：
 
-- 只取消该成员；
-- 原因记录为 `MEMBER_CANCELED`；
-- 不立即取消 siblings；
-- 不立即固定 Group completion reason；
-- 全部成员收敛后最终原因为 `CANCELED`，除非在此之前 `FAILED/TIMEOUT` 已固定；
+- Group 取消语义与 batch 完全一致（结构化并发）：成员被直接取消即级联取消整个 Group；
+- 该成员原因记录为 `MEMBER_CANCELED`；
+- 未完成 siblings 通过各自 member token 级联取消，记录 `GROUP_CANCELED`；
+- Group completion reason 固定为 `CANCELED`；
 - 取消在线程取得执行权前获胜时，用户 callable 不得执行；
 - 取消在 RUNNING 后获胜时发出中断请求，但不保证用户代码立即停止。
 
@@ -568,7 +567,9 @@ memberDeadline = min(member requested/default deadline, groupDeadline)
 
 若成员自己的 deadline 先到并导致该成员失败/取消，Group 应固定 `TIMEOUT`，因为结果 API 已明确区分 timeout；不得把它误报成普通 user failure。
 
-现有 `CancellationToken.lateBind()` 面向固定 Batch，会把 future cancellation 纳入 batch fail-fast；它不能未经适配直接作为 Group 单成员原因判定器。单任务提交内核必须让 `MemberState` 在发起取消前写入明确原因，或为 `CancellationToken` 抽取可区分 timeout、parent propagation、显式 cancel 和执行失败的内部绑定能力。`TaskGroupMemberReason` 是权威来源，不能由 token state 或 future state 事后猜测。
+现实现（0.2.x）：deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min），`bind(List, submitCanceller, timer)` 不再接收 Duration。Group 侧 `start()` 做三件事：先把每个成员的完成 observer 挂上，再对 group token 一次 `bind`（组 deadline + 统一 fail-fast + 全成功），最后对每个成员 token `bind` 自己的 future，并在成员 token 上注册状态监听器（`TIMEOUT_CANCELED` 时调用 `groupToken.timeoutCancel()`，监听器在 CAS 之后、取消动作之前同步触发）。
+
+成员取消原因不再由发起取消处手写，而是收敛后读 token state：成员 token `TIMEOUT_CANCELED` 即 `TIMEOUT`；否则 group token 是唯一权威（它在取消成员 futures 之前先提交自己的状态），`TIMEOUT_CANCELED/FAIL_FAST_CANCELED/MUTUAL/PROPAGATING` 分别映射 `TIMEOUT/FAIL_FAST/GROUP_CANCELED`；两个 token 都仍是 `RUNNING` 说明没有框架路径碰过该成员，即用户直消，记 `MEMBER_CANCELED`。
 
 ### 8.5 close
 
@@ -757,7 +758,7 @@ fake-group-batch -> A/B/C
 ### 14.3 取消与原因
 
 13. 手动 group.cancel 使未完成成员记录 GROUP_CANCELED；
-14. 直接 member future.cancel 只取消该成员，siblings 继续；
+14. 直接 member future.cancel 级联取消 Group：该成员 `MEMBER_CANCELED`，未完成 siblings `GROUP_CANCELED`，Group reason `CANCELED`；
 15. 成员失败固定 FAILED，first failedMemberName 稳定，siblings 为 FAIL_FAST；
 16. 取消发生在 SUBMITTED/RUNNING/TERMINAL 三个阶段时状态一致；
 17. 用户忽略中断时公开 future 可以先取消，但 Group 仍能按公开 future 终态完成；

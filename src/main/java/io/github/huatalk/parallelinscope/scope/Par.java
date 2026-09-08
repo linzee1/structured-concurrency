@@ -159,13 +159,7 @@ public final class Par {
         AsyncBatchResult<R> result = new ConcurrentLimitExecutor<R>(
                         runtime.submissionExecutor(), batchContext, globalPar.submitterPool(), runtime.phaseObserver())
                 .submitAll(tasks);
-        batchContext
-                .cancellationToken()
-                .lateBind(
-                        result.results(),
-                        batchContext.remaining(),
-                        result.submitCanceller(),
-                        globalPar.timeoutScheduler());
+        batchContext.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
         globalPar.retainUntilComplete(result.results());
         return result;
     }

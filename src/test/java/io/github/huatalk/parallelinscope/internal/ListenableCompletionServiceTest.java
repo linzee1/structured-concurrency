@@ -8,7 +8,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -248,7 +247,8 @@ public class ListenableCompletionServiceTest {
             assertThat(runner.isAlive()).isFalse();
 
             assertThat(phases)
-                    .as("attempt %s must report the cancel-while-running phase; got %s; isCancelled=%s; future=%s",
+                    .as(
+                            "attempt %s must report the cancel-while-running phase; got %s; isCancelled=%s; future=%s",
                             attempt, phases, future.isCancelled(), future)
                     .contains(ExecutionPhase.CANCEL_REQUESTED_RUNNING)
                     .contains(ExecutionPhase.TERMINAL);
