@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -57,11 +56,7 @@ public class CancellationPropagationCartesianTest {
             if (timing == ParentTiming.BEFORE_CHILD_BIND) {
                 parent.cancel(true);
             }
-            child.lateBind(
-                    Collections.singletonList(fixture.future),
-                    Duration.ofSeconds(5),
-                    Futures.immediateVoidFuture(),
-                    timer);
+            child.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             if (timing == ParentTiming.AFTER_CHILD_BIND) {
                 parent.cancel(true);
             }
@@ -89,11 +84,7 @@ public class CancellationPropagationCartesianTest {
             CancellationToken child = new CancellationToken(parent);
             SettableFuture<Integer> childFuture = SettableFuture.create();
 
-            child.lateBind(
-                    Collections.singletonList(childFuture),
-                    Duration.ofSeconds(5),
-                    Futures.immediateVoidFuture(),
-                    timer);
+            child.bind(Collections.singletonList(childFuture), Futures.immediateVoidFuture(), timer);
 
             assertThat(childFuture).isCancelled();
             assertThat(child.state())

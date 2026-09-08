@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -53,15 +52,13 @@ public class CancellationTriggerCartesianTest {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
         WorkFixture fixture = WorkFixture.create(workload);
         SettableFuture<Void> submitter = SettableFuture.create();
-        CancellationToken token = CancellationToken.create();
+        CancellationToken token = trigger == Trigger.TIMEOUT
+                ? new CancellationToken(null, System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(75))
+                : CancellationToken.create();
 
         try {
             fixture.awaitEntry();
-            token.lateBind(
-                    Collections.singletonList(fixture.future),
-                    trigger == Trigger.TIMEOUT ? Duration.ofMillis(75) : Duration.ofSeconds(5),
-                    submitter,
-                    timer);
+            token.bind(Collections.singletonList(fixture.future), submitter, timer);
             if (trigger == Trigger.MANUAL_INTERRUPT) {
                 token.cancel(true);
             }
@@ -70,8 +67,8 @@ public class CancellationTriggerCartesianTest {
                     ? CancellationToken.State.TIMEOUT_CANCELED
                     : CancellationToken.State.MUTUAL_CANCELED;
             awaitState(token, expected);
-            assertThat(fixture.future).isCancelled();
-            assertThat(submitter).isCancelled();
+            awaitCancelled(fixture.future);
+            awaitCancelled(submitter);
 
             if (workload == Workload.PENDING) {
                 assertThat(fixture.interrupted).isFalse();
@@ -98,15 +95,11 @@ public class CancellationTriggerCartesianTest {
 
         try {
             fixture.awaitEntry();
-            token.lateBind(
-                    Collections.singletonList(fixture.future),
-                    Duration.ofSeconds(5),
-                    Futures.immediateVoidFuture(),
-                    timer);
+            token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             token.cancel(false);
 
             awaitState(token, CancellationToken.State.MUTUAL_CANCELED);
-            assertThat(fixture.future).isCancelled();
+            awaitCancelled(fixture.future);
             assertThat(fixture.interrupted)
                     .as("cancel(false) must preserve the non-interrupting contract")
                     .isFalse();
@@ -124,6 +117,15 @@ public class CancellationTriggerCartesianTest {
             Thread.yield();
         }
         assertThat(token.state()).isEqualTo(expected);
+    }
+
+    /** Waits for Future cancellation; the token commits its state before cancelling bound work. */
+    private static void awaitCancelled(ListenableFuture<?> future) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!future.isCancelled() && System.nanoTime() < deadline) {
+            Thread.yield();
+        }
+        assertThat(future).isCancelled();
     }
 
     /** Waits for a controlled task to observe interruption. */

@@ -16,26 +16,35 @@ import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Executor;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nullable;
 
 /**
- * Cooperative cancellation token for parallel task groups.
+ * Cooperative cancellation token carrying a deadline for parallel work.
  *
- * <p>A token may be linked to a parent so that cancellation propagates to child task groups. After
- * task submission, {@link #lateBind(List, Duration, ListenableFuture, ScheduledExecutorService)}
- * connects the token to the submitted futures and enables timeout and fail-fast cancellation.
+ * <p>A token may be linked to a parent so that cancellation propagates to child task groups, and a
+ * child never outlives its parent: the effective deadline is the minimum of the requested deadline
+ * and the parent's. After task submission, {@link #bind(List, ListenableFuture,
+ * ScheduledExecutorService)} connects the token to the submitted futures and enforces that
+ * deadline together with fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class CancellationToken {
 
+    private static final Logger LOGGER = Logger.getLogger(CancellationToken.class.getName());
+
     private final SettableFuture<Object> futureToken = SettableFuture.create();
     private final AtomicReference<State> state = new AtomicReference<>(RUNNING);
     private final @Nullable CancellationToken parent;
+    private final long deadlineNanos;
+    private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
 
     /**
      * Creates a token linked to a parent, or a root token if {@code parent} is {@code null}.
@@ -43,17 +52,30 @@ public class CancellationToken {
      * <p>This constructor is the single parent-propagation mechanism: when the parent's work is
      * canceled, timed out, or fail-fast-canceled (any parent state for which interruption is
      * required), this token transitions to {@code PROPAGATING_CANCELED} and cancels its linked
-     * future. No additional wiring in {@link #lateBind} or the caller is needed.
+     * future. No additional wiring in {@link #bind} or the caller is needed.
      *
      * @param parent the parent token, or {@code null} for a root token
      */
     public CancellationToken(@Nullable CancellationToken parent) {
+        this(parent, Long.MAX_VALUE);
+    }
+
+    /**
+     * Creates a token with a deadline on the monotonic clock, linked to a parent or unlinked.
+     *
+     * <p>The effective deadline is the minimum of {@code deadlineNanos} and the parent's deadline,
+     * so a child scope can only request an earlier deadline, never a later one.
+     *
+     * @param parent the parent token, or {@code null} for a root token
+     * @param deadlineNanos the requested deadline in {@link System#nanoTime()} units
+     */
+    public CancellationToken(@Nullable CancellationToken parent, long deadlineNanos) {
         this.parent = parent;
+        this.deadlineNanos = parent == null ? deadlineNanos : Math.min(deadlineNanos, parent.deadlineNanos());
         if (parent != null) {
             parent.futureToken.addListener(
                     () -> {
-                        if (parent.state().shouldInterruptCurrentThread()) {
-                            state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
+                        if (parent.state().shouldInterruptCurrentThread() && transitionTo(PROPAGATING_CANCELED)) {
                             futureToken.cancel(true);
                         }
                     },
@@ -61,13 +83,13 @@ public class CancellationToken {
         }
     }
 
-    /** Creates an unlinked root token. */
+    /** Creates an unlinked root token with no deadline. */
     public CancellationToken() {
-        this.parent = null;
+        this(null);
     }
 
     /**
-     * Creates an unlinked root token.
+     * Creates an unlinked root token with no deadline.
      *
      * @return a new cancellation token
      */
@@ -76,47 +98,59 @@ public class CancellationToken {
     }
 
     /**
-     * Connects this token to submitted work using the supplied timeout scheduler.
+     * Returns the effective deadline in {@link System#nanoTime()} units; {@link Long#MAX_VALUE}
+     * means no deadline.
+     */
+    public long deadlineNanos() {
+        return deadlineNanos;
+    }
+
+    /** Returns a non-negative remaining duration until this token's deadline. */
+    public Duration remaining() {
+        return Duration.ofNanos(Math.max(0L, deadlineNanos - System.nanoTime()));
+    }
+
+    /**
+     * Connects this token to submitted work and arms its deadline.
+     *
+     * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
+     * {@code TIMEOUT_CANCELED} when its deadline expires first, and {@code FAIL_FAST_CANCELED}
+     * when any future fails. Every canceling transition cancels the futures and the submission
+     * canceller; cancelling an already-successful future is a no-op, so a late cancel never
+     * destroys a recorded result. An already-expired deadline simply schedules the timeout for
+     * immediate execution.
      *
      * @param <T> the task result type
      * @param futures the submitted task futures
-     * @param timeout the maximum execution time
      * @param submitCanceller the submission future to cancel with the tasks
-     * @param timer scheduler used to detect the timeout
+     * @param timer scheduler used to detect the deadline
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public <T> void lateBind(
-            List<ListenableFuture<T>> futures,
-            Duration timeout,
-            ListenableFuture<?> submitCanceller,
-            ScheduledExecutorService timer) {
+    public <T> void bind(
+            List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
         Objects.requireNonNull(timer);
-
         FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
-                .catchingAsync(Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
-                .withTimeout(timeout, timer);
-
+                .withTimeout(Duration.ofNanos(deadlineNanos - System.nanoTime()), timer);
+        // A pending successfulAsList is the one cancellable handle that reaches both the task
+        // futures and the submission canceller: it stays pending until every input is done, so
+        // cancelling it still propagates after one task already failed or was cancelled.
         ListenableFuture<?> allFutures = Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
-
         failFastFuture.addCallback(
-                new FutureCallback() {
+                new FutureCallback<Object>() {
                     @Override
                     public void onSuccess(Object result) {
-                        state.compareAndSet(RUNNING, SUCCESS);
+                        transitionTo(SUCCESS);
                     }
 
                     @Override
-                    public void onFailure(Throwable t) {
+                    public void onFailure(Throwable failure) {
+                        // Commit the state before cancelling: a listener can still fix a cause (a
+                        // task group escalating a member timeout) before cascade cancellation makes
+                        // every path look like fail-fast.
+                        transitionTo(failure instanceof TimeoutException ? TIMEOUT_CANCELED : FAIL_FAST_CANCELED);
                         allFutures.cancel(true);
-                        if (t instanceof TimeoutException) {
-                            state.compareAndSet(RUNNING, TIMEOUT_CANCELED);
-                        } else {
-                            state.compareAndSet(RUNNING, FAIL_FAST_CANCELED);
-                        }
                     }
                 },
                 directExecutor());
-
         futureToken.setFuture(failFastFuture);
     }
 
@@ -137,8 +171,22 @@ public class CancellationToken {
      * @param useInterrupt whether to interrupt running threads
      */
     public void cancel(boolean useInterrupt) {
-        state.compareAndSet(RUNNING, MUTUAL_CANCELED);
-        futureToken.cancel(useInterrupt);
+        if (transitionTo(MUTUAL_CANCELED)) {
+            futureToken.cancel(useInterrupt);
+        }
+    }
+
+    /**
+     * Cancels this token as a timeout without waiting for its own deadline to expire.
+     *
+     * <p>Intended for {@code io.github.huatalk.parallelinscope.scope.ParallelTaskGroup}: when a
+     * member exceeds its own deadline, the group escalates that timeout onto the group token so
+     * the group's completion reason stays {@code TIMEOUT} instead of collapsing into fail-fast.
+     */
+    public void timeoutCancel() {
+        if (transitionTo(TIMEOUT_CANCELED)) {
+            futureToken.cancel(true);
+        }
     }
 
     /**
@@ -151,18 +199,37 @@ public class CancellationToken {
     }
 
     /**
-     * Registers a callback that runs when this token is canceled or otherwise completes.
+     * Registers a callback invoked synchronously right after a terminal transition commits and
+     * before the associated cancellation actions run.
      *
      * <p>Intended for {@code io.github.huatalk.parallelinscope.scope.ParallelTaskGroup}: a group
-     * linked to an outer batch's token listens so a parent cancellation fixes the group's first
-     * completion reason without polling. It is public only because the {@code scope} and {@code
-     * cancel} packages cannot share package-private access; it is not a general-purpose hook and
-     * external callers should not rely on it.
+     * listens on a member token so a member timeout escalates to the group before cascade
+     * cancellation runs. It is public only because the {@code scope} and {@code cancel} packages
+     * cannot share package-private access; it is not a general-purpose hook and external callers
+     * should not rely on it. A listener registered after the token left {@code RUNNING} is never
+     * invoked. Listener failures are logged and swallowed; they must not break cancellation.
      */
-    public void addCompletionListener(Runnable listener, Executor executor) {
-        futureToken.addListener(
-                Objects.requireNonNull(listener, "listener cannot be null"),
-                Objects.requireNonNull(executor, "executor cannot be null"));
+    public void addStateListener(Consumer<State> listener) {
+        stateListeners.add(Objects.requireNonNull(listener, "listener cannot be null"));
+    }
+
+    /** Commits a terminal transition from {@code RUNNING}, notifying state listeners when it wins. */
+    private boolean transitionTo(State terminal) {
+        if (state.compareAndSet(RUNNING, terminal)) {
+            notifyStateListeners(terminal);
+            return true;
+        }
+        return false;
+    }
+
+    private void notifyStateListeners(State newState) {
+        for (Consumer<State> listener : stateListeners) {
+            try {
+                listener.accept(newState);
+            } catch (Throwable failure) {
+                LOGGER.log(Level.WARNING, "CancellationToken state listener failed", failure);
+            }
+        }
     }
 
     /** Lifecycle state of a {@link CancellationToken}. */
@@ -172,8 +239,6 @@ public class CancellationToken {
         RUNNING(0),
         /** The task completed successfully. */
         SUCCESS(1),
-        /** No task was run. */
-        NO_OP(2),
         /** A sibling task failed, triggering fail-fast cancellation. */
         FAIL_FAST_CANCELED(-1),
         /** The task timed out. */

@@ -48,11 +48,12 @@ public class FutureInspectorTest {
 
     @Test
     public void hintFutureReportsSubmissionFailureInsteadOfUserFailure() {
-        ExecutionPhaseHintFuture<String> rejected =
-                ExecutionPhaseHintFuture.createDeferred(() -> "never", phase -> {});
-        rejected.submitPrepared(command -> {
-            throw new java.util.concurrent.RejectedExecutionException("full");
-        }, false);
+        ExecutionPhaseHintFuture<String> rejected = ExecutionPhaseHintFuture.createDeferred(() -> "never", phase -> {});
+        rejected.submitPrepared(
+                command -> {
+                    throw new java.util.concurrent.RejectedExecutionException("full");
+                },
+                false);
         assertThat(FutureInspector.state(rejected)).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
     }
 
@@ -69,8 +70,7 @@ public class FutureInspectorTest {
 
     @Test
     public void hintFutureReportsMemberCanceledOnCancel() {
-        ExecutionPhaseHintFuture<String> canceled =
-                ExecutionPhaseHintFuture.createDeferred(() -> "never", phase -> {});
+        ExecutionPhaseHintFuture<String> canceled = ExecutionPhaseHintFuture.createDeferred(() -> "never", phase -> {});
         canceled.cancel(true);
         assertThat(FutureInspector.state(canceled)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
     }

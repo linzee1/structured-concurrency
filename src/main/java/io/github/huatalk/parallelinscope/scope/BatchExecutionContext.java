@@ -98,7 +98,7 @@ public final class BatchExecutionContext {
         }
         long requestedDeadline = timeoutNanos > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + timeoutNanos;
         long deadline = parent == null ? requestedDeadline : Math.min(parent.deadlineNanos, requestedDeadline);
-        CancellationToken token = new CancellationToken(parent == null ? null : parent.cancellationToken);
+        CancellationToken token = new CancellationToken(parent == null ? null : parent.cancellationToken, deadline);
         TaskGraphObservationContext effectiveObservation = taskGraphObservationContext != null
                 ? taskGraphObservationContext
                 : parent == null ? null : parent.taskGraphObservationContext;
@@ -190,7 +190,7 @@ public final class BatchExecutionContext {
                 taskCount,
                 effective,
                 deadline,
-                new CancellationToken(cancellationParent),
+                new CancellationToken(cancellationParent, deadline),
                 structuralParent,
                 taskGraphObservationContext,
                 executorIdentity,

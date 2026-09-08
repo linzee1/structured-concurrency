@@ -11,10 +11,7 @@ public final class TaskGroupMemberResult {
     private final TaskContext taskContext;
 
     TaskGroupMemberResult(
-            String memberName,
-            TaskOutcome completionReason,
-            @Nullable Throwable failure,
-            TaskContext taskContext) {
+            String memberName, TaskOutcome completionReason, @Nullable Throwable failure, TaskContext taskContext) {
         this.memberName = Objects.requireNonNull(memberName, "memberName cannot be null");
         this.completionReason = Objects.requireNonNull(completionReason, "completionReason cannot be null");
         this.failure = failure;
