@@ -9,8 +9,9 @@ import javax.annotation.Nullable;
  * member.
  *
  * <p>The same record serves two delivery points: a {@code TaskListener} receives it at task
- * completion (carrying the task result), and a {@link TaskGroupResult} embeds one per member as
- * its terminal snapshot. Two fields are delivery-specific: {@link #result()} is only non-null on
+ * completion (carrying the task result), and a {@link TaskGroupResult} embeds one per member — plus
+ * one for the optional terminal combine — as its terminal snapshot. Two fields are
+ * delivery-specific: {@link #result()} is only non-null on
  * listener delivery of a successful task (a group member's result stays in its future), and
  * {@link #taskIndex()} is always zero for group members.
  *

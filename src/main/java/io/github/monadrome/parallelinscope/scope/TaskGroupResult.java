@@ -16,6 +16,7 @@ public final class TaskGroupResult {
     private final TaskOutcome outcome;
     private final @Nullable String failedMemberName;
     private final Map<String, TaskCompletion<?>> members;
+    private final @Nullable TaskCompletion<?> terminal;
 
     TaskGroupResult(
             String groupId,
@@ -25,7 +26,8 @@ public final class TaskGroupResult {
             long deadlineNanos,
             TaskOutcome outcome,
             @Nullable String failedMemberName,
-            Map<String, TaskCompletion<?>> members) {
+            Map<String, TaskCompletion<?>> members,
+            @Nullable TaskCompletion<?> terminal) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
         this.groupName = Objects.requireNonNull(groupName, "groupName cannot be null");
         this.startTimeNanos = startTimeNanos;
@@ -34,6 +36,7 @@ public final class TaskGroupResult {
         this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
         this.failedMemberName = failedMemberName;
         this.members = Collections.unmodifiableMap(new LinkedHashMap<>(members));
+        this.terminal = terminal;
     }
 
     public String groupId() {
@@ -68,6 +71,15 @@ public final class TaskGroupResult {
     /** Returns each member's terminal snapshot, keyed by registered member name. */
     public Map<String, TaskCompletion<?>> members() {
         return members;
+    }
+
+    /**
+     * Returns the terminal combine's snapshot, or null when the group declares no combine. A
+     * combine cancelled before running never marks a start or end time, following the member
+     * snapshot convention.
+     */
+    public @Nullable TaskCompletion<?> terminal() {
+        return terminal;
     }
 
     /** Returns the number of members admitted into this group. */
