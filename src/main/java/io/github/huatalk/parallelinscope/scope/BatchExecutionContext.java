@@ -144,6 +144,61 @@ public final class BatchExecutionContext {
                 context.rejectEnqueue);
     }
 
+    /**
+     * Resolves a batch whose structural parent, cancellation parent, and deadline ceiling are
+     * independent. This is used by task-group members, where group cancellation is not a graph
+     * parent and the group deadline is not necessarily the structural parent's deadline.
+     */
+    static BatchExecutionContext resolve(
+            GlobalExecutionPolicy policy,
+            BatchExecutionOptions options,
+            int taskCount,
+            @Nullable BatchExecutionContext structuralParent,
+            @Nullable CancellationToken cancellationParent,
+            long deadlineCeilingNanos,
+            long resolutionTimeNanos,
+            @Nullable TaskGraphObservationContext taskGraphObservationContext,
+            ExecutorIdentity executorIdentity,
+            String parLabel) {
+        Objects.requireNonNull(policy, "policy cannot be null");
+        Objects.requireNonNull(options, "options cannot be null");
+        if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
+        int requested = options.parallelism();
+        int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
+        long timeoutMillis;
+        if (options.timeout() == null) {
+            timeoutMillis = policy.defaultTimeoutMillis();
+        } else {
+            try {
+                timeoutMillis = options.timeout().toMillis();
+            } catch (ArithmeticException overflow) {
+                timeoutMillis = Long.MAX_VALUE / 1_000_000L;
+            }
+        }
+        long timeoutNanos;
+        try {
+            timeoutNanos = Math.multiplyExact(timeoutMillis, 1_000_000L);
+        } catch (ArithmeticException overflow) {
+            timeoutNanos = Long.MAX_VALUE;
+        }
+        long requestedDeadline = timeoutNanos > Long.MAX_VALUE - resolutionTimeNanos
+                ? Long.MAX_VALUE
+                : resolutionTimeNanos + timeoutNanos;
+        long deadline = Math.min(requestedDeadline, deadlineCeilingNanos);
+        return new BatchExecutionContext(
+                options.taskName(),
+                taskCount,
+                effective,
+                deadline,
+                new CancellationToken(cancellationParent),
+                structuralParent,
+                taskGraphObservationContext,
+                executorIdentity,
+                parLabel,
+                options.taskType(),
+                options.rejectEnqueue());
+    }
+
     public String taskName() {
         return taskName;
     }

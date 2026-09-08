@@ -65,8 +65,7 @@ class GlobalParTest {
             assertThat(global.defaultPar()).isSameAs(global.par("one"));
             assertThat(global.par("one").getDisplayName()).isEqualTo("one");
             assertThat(global.par("one").getGlobalPar()).isSameAs(global);
-            assertThat(global.par("one").getRuntimeForTest())
-                    .isSameAs(global.par("same").getRuntimeForTest());
+            assertThat(global.par("one").runtime()).isSameAs(global.par("same").runtime());
         } finally {
             executor.shutdownNow();
         }

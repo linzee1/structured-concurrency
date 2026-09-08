@@ -4,6 +4,10 @@
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `BatchExecutionContext` owns one invocation's runtime state.
 
+It also coordinates a fixed heterogeneous set of named operations through `ParallelTaskGroup`. A
+group is configured first and submitted at one explicit build boundary; it is not a dynamically
+growing batch.
+
 ## Build the execution topology
 
 Create `GlobalPar` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
@@ -58,6 +62,45 @@ List<ListenableFuture<Account>> futures = result.getResults();
 `parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. An explicit timeout must be positive; omitted timeout uses the global default. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
+
+## Execute a heterogeneous task group
+
+Use a task group when a request has a small fixed set of independent operations that may return
+different types or use different `Par` entries. `addTask` only records definitions. It does not
+create execution contexts, capture TTL values, start timers, or submit work. `buildAndSubmitAll`
+freezes the complete set, prepares every member, and then submits them.
+
+```java
+ParallelTaskGroup.Builder builder = global.taskGroupBuilder(
+        TaskGroupOptions.of("account-page")
+                .timeout(Duration.ofSeconds(3))
+                .build());
+
+ParallelTaskGroup.TaskHandle<User> user = builder.addTask(
+        "user", databasePar, userRepository::load,
+        BatchExecutionOptions.of("load-user").build());
+ParallelTaskGroup.TaskHandle<List<Order>> orders = builder.addTask(
+        "orders", httpPar, orderClient::load,
+        BatchExecutionOptions.of("load-orders").taskType(TaskType.IO_BOUND).build());
+
+try (ParallelTaskGroup group = builder.buildAndSubmitAll()) {
+    User userValue = user.future().get();
+    List<Order> orderValues = orders.future().get();
+    TaskGroupResult result = group.completionFuture().get();
+}
+```
+
+The builder is one-shot and not thread-safe. A `TaskHandle` is type-safe, but its `future()` is
+available only after a successful build. Group completion always returns a `TaskGroupResult`;
+`FAILED`, `TIMEOUT`, and `CANCELED` are result reasons rather than failures of the completion
+future. Individual member futures retain normal Guava success, failure, and cancellation behavior.
+
+The first member failure triggers fail-fast cancellation of unfinished siblings. `group.cancel()`
+and `close()` cancel unfinished members without blocking. Cancelling one member future directly
+does not cancel its siblings. Group and member deadlines start at the build boundary, and member
+deadlines are capped by the group deadline. A group built inside a scoped task inherits outer
+cancellation and its deadline ceiling; each member remains a real child task, while membership
+itself does not add dependency edges between siblings.
 
 ## Cancellation and nested batches
 

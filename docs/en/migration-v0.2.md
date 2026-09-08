@@ -20,6 +20,12 @@ Earlier `0.2.x` snapshots named this type `ExecutionOptions`. Rename imports, va
 
 Earlier snapshots also exposed this detector as `GlobalParLivelockPolicy` and `LivelockListener`. Rename them to `GlobalParDeadlockPolicy` and `DeadlockDetectionListener`; the detector reports potential dependency-graph deadlocks and does not prove a runtime deadlock or detect livelock.
 
+The first task-group API in `0.2.0-SNAPSHOT` uses a fixed builder contract. If code was written
+against an earlier task-group draft, replace `openTaskGroup()`, dynamic `submit()`, and `seal()` with
+`taskGroupBuilder()`, `addTask()`, and the one-shot `buildAndSubmitAll()`. `addTask()` returns a
+typed `ParallelTaskGroup.TaskHandle<T>`; call `future()` only after build. There is no compatibility
+shim because the dynamic-admission API was not released as a stable contract.
+
 `TaskListener.TaskEvent` now exposes the completed task through `getTaskContext()` and its outcome
 through `isSuccessful()`, `getResult()`, and `getException()`. A successful task may return null, so
 use `isSuccessful()` rather than testing the result for null. Listener callbacks run outside the
