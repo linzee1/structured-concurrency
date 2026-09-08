@@ -51,10 +51,10 @@ for (String item : emptyList) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 
 // 配置 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -85,4 +85,4 @@ assert r3.results().size() == 3;  // true
 
 ---
 
-> 📁 完整测试代码：[H1_NullEmptyInputTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/H1_NullEmptyInputTest.java)
+> 📁 完整测试代码：[H1_NullEmptyInputTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/H1_NullEmptyInputTest.java)

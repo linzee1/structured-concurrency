@@ -97,4 +97,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 相关 demo：[G5_BatchHttpCallsTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)
+> 📁 相关 demo：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)

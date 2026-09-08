@@ -15,7 +15,7 @@
 
 **为什么不做：**
 
-我们曾经实现过 `failFast` 开关，后来在 [0b8cb63](https://github.com/huatalk/parallel-in-scope/commit/0b8cb63) 中**主动删除**了它。
+我们曾经实现过 `failFast` 开关，后来在 [0b8cb63](https://github.com/monadrome/parallel-in-scope/commit/0b8cb63) 中**主动删除**了它。
 
 fail-fast 是结构化并发的核心语义：一个 scope 内的任务要么全部成功，要么在第一个失败时取消剩余任务。允许"忽略失败继续跑"会引入多种复杂性：
 

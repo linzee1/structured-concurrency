@@ -1,6 +1,6 @@
 # I1. 设计墓地——那些我们拒绝做的功能
 
-每个开源项目都有一个公开的路线图，告诉用户"我们要做什么"。但很少有项目告诉你"我们决定不做什么"。我们反其道而行之——parallel-in-scope 维护了一份 [IdeaGraveyard](https://github.com/huatalk/parallel-in-scope/blob/main/IdeaGraveyard.md)，记录每一个被认真考虑过、最终被拒绝的特性。
+每个开源项目都有一个公开的路线图，告诉用户"我们要做什么"。但很少有项目告诉你"我们决定不做什么"。我们反其道而行之——parallel-in-scope 维护了一份 [IdeaGraveyard](https://github.com/monadrome/parallel-in-scope/blob/main/IdeaGraveyard.md)，记录每一个被认真考虑过、最终被拒绝的特性。
 
 这篇文章挑选了 5 个最有代表性的"亡魂"，讲讲它们为什么被拒，以及你该用什么替代方案。
 
@@ -121,4 +121,4 @@ MultiTaskOptions opts = MultiTaskOptions.of("fetch").taskType(TaskType.IO_BOUND)
 
 ---
 
-> 设计墓地完整版：[IdeaGraveyard.md](https://github.com/huatalk/parallel-in-scope/blob/main/IdeaGraveyard.md)
+> 设计墓地完整版：[IdeaGraveyard.md](https://github.com/monadrome/parallel-in-scope/blob/main/IdeaGraveyard.md)

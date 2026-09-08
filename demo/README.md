@@ -63,19 +63,19 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.huatalk.parallelinscope.scope` (GlobalPar, Par, BatchExecutionOptions, TaskBatchResult)
-- `io.github.huatalk.parallelinscope.spi` (TaskListener, DeadlockDetectionListener)
+- `io.github.monadrome.parallelinscope.scope` (GlobalPar, Par, BatchExecutionOptions, TaskBatchResult)
+- `io.github.monadrome.parallelinscope.spi` (TaskListener, DeadlockDetectionListener)
 
 **禁止访问**：
-- `io.github.huatalk.parallelinscope.internal`
-- `io.github.huatalk.parallelinscope.cancel`
-- `io.github.huatalk.parallelinscope.context`
-- `io.github.huatalk.parallelinscope.context.graph`
-- `io.github.huatalk.parallelinscope.queue`
+- `io.github.monadrome.parallelinscope.internal`
+- `io.github.monadrome.parallelinscope.cancel`
+- `io.github.monadrome.parallelinscope.context`
+- `io.github.monadrome.parallelinscope.context.graph`
+- `io.github.monadrome.parallelinscope.queue`
 
 ### 包命名约定
 
-使用 `demo.*` 命名空间，禁止使用 `io.github.huatalk.parallelinscope.*`
+使用 `demo.*` 命名空间，禁止使用 `io.github.monadrome.parallelinscope.*`
 
 ## 添加新示例
 

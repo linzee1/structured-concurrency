@@ -77,4 +77,4 @@ TaskBatchResult<Report> reports = par.map( months, month -> {
 
 ---
 
-> 📁 完整测试代码：[G4_NamedExecutorPoolTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java)
+> 📁 完整测试代码：[G4_NamedExecutorPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java)

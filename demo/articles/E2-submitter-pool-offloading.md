@@ -45,10 +45,10 @@ pool.submit(() -> {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 
 // 仅 1 个线程的业务线程池
 ExecutorService pool = Executors.newFixedThreadPool(1);
@@ -74,4 +74,4 @@ TaskBatchResult<Integer> result = par.map( input, x -> {
 
 ---
 
-> 📁 完整测试代码：[E2_SubmitterPoolOffloadingTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java)
+> 📁 完整测试代码：[E2_SubmitterPoolOffloadingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java)

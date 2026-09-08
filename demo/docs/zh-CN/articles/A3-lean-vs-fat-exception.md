@@ -73,4 +73,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[A3_LeanVsFatExceptionTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java)
+> 📁 完整测试代码：[A3_LeanVsFatExceptionTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java)

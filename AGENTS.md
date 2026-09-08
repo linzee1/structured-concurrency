@@ -5,7 +5,7 @@
 **parallel-in-scope** is a structured-concurrency toolkit for Java 8+ built on
 Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
 
-- Maven coordinates: `io.github.huatalk:parallel-in-scope:0.2.0`
+- Maven coordinates: `io.github.monadrome:parallel-in-scope:0.2.0`
 - Java source/target 1.8 (tests compiled with release 11); JUnit 5 via Surefire
 
 ## Commands
@@ -21,7 +21,7 @@ mvn clean verify                              # tests + package checks
 
 ## Architecture
 
-Base package: `io.github.huatalk.parallelinscope`.
+Base package: `io.github.monadrome.parallelinscope`.
 
 | Package | Responsibility |
 |---|---|

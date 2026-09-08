@@ -22,24 +22,24 @@ demo (消费者) → parallel-in-scope (发布版本)
 
 | 包名 | 说明 |
 |------|------|
-| `io.github.huatalk.parallelinscope.scope` | 核心 API（Par, BatchExecutionOptions, TaskBatchResult, GlobalPar） |
-| `io.github.huatalk.parallelinscope.spi` | 扩展点（TaskListener, DeadlockDetectionListener） |
+| `io.github.monadrome.parallelinscope.scope` | 核心 API（Par, BatchExecutionOptions, TaskBatchResult, GlobalPar） |
+| `io.github.monadrome.parallelinscope.spi` | 扩展点（TaskListener, DeadlockDetectionListener） |
 
 #### 允许访问的类（例外）
 
 | 类名 | 说明 |
 |------|------|
-| `io.github.huatalk.parallelinscope.cancel.Checkpoints` | 协作式取消的用户 API — `Checkpoints.sleep()` 是取消检查点 |
+| `io.github.monadrome.parallelinscope.cancel.Checkpoints` | 协作式取消的用户 API — `Checkpoints.sleep()` 是取消检查点 |
 
 #### 禁止访问的包（内部实现）
 
 | 包名 | 说明 |
 |------|------|
-| `io.github.huatalk.parallelinscope.internal` | 内部实现细节 |
-| `io.github.huatalk.parallelinscope.cancel` | 取消机制内部实现（**Checkpoints 除外**） |
-| `io.github.huatalk.parallelinscope.context` | 上下文传播内部实现 |
-| `io.github.huatalk.parallelinscope.context.graph` | 死锁检测内部实现 |
-| `io.github.huatalk.parallelinscope.queue` | 调度队列内部实现 |
+| `io.github.monadrome.parallelinscope.internal` | 内部实现细节 |
+| `io.github.monadrome.parallelinscope.cancel` | 取消机制内部实现（**Checkpoints 除外**） |
+| `io.github.monadrome.parallelinscope.context` | 上下文传播内部实现 |
+| `io.github.monadrome.parallelinscope.context.graph` | 死锁检测内部实现 |
+| `io.github.monadrome.parallelinscope.queue` | 调度队列内部实现 |
 
 ### 3. 包命名约定
 
@@ -55,7 +55,7 @@ src/
     └── article/        # 文章配套测试
 ```
 
-**禁止使用**: `io.github.huatalk.parallelinscope.*` 包名
+**禁止使用**: `io.github.monadrome.parallelinscope.*` 包名
 
 ### 4. 代码修改限制
 
@@ -130,10 +130,10 @@ mvn test
 
 ```java
 // 错误 1: 访问内部包
-import io.github.huatalk.parallelinscope.internal.SlidingWindowSubmitter;
+import io.github.monadrome.parallelinscope.internal.SlidingWindowSubmitter;
 
 // 错误 2: 使用主项目包名
-package io.github.huatalk.parallelinscope.demo;  // 应该是 demo.basic
+package io.github.monadrome.parallelinscope.demo;  // 应该是 demo.basic
 
 // 错误 3: 依赖源代码
 // pom.xml 中使用 systemPath 指向主项目
@@ -143,8 +143,8 @@ package io.github.huatalk.parallelinscope.demo;  // 应该是 demo.basic
 
 ```java
 // 正确 1: 只访问公共 API
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.BatchExecutionOptions;
 
 // 正确 2: 使用独立包名
 package demo.basic;

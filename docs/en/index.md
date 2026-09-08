@@ -8,8 +8,8 @@ This page is the English entry point for the user guide, API references, design 
 |---|---|
 | [Full user guide](user-guide.md) | **Primary guide**: configuration, public APIs, runtime behavior, and advanced features |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |
-| [Demo project](https://github.com/HuaTalk/parallel-in-scope/blob/main/demo/README.en.md) | Runnable examples and build commands |
-| [Demo documentation map](https://github.com/HuaTalk/parallel-in-scope/blob/main/demo/docs/en/README.md) | English entry point for the example catalog |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/blob/main/demo/README.en.md) | Runnable examples and build commands |
+| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/main/demo/docs/en/README.md) | English entry point for the example catalog |
 
 ## API and Contracts
 
