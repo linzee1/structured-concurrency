@@ -27,15 +27,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-class SlidingWindowSubmitterBatchContextTest {
+class SlidingWindowSubmitterTest {
     @Test
-    void installsBatchScopeForInitialAndSlidingWindowSubmissions() throws Exception {
+    void installsSubmissionScopeForInitialAndSlidingWindowSubmissions() throws Exception {
         ConcurrentLinkedQueue<MultiTaskContext> submittedBatches = new ConcurrentLinkedQueue<>();
         ThreadPoolExecutor worker =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>()) {
                     @Override
                     public void execute(Runnable command) {
-                        submittedBatches.add(SubmissionScope.currentBatch());
+                        submittedBatches.add(SubmissionScope.current());
                         super.execute(command);
                     }
                 };
@@ -51,7 +51,7 @@ class SlidingWindowSubmitterBatchContextTest {
             await().atMost(1, TimeUnit.SECONDS)
                     .untilAsserted(() -> assertThat(submittedBatches).hasSize(2));
             assertThat(submittedBatches).containsOnly(batch);
-            assertThat(SubmissionScope.currentBatch()).isNull();
+            assertThat(SubmissionScope.current()).isNull();
         } finally {
             workers.shutdownNow();
             submitter.shutdownNow();

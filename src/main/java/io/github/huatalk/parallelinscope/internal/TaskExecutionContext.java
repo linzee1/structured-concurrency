@@ -1,31 +1,30 @@
 package io.github.huatalk.parallelinscope.internal;
 
 import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
-import io.github.huatalk.parallelinscope.scope.TaskContext;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Per-task state for one element of a batch. */
-public final class TaskExecutionContext implements TaskContext {
+/** Per-task state for one task of a multi-task unit — a batch element or a task-group member. */
+public final class TaskExecutionContext {
 
     private static final ThreadLocal<TaskExecutionContext> CURRENT = new ThreadLocal<>();
 
-    private final MultiTaskContext batchContext;
+    private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
     private final long submitTimeNanos;
 
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
 
-    public TaskExecutionContext(MultiTaskContext batchContext, int taskIndex, long submitTimeNanos) {
-        this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
+    public TaskExecutionContext(MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos) {
+        this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
         if (taskIndex < 0) throw new IllegalArgumentException("taskIndex must not be negative");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
     }
 
-    public MultiTaskContext batchContext() {
-        return batchContext;
+    public MultiTaskContext multiTaskContext() {
+        return multiTaskContext;
     }
 
     /** Returns the stable index of this task's input element within its batch. */

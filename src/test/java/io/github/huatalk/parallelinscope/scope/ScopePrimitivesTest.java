@@ -129,7 +129,7 @@ class ScopePrimitivesTest {
         MultiTaskContext parent = resolve(0, Duration.ofMillis(50), 1, null);
         MultiTaskContext child = resolve(0, Duration.ofHours(10), 1, parent);
         assertThat(child.deadlineNanos()).isLessThanOrEqualTo(parent.deadlineNanos());
-        assertThat(child.parent()).isSameAs(parent);
+        assertThat(child.structuralParent()).isSameAs(parent);
         assertThat(child.cancellationToken()).isNotSameAs(parent.cancellationToken());
     }
 

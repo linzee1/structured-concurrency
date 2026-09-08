@@ -59,14 +59,14 @@ public final class TaskSubmissions {
     }
 
     /**
-     * Submits a prepared future to {@code executor} with the batch's {@link SubmissionScope}
-     * installed, so enqueue policies see the submitting batch. A rejected CPU-bound task runs
+     * Submits a prepared future to {@code executor} with the unit's {@link SubmissionScope}
+     * installed, so enqueue policies see the submitting unit. A rejected CPU-bound task runs
      * inline; any other rejection fails the future with a {@link SubmissionException} without
      * running user code.
      */
     public static void submitScoped(
-            ExecutionPhaseHintFuture<?> future, MultiTaskContext batchContext, Executor executor, boolean cpuBound) {
-        MultiTaskContext previous = SubmissionScope.install(batchContext);
+            ExecutionPhaseHintFuture<?> future, MultiTaskContext unit, Executor executor, boolean cpuBound) {
+        MultiTaskContext previous = SubmissionScope.install(unit);
         try {
             future.submitPrepared(executor, cpuBound);
         } finally {

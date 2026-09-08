@@ -25,7 +25,7 @@ public final class FutureInspector {
      * @param future the future to inspect
      * @return the current {@link TaskOutcome}
      */
-    public static TaskOutcome state(Future<?> future) {
+    public static TaskOutcome outcome(Future<?> future) {
         if (future instanceof ExecutionPhaseHintFuture) {
             return ((ExecutionPhaseHintFuture<?>) future).outcome();
         }

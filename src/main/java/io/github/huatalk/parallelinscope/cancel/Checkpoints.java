@@ -47,9 +47,9 @@ public final class Checkpoints {
      * @throws CancellationException if the matching task is canceled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
-        MultiTaskContext batch = currentBatchContext();
-        if (batch != null) {
-            if (taskName == null || !taskName.equals(batch.taskName())) return;
+        MultiTaskContext unit = currentContext();
+        if (unit != null) {
+            if (taskName == null || !taskName.equals(unit.name())) return;
             checkCancellationToken(lean);
             return;
         }
@@ -494,8 +494,8 @@ public final class Checkpoints {
     }
 
     private static void checkCancellationToken(boolean lean) {
-        MultiTaskContext batch = currentBatchContext();
-        CancellationToken cancelToken = batch == null ? null : batch.cancellationToken();
+        MultiTaskContext unit = currentContext();
+        CancellationToken cancelToken = unit == null ? null : unit.cancellationToken();
         if (cancelToken != null && cancelToken.state().shouldInterruptCurrentThread()) {
             throw lean
                     ? new LeanCancellationException("Cancel during running")
@@ -510,9 +510,9 @@ public final class Checkpoints {
         return cancellation;
     }
 
-    private static MultiTaskContext currentBatchContext() {
+    private static MultiTaskContext currentContext() {
         TaskExecutionContext currentTask = TaskExecutionContext.current();
-        return currentTask == null ? null : currentTask.batchContext();
+        return currentTask == null ? null : currentTask.multiTaskContext();
     }
 
     private static LeanCancellationException cancellation(String message) {

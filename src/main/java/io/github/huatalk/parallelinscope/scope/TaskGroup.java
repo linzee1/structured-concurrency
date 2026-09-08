@@ -13,6 +13,7 @@ import io.github.huatalk.parallelinscope.internal.ExecutionPhaseHintFuture;
 import io.github.huatalk.parallelinscope.internal.SubmissionException;
 import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import io.github.huatalk.parallelinscope.internal.TaskSubmissions;
+import io.github.huatalk.parallelinscope.internal.TokenOutcomes;
 import io.github.huatalk.parallelinscope.spi.TaskGroupListener;
 import io.github.huatalk.parallelinscope.spi.TaskGroupListener.TaskGroupEvent;
 import java.time.Duration;
@@ -157,7 +158,7 @@ public final class TaskGroup implements AutoCloseable {
         // skipped member token never binds, so it stays RUNNING forever (it never observes SUCCESS);
         // attribution reads the group token instead (see classifyCancelled).
         for (MemberState member : memberStates.values()) {
-            CancellationToken memberToken = member.context.batchContext().cancellationToken();
+            CancellationToken memberToken = member.context.multiTaskContext().cancellationToken();
             if (memberToken.deadlineNanos() >= groupToken.deadlineNanos()) {
                 continue;
             }
@@ -197,9 +198,7 @@ public final class TaskGroup implements AutoCloseable {
                     member.reason = TaskOutcome.SUCCESS;
                 } catch (ExecutionException failure) {
                     member.failure = failure.getCause();
-                    member.reason = member.failure instanceof SubmissionException
-                            ? TaskOutcome.SUBMISSION_FAILURE
-                            : TaskOutcome.USER_FAILURE;
+                    member.reason = classifyFailure(member, member.failure);
                 } catch (CancellationException impossible) {
                     member.reason = TaskOutcome.MEMBER_CANCELED;
                 } catch (InterruptedException interrupted) {
@@ -221,7 +220,7 @@ public final class TaskGroup implements AutoCloseable {
             groupToken.cancel();
             for (MemberState other : memberStates.values()) {
                 if (!other.future.isDone()) {
-                    other.context.batchContext().cancellationToken().cancel();
+                    other.context.multiTaskContext().cancellationToken().cancel();
                 }
             }
         }
@@ -229,35 +228,38 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
+     * Classifies an exceptionally completed member. A failure that merely signals observed
+     * cancellation — a checkpoint threw a {@link CancellationException}, or the worker thread was
+     * interrupted — can win the race against the cascade cancel on the member future; it is
+     * attributed through the tokens like a cancellation instead of being recorded as a user
+     * failure. A spontaneous {@code CancellationException} from user code with no committed
+     * framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
+     */
+    private TaskOutcome classifyFailure(MemberState member, Throwable failure) {
+        if (failure instanceof SubmissionException) {
+            return TaskOutcome.SUBMISSION_FAILURE;
+        }
+        if (TokenOutcomes.causedByCancellation(failure)) {
+            return classifyCancelled(member, TaskOutcome.USER_FAILURE);
+        }
+        return TaskOutcome.USER_FAILURE;
+    }
+
+    /**
      * Classifies a cancelled member by reading token states only. The member token records its own
      * deadline; the group token is otherwise the single authority, because it commits its state
      * before cancelling member futures. A group token still RUNNING means no framework path
-     * cancelled the member: the user cancelled it directly. A propagated cancellation keeps the
-     * originating reason via {@link CancellationToken#originState()}, so an ancestor timeout is
-     * still reported as {@link TaskOutcome#TIMEOUT}.
+     * cancelled the member: the user cancelled it directly.
      */
     private TaskOutcome classifyCancelled(MemberState member) {
-        if (member.context.batchContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
+        return classifyCancelled(member, TaskOutcome.MEMBER_CANCELED);
+    }
+
+    private TaskOutcome classifyCancelled(MemberState member, TaskOutcome whenUncommitted) {
+        if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
             return TaskOutcome.TIMEOUT;
         }
-        switch (groupToken.state()) {
-            case TIMEOUT:
-                return TaskOutcome.TIMEOUT;
-            case FAIL_FAST:
-                return TaskOutcome.FAIL_FAST;
-            case PROPAGATED_CANCELED:
-                // An ancestor timeout stays a timeout; any other propagated cause is a plain
-                // group cancellation from this group's viewpoint.
-                return groupToken.originState() == CancellationToken.State.TIMEOUT
-                        ? TaskOutcome.TIMEOUT
-                        : TaskOutcome.GROUP_CANCELED;
-            case CANCELED:
-                return TaskOutcome.GROUP_CANCELED;
-            case SUCCESS:
-            case RUNNING:
-            default:
-                return TaskOutcome.MEMBER_CANCELED;
-        }
+        return TokenOutcomes.forCanceled(groupToken, whenUncommitted);
     }
 
     private void convergeIfTerminal() {
@@ -277,28 +279,23 @@ public final class TaskGroup implements AutoCloseable {
     /**
      * Derives the group outcome from the group token state. On fail-fast, the group reports the
      * failed member's own outcome; a fail-fast with no failed member means the trigger was a
-     * direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELED}.
+     * direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELED}. A
+     * token still RUNNING or SUCCESS means no framework cancellation path committed: the group
+     * succeeded only if every member did.
      */
     private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
-            case TIMEOUT:
-                return TaskOutcome.TIMEOUT;
             case FAIL_FAST:
                 return failedMemberName != null
                         ? memberStates.get(failedMemberName).reason
                         : TaskOutcome.MEMBER_CANCELED;
-            case PROPAGATED_CANCELED:
-                return groupToken.originState() == CancellationToken.State.TIMEOUT
-                        ? TaskOutcome.TIMEOUT
-                        : TaskOutcome.GROUP_CANCELED;
-            case CANCELED:
-                return TaskOutcome.GROUP_CANCELED;
             case SUCCESS:
             case RUNNING:
-            default:
                 boolean allSuccess =
                         memberStates.values().stream().allMatch(member -> member.reason == TaskOutcome.SUCCESS);
                 return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELED;
+            default:
+                return TokenOutcomes.forCanceled(groupToken, TaskOutcome.MEMBER_CANCELED);
         }
     }
 
@@ -314,10 +311,18 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     private TaskGroupResult snapshot() {
-        Map<String, TaskGroupMemberResult> snapshots = new LinkedHashMap<>();
+        Map<String, TaskCompletion<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : memberStates.values()) {
             snapshots.put(
-                    member.name, new TaskGroupMemberResult(member.name, member.reason, member.failure, member.context));
+                    member.name,
+                    TaskCompletion.memberSnapshot(
+                            member.name,
+                            member.context.multiTaskContext().unitId(),
+                            member.reason,
+                            member.failure,
+                            member.context.submitTimeNanos(),
+                            member.context.startTimeNanos(),
+                            member.context.endTimeNanos()));
         }
         return new TaskGroupResult(
                 groupId,
@@ -365,7 +370,7 @@ public final class TaskGroup implements AutoCloseable {
     private static TaskGroup buildWhileOpen(GlobalPar env, TaskGroupSpec spec) {
         MultiTaskOptions options = spec.groupOptions();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
-        MultiTaskContext structuralParent = currentTask == null ? null : currentTask.batchContext();
+        MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
         TaskGraphObservationScope observation = structuralParent != null
                         && structuralParent.taskGraphObservationScope() != null
@@ -375,19 +380,12 @@ public final class TaskGroup implements AutoCloseable {
                         ? currentObservation
                         : null;
         long start = System.nanoTime();
-        long groupDeadline;
         Optional<Duration> groupTimeout = options.timeout();
-        if (groupTimeout.isPresent()) {
-            groupDeadline = deadline(start, groupTimeout.get());
-            if (structuralParent != null) {
-                groupDeadline = Math.min(groupDeadline, structuralParent.deadlineNanos());
-            }
-        } else {
-            if (structuralParent == null) {
-                throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
-            }
-            groupDeadline = structuralParent.deadlineNanos();
+        if (!groupTimeout.isPresent() && structuralParent == null) {
+            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
+        long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
+                groupTimeout, structuralParent == null ? Long.MAX_VALUE : structuralParent.deadlineNanos(), start);
         CancellationToken groupToken = new CancellationToken(
                 structuralParent == null ? null : structuralParent.cancellationToken(), groupDeadline);
         Map<String, MemberState> states = new LinkedHashMap<>();
@@ -402,7 +400,7 @@ public final class TaskGroup implements AutoCloseable {
             for (TaskGroupSpec.MemberSpec<?> member : spec.members()) {
                 Par par = env.par(member.executorName());
                 memberPars.add(par);
-                MultiTaskContext batch = MultiTaskContext.resolve(
+                MultiTaskContext unit = MultiTaskContext.resolve(
                         member.options(),
                         1,
                         structuralParent,
@@ -412,9 +410,9 @@ public final class TaskGroup implements AutoCloseable {
                         observation,
                         par.executorIdentity(),
                         par.displayName());
-                TaskExecutionContext taskContext = new TaskExecutionContext(batch, 0, start);
+                TaskExecutionContext taskContext = new TaskExecutionContext(unit, 0, start);
                 ExecutionPhaseHintFuture<Object> future =
-                        par.prepareGroupTask(castCallable(member.callable()), batch, taskContext);
+                        par.prepareGroupTask(castCallable(member.callable()), unit, taskContext);
                 states.put(
                         member.memberName(),
                         new MemberState(
@@ -422,13 +420,13 @@ public final class TaskGroup implements AutoCloseable {
                                 taskContext,
                                 future,
                                 par.submissionExecutor(),
-                                batch.taskType() == TaskType.CPU_BOUND,
+                                unit.taskType() == TaskType.CPU_BOUND,
                                 member.ref().resultType()));
             }
             int index = 0;
             for (MemberState state : states.values()) {
                 logForking(
-                        state.context.batchContext(),
+                        state.context.multiTaskContext(),
                         memberPars.get(index++).runtime().blockingRisk());
             }
         } catch (Throwable failure) {
@@ -470,7 +468,7 @@ public final class TaskGroup implements AutoCloseable {
 
         /** Submits once with the member's batch scope installed; CPU-bound work runs inline on rejection. */
         private void submit() {
-            TaskSubmissions.submitScoped(future, context.batchContext(), executor, cpuBound);
+            TaskSubmissions.submitScoped(future, context.multiTaskContext(), executor, cpuBound);
         }
     }
 
@@ -479,30 +477,19 @@ public final class TaskGroup implements AutoCloseable {
         return (Callable<Object>) callable;
     }
 
-    private static long deadline(long start, Duration timeout) {
-        long nanos;
-        try {
-            nanos = timeout.toNanos();
-        } catch (ArithmeticException overflow) {
-            nanos = Long.MAX_VALUE;
-        }
-        return nanos > Long.MAX_VALUE - start ? Long.MAX_VALUE : start + nanos;
-    }
-
     private static void logForking(MultiTaskContext context, BlockingRisk blockingRisk) {
-        MultiTaskContext parent = context.parent();
+        MultiTaskContext parent = context.structuralParent();
         if (parent == null) return;
         TaskEdge edge = new TaskEdge(
                 1,
                 context.taskType(),
                 context.executorIdentity(),
                 parent.executorIdentity(),
-                context.parLabel(),
-                parent.parLabel(),
+                context.executorLabel(),
+                parent.executorLabel(),
                 1,
-                context.remaining().toMillis(),
+                context.remaining(),
                 blockingRisk == BlockingRisk.BOUNDED_PLATFORM_POOL);
-        TaskGraphObservationScope.logTaskPair(
-                parent.batchId(), parent.taskName(), context.batchId(), context.taskName(), edge);
+        TaskGraphObservationScope.logTaskPair(parent.unitId(), parent.name(), context.unitId(), context.name(), edge);
     }
 }

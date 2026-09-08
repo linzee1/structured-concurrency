@@ -70,7 +70,7 @@ member TaskOutcome（可空，成员终态时赋值）
 failure（可空）
 ```
 
-生命周期从 submit 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskListener.TaskEvent`。
+生命周期从 submit 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskCompletion` 监听器事件。
 
 ### 4.4 MultiTaskContext
 
@@ -79,14 +79,14 @@ failure（可空）
 ```text
 taskCount = 1
 effectiveParallelism = 1
-taskName = member MultiTaskOptions.name
-executorIdentity / parLabel = member Par 的绑定
+name = member MultiTaskOptions.name
+executorIdentity / executorLabel = member Par 的绑定
 ```
 
-`memberName` 与 `taskName` 不重复承担同一职责：
+`memberName` 与 `MultiTaskContext.name` 不重复承担同一职责：
 
 - `memberName`：Group 内唯一键和组级结果键；
-- `taskName`：现有任务执行、checkpoint 和 TaskListener 的诊断名称。
+- `MultiTaskContext.name`：现有任务执行、checkpoint 和 TaskListener 的诊断名称。
 
 成员 options 中的 `parallelism` 不产生多个执行实例：成员是单任务，解析时被截断为 1，且
 没有任何代码读取它。
@@ -102,7 +102,7 @@ install member task
   user callable
   markEnded
 clear current task
-  TaskListener callback（显式读取 TaskEvent）
+  TaskListener callback（显式读取 TaskCompletion）
 restore previous task
 ```
 
@@ -160,8 +160,8 @@ static MultiTaskContext resolve(
         long deadlineCeilingNanos,
         long resolutionTimeNanos,
         @Nullable TaskGraphObservationScope observation,
-        ExecutorIdentity executorIdentity,
-        String parLabel);
+        @Nullable ExecutorIdentity executorIdentity,
+        @Nullable String executorLabel);
 ```
 
 语义不可合并回虚假 parent。
@@ -183,7 +183,7 @@ member deadline           = min(member requested deadline, group deadline)
 `TaskGroup.submit()` 按提交线程解析当时的 `TaskExecutionContext.current()` 作为结构父任务；同一个 spec 无论之后从哪个线程提交，归属都由该次提交现场决定：
 
 ```text
-outerBatch = currentTask.batchContext()
+outerBatch = currentTask.multiTaskContext()
 
 group token parent        = outerBatch.cancellationToken
 group deadline            = min(requested group deadline, outerBatch.deadline)

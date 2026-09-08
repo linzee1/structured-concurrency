@@ -8,7 +8,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import io.github.huatalk.parallelinscope.internal.SubmissionException;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
-import io.github.huatalk.parallelinscope.spi.TaskListener;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +48,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void successRunsOnceWithListenerAndRunningPhase(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        List<TaskListener.TaskEvent<?>> events = synchronizedEvents();
+        List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         GlobalPar global = globalWithListener(executor, events);
         try {
@@ -81,7 +80,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void userExceptionIsReportedAsUserFailure(Entry entry) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        List<TaskListener.TaskEvent<?>> events = synchronizedEvents();
+        List<TaskCompletion<?>> events = synchronizedEvents();
         GlobalPar global = globalWithListener(executor, events);
         try {
             IllegalStateException boom = new IllegalStateException("boom");
@@ -104,7 +103,7 @@ class ScopedTaskContractTest {
             }
             assertThat(events).hasSize(1);
             assertThat(events.get(0).successful()).isFalse();
-            assertThat(events.get(0).exception()).isSameAs(boom);
+            assertThat(events.get(0).failure()).isSameAs(boom);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -133,7 +132,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void cpuBoundRejectionFallsBackToInlineExecution(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
-        List<TaskListener.TaskEvent<?>> events = synchronizedEvents();
+        List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         GlobalPar global = globalWithListener(rejecting, events);
         try {
@@ -163,7 +162,7 @@ class ScopedTaskContractTest {
     @MethodSource("entries")
     void ioBoundRejectionNeverRunsUserCode(Entry entry) throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
-        List<TaskListener.TaskEvent<?>> events = synchronizedEvents();
+        List<TaskCompletion<?>> events = synchronizedEvents();
         ConcurrentLinkedQueue<ExecutionPhase> phases = new ConcurrentLinkedQueue<>();
         GlobalPar global = globalWithListener(rejecting, events);
         try {
@@ -346,11 +345,11 @@ class ScopedTaskContractTest {
         return group.completionFuture().get(2, TimeUnit.SECONDS);
     }
 
-    private static List<TaskListener.TaskEvent<?>> synchronizedEvents() {
+    private static List<TaskCompletion<?>> synchronizedEvents() {
         return Collections.synchronizedList(new ArrayList<>());
     }
 
-    private static GlobalPar globalWithListener(ExecutorService executor, List<TaskListener.TaskEvent<?>> events) {
+    private static GlobalPar globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
         return GlobalPar.builder()
                 .taskListener(events::add)
                 .register("worker", executor)

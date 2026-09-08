@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
+import io.github.huatalk.parallelinscope.scope.TaskCompletion;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,7 +14,7 @@ class ScopedCallableContextRestoreTest {
     @Test
     void listenerReceivesSuccessfulTaskTimingAndMetadata() throws Exception {
         MultiTaskContext context = context("listener");
-        AtomicReference<TaskEvent> captured = new AtomicReference<>();
+        AtomicReference<TaskCompletion<?>> captured = new AtomicReference<>();
         TaskExecutionContext taskContext = task(context, 0);
         ScopedCallable<String> callable =
                 new ScopedCallable<>(taskContext, () -> "value", Collections.singletonList(event -> {
@@ -23,13 +23,15 @@ class ScopedCallableContextRestoreTest {
                 }));
 
         assertThat(callable.call()).isEqualTo("value");
-        TaskEvent event = captured.get();
+        TaskCompletion<?> event = captured.get();
         assertThat(event).isNotNull();
-        assertThat(event.taskContext()).isSameAs(taskContext);
+        assertThat(event.unitId()).isEqualTo(context.unitId());
+        assertThat(event.taskIndex()).isEqualTo(0);
+        assertThat(event.submitTimeNanos()).isEqualTo(taskContext.submitTimeNanos());
         assertThat(event.successful()).isTrue();
         assertThat(event.result()).isEqualTo("value");
         assertThat(event.taskName()).isEqualTo("listener");
-        assertThat(event.exception()).isNull();
+        assertThat(event.failure()).isNull();
         assertThat(event.endTimeNanos()).isGreaterThanOrEqualTo(event.startTimeNanos());
         assertThat(callable.executionTime()).isGreaterThanOrEqualTo(0L);
         assertThat(callable.waitTime()).isGreaterThanOrEqualTo(0L);
@@ -42,7 +44,7 @@ class ScopedCallableContextRestoreTest {
     @Test
     void listenerReceivesFailureWhileOriginalFailureEscapes() {
         MultiTaskContext context = context("failed");
-        AtomicReference<TaskEvent> captured = new AtomicReference<>();
+        AtomicReference<TaskCompletion<?>> captured = new AtomicReference<>();
         IllegalStateException failure = new IllegalStateException("boom");
         ScopedCallable<String> callable = new ScopedCallable<>(
                 task(context, 0),
@@ -55,7 +57,7 @@ class ScopedCallableContextRestoreTest {
                 }));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(callable::call).isSameAs(failure);
-        assertThat(captured.get().exception()).isSameAs(failure);
+        assertThat(captured.get().failure()).isSameAs(failure);
         assertThat(captured.get().successful()).isFalse();
         assertThat(captured.get().result()).isNull();
     }

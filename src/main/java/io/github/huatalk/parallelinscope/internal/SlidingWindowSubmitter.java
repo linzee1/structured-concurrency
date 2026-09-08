@@ -39,13 +39,13 @@ public class SlidingWindowSubmitter<V> {
 
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
-    private final MultiTaskContext batchContext;
+    private final MultiTaskContext unit;
     private final ListeningExecutorService submitterPool;
 
-    /** Creates a submitter for the new immutable batch runtime context. */
+    /** Creates a submitter for the new immutable multi-task unit. */
     public SlidingWindowSubmitter(
-            ListeningExecutorService pool, MultiTaskContext batchContext, ListeningExecutorService submitterPool) {
-        this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
+            ListeningExecutorService pool, MultiTaskContext unit, ListeningExecutorService submitterPool) {
+        this.unit = Objects.requireNonNull(unit, "unit cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
         this.cs = new ListenableCompletionService<>(pool, blockingQueue);
     }
@@ -62,7 +62,7 @@ public class SlidingWindowSubmitter<V> {
      */
     public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(ImmutableList.of());
+            return TaskBatchResult.of(unit.cancellationToken(), ImmutableList.of());
         }
 
         ImmutableList.Builder<ListenableFuture<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -78,14 +78,14 @@ public class SlidingWindowSubmitter<V> {
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
                     resultBuilder.add(Futures.immediateFailedFuture(failure));
                 }
-                return TaskBatchResult.of(resultBuilder.build());
+                return TaskBatchResult.of(unit.cancellationToken(), resultBuilder.build());
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
             ImmutableList<ListenableFuture<V>> results = resultBuilder.build();
-            return TaskBatchResult.of(results);
+            return TaskBatchResult.of(unit.cancellationToken(), results);
         }
 
         // Async submit remaining tasks
@@ -111,12 +111,12 @@ public class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(submittingFuture, results);
+        return TaskBatchResult.of(unit.cancellationToken(), submittingFuture, results);
     }
 
     private ListenableFuture<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
-        MultiTaskContext previous = SubmissionScope.install(batchContext);
+        MultiTaskContext previous = SubmissionScope.install(unit);
         try {
             return TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
         } finally {
@@ -125,11 +125,11 @@ public class SlidingWindowSubmitter<V> {
     }
 
     private int parallelism() {
-        return batchContext.effectiveParallelism();
+        return unit.effectiveParallelism();
     }
 
     private TaskType taskType() {
-        return batchContext.taskType();
+        return unit.taskType();
     }
 
     private int submitRemaining(

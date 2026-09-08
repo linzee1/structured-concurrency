@@ -8,6 +8,7 @@ import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,7 +29,7 @@ class TaskGraphPolarityTest {
 
     /** Non-deadlock-prone edge so executor-level detection stays clean in polarity tests. */
     private static TaskEdge plainEdge() {
-        return new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, 1_000L, false);
+        return new TaskEdge(1, TaskType.IO_BOUND, "child-exec", "parent-exec", 1, Duration.ofMillis(1_000), false);
     }
 
     @Test
@@ -145,9 +146,25 @@ class TaskGraphPolarityTest {
             GlobalPar global = GlobalPar.builder().build();
             try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
                 TaskEdge forward = new TaskEdge(
-                        1, TaskType.IO_BOUND, firstIdentity, secondIdentity, "first", "second", 1, 10L, true);
+                        1,
+                        TaskType.IO_BOUND,
+                        firstIdentity,
+                        secondIdentity,
+                        "first",
+                        "second",
+                        1,
+                        Duration.ofMillis(10),
+                        true);
                 TaskEdge back = new TaskEdge(
-                        1, TaskType.IO_BOUND, secondIdentity, firstIdentity, "second", "first", 1, 10L, true);
+                        1,
+                        TaskType.IO_BOUND,
+                        secondIdentity,
+                        firstIdentity,
+                        "second",
+                        "first",
+                        1,
+                        Duration.ofMillis(10),
+                        true);
 
                 TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", forward);
                 TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", back);

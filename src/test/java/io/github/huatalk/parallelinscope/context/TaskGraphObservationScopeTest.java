@@ -114,14 +114,24 @@ class TaskGraphObservationScopeTest {
                 "b",
                 "b",
                 new io.github.huatalk.parallelinscope.context.graph.TaskEdge(
-                        1, io.github.huatalk.parallelinscope.scope.TaskType.IO_BOUND, "e1", "e2", 1, 10L));
+                        1,
+                        io.github.huatalk.parallelinscope.scope.TaskType.IO_BOUND,
+                        "e1",
+                        "e2",
+                        1,
+                        java.time.Duration.ofMillis(10)));
         TaskGraphObservationScope.logTaskPair(
                 "b",
                 "b",
                 "a",
                 "a",
                 new io.github.huatalk.parallelinscope.context.graph.TaskEdge(
-                        1, io.github.huatalk.parallelinscope.scope.TaskType.IO_BOUND, "e2", "e1", 1, 10L));
+                        1,
+                        io.github.huatalk.parallelinscope.scope.TaskType.IO_BOUND,
+                        "e2",
+                        "e1",
+                        1,
+                        java.time.Duration.ofMillis(10)));
 
         context.close();
         int afterFirstClose = detections.get();

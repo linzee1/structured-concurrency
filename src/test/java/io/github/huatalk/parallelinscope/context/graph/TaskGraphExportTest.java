@@ -408,7 +408,7 @@ class TaskGraphExportTest {
             json.append(", \"executorName\": ").append(quote(edge.executorName()));
             json.append(", \"sourceExecutorName\": ").append(quote(edge.sourceExecutorName()));
             json.append(", \"taskCount\": ").append(edge.taskCount());
-            json.append(", \"timeoutMillis\": ").append(edge.timeoutMillis());
+            json.append(", \"timeoutMillis\": ").append(edge.timeout().toMillis());
             json.append(", \"deadlockProne\": ").append(edge.executorDeadlockProne());
             json.append(", \"executorIdentity\": ")
                     .append(quote(
@@ -466,12 +466,12 @@ class TaskGraphExportTest {
     // ==================== helpers ====================
 
     private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, 0, deadlockProne);
+        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, 1, Duration.ZERO, deadlockProne);
     }
 
     private static TaskEdge identityEdge(
             ExecutorIdentity source, ExecutorIdentity target, String targetName, String sourceName) {
-        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, targetName, sourceName, 1, 0, true);
+        return new TaskEdge(1, TaskType.CPU_BOUND, target, source, targetName, sourceName, 1, Duration.ZERO, true);
     }
 
     @SuppressWarnings("unchecked")

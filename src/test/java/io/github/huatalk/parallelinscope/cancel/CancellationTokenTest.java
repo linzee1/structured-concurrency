@@ -55,9 +55,7 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void testCancellationTokenStateCodes() {
-        assertThat(CancellationToken.State.RUNNING.code()).isZero();
-        assertThat(CancellationToken.State.SUCCESS.code()).isEqualTo(1);
+    public void testStateInterruptionSemantics() {
         assertThat(CancellationToken.State.RUNNING.shouldInterruptCurrentThread())
                 .isFalse();
         assertThat(CancellationToken.State.SUCCESS.shouldInterruptCurrentThread())

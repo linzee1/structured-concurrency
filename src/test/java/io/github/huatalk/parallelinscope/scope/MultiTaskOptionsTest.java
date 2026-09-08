@@ -91,7 +91,7 @@ class MultiTaskOptionsTest {
                 2,
                 null);
 
-        assertThat(context.taskName()).isEqualTo("write");
+        assertThat(context.name()).isEqualTo("write");
         assertThat(context.effectiveParallelism()).isEqualTo(2);
         assertThat(context.taskType()).isEqualTo(TaskType.IO_BOUND);
         assertThat(context.rejectEnqueue()).isFalse();

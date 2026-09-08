@@ -22,12 +22,12 @@ class TaskGraphBatchIdentityTest {
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             MultiTaskContext first = context();
             MultiTaskContext second = context();
-            TaskGraphObservationScope.logTaskPair(null, "root", first.batchId(), first.taskName(), edge());
-            TaskGraphObservationScope.logTaskPair(null, "root", second.batchId(), second.taskName(), edge());
+            TaskGraphObservationScope.logTaskPair(null, "root", first.unitId(), first.name(), edge());
+            TaskGraphObservationScope.logTaskPair(null, "root", second.unitId(), second.name(), edge());
 
             TaskGraphData data = TaskGraphObservationScope.data();
-            assertThat(data.graph().nodes()).contains(first.batchId(), second.batchId());
-            assertThat(first.batchId()).isNotEqualTo(second.batchId());
+            assertThat(data.graph().nodes()).contains(first.unitId(), second.unitId());
+            assertThat(first.unitId()).isNotEqualTo(second.unitId());
             assertThat(data.graph().edges()).hasSize(2);
             assertThat(data.selfLoop()).isFalse();
         } finally {
@@ -169,13 +169,19 @@ class TaskGraphBatchIdentityTest {
                 "executor",
                 "parent",
                 1,
-                0,
+                Duration.ZERO,
                 false);
     }
 
     private static TaskEdge legacyEdge(String source, String target, boolean deadlockProne) {
         return new TaskEdge(
-                1, io.github.huatalk.parallelinscope.scope.TaskType.CPU_BOUND, target, source, 1, 0, deadlockProne);
+                1,
+                io.github.huatalk.parallelinscope.scope.TaskType.CPU_BOUND,
+                target,
+                source,
+                1,
+                Duration.ZERO,
+                deadlockProne);
     }
 
     private static TaskEdge identityEdge(ExecutorIdentity source, ExecutorIdentity target) {
@@ -187,7 +193,7 @@ class TaskGraphBatchIdentityTest {
                 "target",
                 "source",
                 1,
-                0,
+                Duration.ZERO,
                 true);
     }
 }

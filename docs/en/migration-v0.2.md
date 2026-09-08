@@ -18,7 +18,7 @@ The new split is intentional: `MultiTaskOptions` is caller input, while `MultiTa
 
 Earlier `0.2.x` snapshots named this type `ExecutionOptions` and then `BatchExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `MultiTaskOptions`; no compatibility alias is retained during the `0.x` phase.
 
-The per-invocation runtime context was renamed for the same reason: the former `BatchExecutionContext` is now `MultiTaskContext`, because it backs both `Par.map` batches and task-group members. Update imports and `resolve(...)` call sites; accessors such as `batchId()` and `batchContext()` keep their names.
+The per-invocation runtime context was renamed for the same reason: the former `BatchExecutionContext` is now `MultiTaskContext`, because it backs both `Par.map` batches and task-group members. Update imports and `resolve(...)` call sites. Its batch-biased accessors were then neutralized for the same dual role: `batchId()` → `unitId()`, `taskName()` → `name()`, `parLabel()` → `executorLabel()`, and `parent()` → `structuralParent()` (a group member's cancellation parent is the group token carried inside `cancellationToken()`, not this field). `SubmissionScope.currentBatch()` becomes `current()`. `TaskContext` (whose `batchContext()` was briefly renamed `multiTaskContext()` during the 0.2 cycle) was ultimately removed rather than renamed: its read-only content is flattened into the unified `TaskCompletion` record, as described below.
 
 Batch and task-group option types are unified into the single `MultiTaskOptions`; the earlier
 `BatchExecutionOptions` and `TaskGroupOptions` types are removed. The `taskName()`/`groupName()`
@@ -61,10 +61,7 @@ be submitted repeatedly. The group entry class itself was renamed from `Parallel
 `TaskGroup`, joining its `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener` family. There is no
 compatibility shim because the earlier builder API was not released as a stable contract.
 
-`TaskListener.TaskEvent` now exposes the completed task through `taskContext()` and its outcome
-through `successful()`, `result()`, and `exception()`. A successful task may return null, so
-use `successful()` rather than testing the result for null. Listener callbacks run outside the
-completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
+The completed-task record is unified into a single class, `io.github.huatalk.parallelinscope.scope.TaskCompletion`: a `TaskListener` receives it at task completion, and `TaskGroupResult.members()` embeds one per member as its terminal snapshot. It replaces both the old `TaskListener.TaskEvent` and `TaskGroupMemberResult`, and exposes the task's identity and timing as flat fields — `taskName()`, `unitId()`, `taskIndex()`, `submitTimeNanos()`, `startTimeNanos()`, `endTimeNanos()` — plus `outcome()`, `successful()`, `result()`, `failure()`, and `enqueued()` (now derived from the queue wait). The read-only `TaskContext` view was removed; the engine plumbing previously reachable through `TaskContext.multiTaskContext()` (cancellation token, deadline, structural parent) is no longer part of the listener/result surface. `result()` is only non-null on listener delivery of a successful task — a group member's result stays in its future — and `taskIndex()` is always zero for group members. A successful task may return null, so use `successful()` rather than testing the result for null. Listener callbacks run outside the completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
 
 Task outcome classification is unified into a single enum, `TaskOutcome`, replacing both
 `io.github.huatalk.parallelinscope.internal.FutureState` and
@@ -73,7 +70,8 @@ former member-reason values so it serves both batch reports and group member res
 the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
 `TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
 Consequently `TaskBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
-`TaskGroupMemberResult` exposes its member outcome as `outcome()` returning `TaskOutcome` (renamed
+each group member's terminal snapshot (`TaskGroupResult.members()` values, of the unified
+`TaskCompletion` type) exposes its member outcome as `outcome()` returning `TaskOutcome` (renamed
 from the earlier `completionReason()`).
 
 Accessors converge on the bare `x()` style; no `getX()`/`isX()` forms remain in the public API or
@@ -88,21 +86,24 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
 | `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
-| `CancellationToken.getState()` / `State.getCode()` | `state()` / `code()` |
-| `TaskGroupMemberResult.completionReason()` | `TaskGroupMemberResult.outcome()` |
-| `TaskEvent.getTaskContext()/getTaskName()` | `taskContext()` / `taskName()` |
-| `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
-| `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `successful()` / `result()` / `enqueued()` / `exception()` |
+| `CancellationToken.getState()` / `State.getCode()` | `state()`; `code()` is removed — interruption semantics are expressed by the enum values themselves |
+| `TaskGroupMemberResult.completionReason()` | `TaskCompletion.outcome()` (member snapshots are now `TaskGroupResult.members()` values of type `TaskCompletion`) |
+| `TaskGroupMemberResult.taskContext()` | removed; timing flattened to `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
+| `TaskEvent.getTaskContext()/getTaskName()` | `TaskListener` now delivers `TaskCompletion`; `taskContext()` removed (flattened to `taskName()` / `unitId()` / `taskIndex()` + timing nanos) |
+| `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
+| `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `TaskCompletion.successful()` / `result()` / `enqueued()` / `failure()` |
 | `ScopedCallable.getTaskExecutionContext()/getCancellationToken()/getExecutorName()` | `taskExecutionContext()` / `cancellationToken()` / `executorName()` |
 | `TaskGraphData.getGraph()/getExecutorGraph()` | `graph()` / `executorGraph()` |
 | `TaskGraphData.isTaskCycle()/isSelfLoop()/isExecutorCycle()/isExecutorSelfLoop()` | `taskCycle()` / `selfLoop()` / `executorCycle()` / `executorSelfLoop()` |
-| `TaskEdge.getParallelism()/getTaskType()/getTaskCount()/getTimeoutMillis()` | `parallelism()` / `taskType()` / `taskCount()` / `timeoutMillis()` |
+| `TaskEdge.getParallelism()/getTaskType()/getTaskCount()/getTimeoutMillis()` | `parallelism()` / `taskType()` / `taskCount()` / `timeout()` (now returns `Duration`; call `toMillis()` yourself if needed) |
 | `TaskEdge.getExecutorName()/getSourceExecutorName()` | `executorName()` / `sourceExecutorName()` |
 | `TaskEdge.getExecutorIdentity()/getSourceExecutorIdentity()` | `executorIdentity()` / `sourceExecutorIdentity()` |
 | `TaskEdge.isExecutorDeadlockProne()` | `executorDeadlockProne()` |
 | `DeadlockDetectionListener.getTaskEdges()/getExecutorEdges()` | `taskEdges()` / `executorEdges()` |
 | `TaskGraphObservationScope.isClosed()` | `closed()` |
 | `MultiTaskContext.taskGraphObservationContext()` | `MultiTaskContext.taskGraphObservationScope()` |
+| `MultiTaskContext.batchId()/taskName()/parLabel()/parent()` | `unitId()` / `name()` / `executorLabel()` / `structuralParent()` |
+| `TaskContext.batchContext()` / `SubmissionScope.currentBatch()` | `TaskContext` removed (content flattened into `TaskCompletion`) / `SubmissionScope.current()` |
 | `DrainingBlockingQueue.isShutdown()/isDraining()/isDrained()` | `shutdown()` / `draining()` / `drained()` |
 | `SmartBlockingQueue.getCapacity()` / `VariableLinkedBlockingQueue.getCapacity()` | `capacity()` |
 | `ActionGate.isDue()` | `due()` |
@@ -127,7 +128,14 @@ synchronously after a state transition commits and before the associated cancell
 
 Batch-level element cancellation no longer surfaces as a bare cancellation: the token still
 classifies a directly cancelled element through the same fail-fast trigger that a failed element
-uses, so batch reports keep distinguishing the cancelled element via `TaskOutcome`.
+uses, and batch reports now attribute cancelled elements from the batch token's committed state
+(`Par.map` results always carry it): `TIMEOUT` for deadline expiry, `FAIL_FAST` for the cascade
+after a sibling failure, `GROUP_CANCELED` for batch-level or propagated cancellation, and
+`MEMBER_CANCELED` when no framework path committed. Because the batch shares one token across
+elements, the element whose direct cancellation triggered the cascade also reads `FAIL_FAST`;
+per-element initiator attribution requires a task group. Results constructed via
+`TaskBatchResult.of(...)` without a token keep the coarse view: every cancellation reads
+`MEMBER_CANCELED`.
 
 Task groups changed semantics accordingly: cancelling one member (its future or its token) now
 cascades to the whole group, matching batch fail-fast behavior. The directly cancelled member
@@ -146,8 +154,9 @@ originated from a member.
 
 `CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELED` →
 `FAIL_FAST`, `TIMEOUT_CANCELED` → `TIMEOUT`, `MUTUAL_CANCELED` → `CANCELED`, and
-`PROPAGATING_CANCELED` → `PROPAGATED_CANCELED`. `RUNNING` and `SUCCESS` are unchanged, and the
-`code()` values and `shouldInterruptCurrentThread()` semantics are unchanged.
+`PROPAGATING_CANCELED` → `PROPAGATED_CANCELED`. `RUNNING` and `SUCCESS` are unchanged. `code()` is
+removed (the integer encoding was an implementation detail with no consumers); the
+`shouldInterruptCurrentThread()` semantics are unchanged and now read as a direct enum comparison.
 
 `ExecutionPhase.CANCELLED_BEFORE_RUN` is respelled `CANCELED_BEFORE_RUN` to match the single-L
 `CANCELED` spelling used across the library.

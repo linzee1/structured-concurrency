@@ -3,8 +3,9 @@ package io.github.huatalk.parallelinscope.internal;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
 import io.github.huatalk.parallelinscope.cancel.Checkpoints;
 import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
+import io.github.huatalk.parallelinscope.scope.TaskCompletion;
+import io.github.huatalk.parallelinscope.scope.TaskOutcome;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
-import io.github.huatalk.parallelinscope.spi.TaskListener.TaskEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -34,9 +35,6 @@ import java.util.logging.Logger;
 public class ScopedCallable<V> implements Callable<V> {
 
     private static final Logger logger = Logger.getLogger(ScopedCallable.class.getName());
-
-    private static final long NANO_TO_MS = 1_000_000L;
-    private static final long QUEUE_THRESHOLD = 3L;
 
     private final Callable<V> delegate;
     private final com.google.common.base.Ticker ticker;
@@ -92,7 +90,7 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the task cancellation token
      */
     public CancellationToken cancellationToken() {
-        return taskContext.batchContext().cancellationToken();
+        return taskContext.multiTaskContext().cancellationToken();
     }
 
     /**
@@ -101,8 +99,8 @@ public class ScopedCallable<V> implements Callable<V> {
      * @return the executor name
      */
     public String executorName() {
-        String parLabel = taskContext.batchContext().parLabel();
-        return parLabel == null ? "NA" : parLabel;
+        String executorLabel = taskContext.multiTaskContext().executorLabel();
+        return executorLabel == null ? "NA" : executorLabel;
     }
 
     @Override
@@ -110,8 +108,8 @@ public class ScopedCallable<V> implements Callable<V> {
         // ==================== prepareContext ====================
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        MultiTaskContext batchContext = taskContext.batchContext();
-        String taskName = batchContext.taskName();
+        MultiTaskContext unit = taskContext.multiTaskContext();
+        String taskName = unit.name();
         // TaskGraphObservationScope is a TransmittableThreadLocal captured by the TtlCallable
         // wrapper created at the Par.map boundary.
 
@@ -145,11 +143,24 @@ public class ScopedCallable<V> implements Callable<V> {
         if (listeners.isEmpty()) {
             return;
         }
-        long waitMs = waitTime() / NANO_TO_MS;
-        boolean enqueued = waitMs > QUEUE_THRESHOLD;
-        TaskEvent<V> event = exception == null
-                ? TaskEvent.succeeded(taskContext, result, enqueued)
-                : TaskEvent.failed(taskContext, exception, enqueued);
+        MultiTaskContext unit = taskContext.multiTaskContext();
+        String taskName = unit.name();
+        String unitId = unit.unitId();
+        int taskIndex = taskContext.taskIndex();
+        long submitTime = taskContext.submitTimeNanos();
+        long startTime = taskContext.startTimeNanos();
+        long endTime = taskContext.endTimeNanos();
+        TaskCompletion<V> event = exception == null
+                ? TaskCompletion.succeeded(taskName, unitId, taskIndex, submitTime, startTime, endTime, result)
+                : TaskCompletion.failed(
+                        taskName,
+                        unitId,
+                        taskIndex,
+                        submitTime,
+                        startTime,
+                        endTime,
+                        failureOutcome(unit.cancellationToken()),
+                        exception);
 
         for (TaskListener listener : listeners) {
             try {
@@ -163,11 +174,24 @@ public class ScopedCallable<V> implements Callable<V> {
         }
     }
 
+    /**
+     * Attributes a failed task from its token state at completion time. This is the direct
+     * observation only: a task canceled under a {@code CANCELED} token reads {@code
+     * MEMBER_CANCELED} here, while a group snapshot may later attribute the richer post-hoc cause
+     * {@code GROUP_CANCELED} via {@link TokenOutcomes}.
+     */
+    private static TaskOutcome failureOutcome(CancellationToken token) {
+        if (token.state() == CancellationToken.State.CANCELED) {
+            return TaskOutcome.MEMBER_CANCELED;
+        }
+        return TokenOutcomes.forCanceled(token, TaskOutcome.USER_FAILURE);
+    }
+
     @Override
     public String toString() {
         return "ScopedCallable{"
                 + "taskName='"
-                + taskContext.batchContext().taskName()
+                + taskContext.multiTaskContext().name()
                 + '\''
                 + ", delegate="
                 + delegate
