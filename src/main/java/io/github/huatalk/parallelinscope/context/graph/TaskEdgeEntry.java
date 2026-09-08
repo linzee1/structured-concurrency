@@ -18,11 +18,11 @@ public final class TaskEdgeEntry {
         this.value = value;
     }
 
-    EndpointPair<String> getEdge() {
+    EndpointPair<String> edge() {
         return edge;
     }
 
-    TaskEdge getValue() {
+    TaskEdge value() {
         return value;
     }
 }

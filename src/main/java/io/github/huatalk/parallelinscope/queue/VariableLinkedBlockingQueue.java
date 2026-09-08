@@ -119,7 +119,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
      *
      * @return the configured capacity
      */
-    public int getCapacity() {
+    public int capacity() {
         return capacity;
     }
 

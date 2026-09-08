@@ -16,30 +16,30 @@ class ActionGateBoundaryTest {
     void counterConsumesCallsBeforeTheIntervalWindowCanOpen() throws InterruptedException {
         ActionGate gate = ActionGate.whenBoth(3, Duration.ofMillis(60), () -> {});
         // First two calls only tick the counter down.
-        assertThat(gate.isDue()).isFalse();
-        assertThat(gate.isDue()).isFalse();
+        assertThat(gate.due()).isFalse();
+        assertThat(gate.due()).isFalse();
         // Counter exhausted, but the interval has not elapsed yet.
-        assertThat(gate.isDue()).isFalse();
+        assertThat(gate.due()).isFalse();
 
         Thread.sleep(70);
-        assertThat(gate.isDue()).isTrue();
+        assertThat(gate.due()).isTrue();
 
         // After opening, both boundaries reset: counter must refill and the clock restarts.
-        assertThat(gate.isDue()).isFalse();
+        assertThat(gate.due()).isFalse();
         Thread.sleep(70);
-        assertThat(gate.isDue()).isFalse(); // One remaining call before the next open.
+        assertThat(gate.due()).isFalse(); // One remaining call before the next open.
     }
 
     @Test
     void singleCallGateOpensOncePerIntervalWindow() throws InterruptedException {
         ActionGate gate = ActionGate.whenBoth(1, Duration.ofMillis(60), () -> {});
         // The window starts at construction; a call inside it stays closed.
-        assertThat(gate.isDue()).isFalse();
+        assertThat(gate.due()).isFalse();
         Thread.sleep(70);
-        assertThat(gate.isDue()).isTrue(); // Window elapsed plus the one required call.
-        assertThat(gate.isDue()).isFalse(); // Immediately closed again.
+        assertThat(gate.due()).isTrue(); // Window elapsed plus the one required call.
+        assertThat(gate.due()).isFalse(); // Immediately closed again.
         Thread.sleep(70);
-        assertThat(gate.isDue()).isTrue();
+        assertThat(gate.due()).isTrue();
     }
 
     @Test

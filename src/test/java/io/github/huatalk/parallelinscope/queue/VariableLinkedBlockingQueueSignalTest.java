@@ -119,7 +119,7 @@ class VariableLinkedBlockingQueueSignalTest {
         producer.start();
         Thread.sleep(50);
         queue.setCapacity(3);
-        assertEquals(3, queue.getCapacity());
+        assertEquals(3, queue.capacity());
         assertTrue(finished.await(4, TimeUnit.SECONDS), "capacity growth did not release waiting put");
         producer.join(TimeUnit.SECONDS.toMillis(2));
         assertTrue(stored.get());

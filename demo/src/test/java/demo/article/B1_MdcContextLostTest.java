@@ -115,7 +115,7 @@ public class B1_MdcContextLostTest {
                 opts);
 
         // 等待所有任务完成后再检查报告
-        for (com.google.common.util.concurrent.ListenableFuture<String> f : result.getResults()) {
+        for (com.google.common.util.concurrent.ListenableFuture<String> f : result.results()) {
             f.get(10, TimeUnit.SECONDS);
         }
 
@@ -125,7 +125,7 @@ public class B1_MdcContextLostTest {
 
         // 验证结果包含所有订单
         List<String> results = new java.util.ArrayList<>();
-        result.getResults().forEach(f -> {
+        result.results().forEach(f -> {
             try {
                 results.add(f.get());
             } catch (Exception e) {
@@ -170,7 +170,7 @@ public class B1_MdcContextLostTest {
                 opts);
 
         // 等待所有任务完成
-        for (com.google.common.util.concurrent.ListenableFuture<String> f : result.getResults()) {
+        for (com.google.common.util.concurrent.ListenableFuture<String> f : result.results()) {
             f.get(10, TimeUnit.SECONDS);
         }
 

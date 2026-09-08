@@ -93,7 +93,7 @@ public interface DeadlockDetectionListener {
          *
          * @return the formatted task-edge diagnostics
          */
-        public String getTaskEdges() {
+        public String taskEdges() {
             return taskEdges;
         }
 
@@ -102,7 +102,7 @@ public interface DeadlockDetectionListener {
          *
          * @return the formatted executor-edge diagnostics
          */
-        public String getExecutorEdges() {
+        public String executorEdges() {
             return executorEdges;
         }
 

@@ -30,12 +30,12 @@ class SmartBlockingQueueTest {
     @Test
     void delegatesCapacityAndOffersOutsideScope() {
         SmartBlockingQueue<Integer> queue = new SmartBlockingQueue<>(1);
-        assertThat(queue.getCapacity()).isEqualTo(1);
+        assertThat(queue.capacity()).isEqualTo(1);
         assertThat(queue.offer(1)).isTrue();
         assertThat(queue.offer(2)).isFalse();
         assertThat(queue.poll()).isEqualTo(1);
         queue.setCapacity(2);
-        assertThat(queue.getCapacity()).isEqualTo(2);
+        assertThat(queue.capacity()).isEqualTo(2);
     }
 
     @Test

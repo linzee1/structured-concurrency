@@ -50,7 +50,7 @@ class G2_BatchResultReportTest {
         AsyncBatchResult.BatchReport report = result.report();
 
         assertThat(totalStateCount(report)).isEqualTo(items.size());
-        assertThat(report.getFirstException()).isNull();
+        assertThat(report.firstException()).isNull();
         assertThat(result.reportString()).isEqualTo("SUCCESS:" + items.size());
     }
 
@@ -86,7 +86,7 @@ class G2_BatchResultReportTest {
         String reportString = result.reportString();
 
         assertThat(totalStateCount(report)).isEqualTo(taskCount);
-        assertThat(report.getFirstException()).isSameAs(rootFailure);
+        assertThat(report.firstException()).isSameAs(rootFailure);
         assertThat(reportString).contains("FAILED:").contains("CANCELLED:").contains("firstException=root failure");
     }
 
@@ -109,7 +109,7 @@ class G2_BatchResultReportTest {
     }
 
     private static void awaitTerminalStates(AsyncBatchResult<?> result) throws Exception {
-        for (com.google.common.util.concurrent.ListenableFuture<?> future : result.getResults()) {
+        for (com.google.common.util.concurrent.ListenableFuture<?> future : result.results()) {
             try {
                 future.get(5, TimeUnit.SECONDS);
             } catch (ExecutionException | CancellationException ignored) {
@@ -119,7 +119,7 @@ class G2_BatchResultReportTest {
     }
 
     private static int totalStateCount(AsyncBatchResult.BatchReport report) {
-        return report.getStateCounts().values().stream()
+        return report.stateCounts().values().stream()
                 .mapToInt(Integer::intValue)
                 .sum();
     }

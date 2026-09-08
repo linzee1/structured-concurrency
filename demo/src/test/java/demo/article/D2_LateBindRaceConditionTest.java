@@ -178,8 +178,8 @@ class D2_LateBindRaceConditionTest {
                     options);
 
             // Wait for all futures to complete
-            for (int i = 0; i < result.getResults().size(); i++) {
-                result.getResults().get(i).get(15, TimeUnit.SECONDS);
+            for (int i = 0; i < result.results().size(); i++) {
+                result.results().get(i).get(15, TimeUnit.SECONDS);
             }
 
             long totalElapsed = System.currentTimeMillis() - startTime;

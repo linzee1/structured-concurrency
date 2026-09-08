@@ -164,20 +164,20 @@ public class ListenableCompletionServiceTest {
     /** Verifies that consumers can observe phases other than queued cancellation. */
     @Test
     public void phaseObserverReceivesExecutionHints() throws Exception {
-        List<ExecutionPhase> completedPhases = new ArrayList<>();
+        List<ExecutionPhase> completedPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
         ExecutionPhaseHintFuture<Integer> completed = ExecutionPhaseHintFuture.create(() -> 1, completedPhases::add);
 
         completed.run();
 
         assertThat(completedPhases).containsExactly(ExecutionPhase.RUNNING, ExecutionPhase.TERMINAL);
 
-        List<ExecutionPhase> cancelledPhases = new ArrayList<>();
+        List<ExecutionPhase> cancelledPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
         ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, cancelledPhases::add);
 
         assertThat(cancelled.cancel(false)).isTrue();
         assertThat(cancelledPhases).containsExactly(ExecutionPhase.CANCELLED_BEFORE_RUN);
 
-        List<ExecutionPhase> runningCancellationPhases = new ArrayList<>();
+        List<ExecutionPhase> runningCancellationPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ExecutionPhaseHintFuture<Integer> running = ExecutionPhaseHintFuture.create(
@@ -217,6 +217,42 @@ public class ListenableCompletionServiceTest {
 
         assertThat(cancelled.cancel(false)).isTrue();
         assertThat(cancelled.isCancelled()).isTrue();
+    }
+
+    /**
+     * Regression: a cancel that lands while the task is running must always surface
+     * CANCEL_REQUESTED_RUNNING, even when run() has already finished the body and advanced the
+     * phase to TERMINAL. Previously run() set TERMINAL unconditionally and afterDone() dropped the
+     * signal when it observed TERMINAL, losing the phase under a narrow race.
+     */
+    @Test
+    public void cancelWhileRunningAlwaysSurfacesCancelRequestedRunning() throws Exception {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            List<ExecutionPhase> phases = new java.util.concurrent.CopyOnWriteArrayList<>();
+            CountDownLatch bodyEntered = new CountDownLatch(1);
+            CountDownLatch bodyRelease = new CountDownLatch(1);
+            ExecutionPhaseHintFuture<Integer> future = ExecutionPhaseHintFuture.create(
+                    () -> {
+                        bodyEntered.countDown();
+                        bodyRelease.await();
+                        return 1;
+                    },
+                    phases::add);
+
+            Thread runner = new Thread(future);
+            runner.start();
+            assertThat(bodyEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(future.cancel(true)).isTrue();
+            bodyRelease.countDown();
+            runner.join(5000);
+            assertThat(runner.isAlive()).isFalse();
+
+            assertThat(phases)
+                    .as("attempt %s must report the cancel-while-running phase; got %s; isCancelled=%s; future=%s",
+                            attempt, phases, future.isCancelled(), future)
+                    .contains(ExecutionPhase.CANCEL_REQUESTED_RUNNING)
+                    .contains(ExecutionPhase.TERMINAL);
+        }
     }
 
     /** Waits for a test gate while preserving the thread's eventual interrupt status. */

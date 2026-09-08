@@ -53,8 +53,8 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      *
      * @return the positive queue capacity
      */
-    public int getCapacity() {
-        return delegate.getCapacity();
+    public int capacity() {
+        return delegate.capacity();
     }
 
     /**

@@ -49,7 +49,7 @@ public final class TaskGraphData {
      *
      * @return the task dependency graph
      */
-    public ValueGraph<String, List<TaskEdge>> getGraph() {
+    public ValueGraph<String, List<TaskEdge>> graph() {
         if (graph == null) {
             synchronized (this) {
                 if (graph == null) {
@@ -65,7 +65,7 @@ public final class TaskGraphData {
      *
      * @return {@code true} when a task cycle exists
      */
-    public boolean isTaskCycle() {
+    public boolean taskCycle() {
         if (taskCycle == null) {
             taskCycle = checkTaskCycle();
         }
@@ -77,7 +77,7 @@ public final class TaskGraphData {
      *
      * @return {@code true} when a task self-loop exists
      */
-    public boolean isSelfLoop() {
+    public boolean selfLoop() {
         if (selfLoop == null) {
             selfLoop = checkSelfLoop();
         }
@@ -89,7 +89,7 @@ public final class TaskGraphData {
      *
      * @return executor dependency graph
      */
-    public ValueGraph<String, List<TaskEdge>> getExecutorGraph() {
+    public ValueGraph<String, List<TaskEdge>> executorGraph() {
         return generateExecutorGraph();
     }
 
@@ -98,12 +98,12 @@ public final class TaskGraphData {
      *
      * @return {@code true} when an executor cycle exists
      */
-    public boolean isExecutorCycle() {
+    public boolean executorCycle() {
         ValueGraph<ExecutorIdentity, List<TaskEdge>> g = generateExecutorIdentityGraph();
         if (g != null && !g.nodes().isEmpty()) {
             return Graphs.hasCycle(g.asGraph());
         }
-        ValueGraph<String, List<TaskEdge>> legacy = getExecutorGraph();
+        ValueGraph<String, List<TaskEdge>> legacy = executorGraph();
         return legacy != null && Graphs.hasCycle(legacy.asGraph());
     }
 
@@ -112,12 +112,12 @@ public final class TaskGraphData {
      *
      * @return {@code true} when an executor self-loop exists
      */
-    public boolean isExecutorSelfLoop() {
+    public boolean executorSelfLoop() {
         ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraph = generateExecutorIdentityGraph();
         if (identityGraph != null && !identityGraph.nodes().isEmpty()) {
             return identityGraph.edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
-        return getExecutorGraph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+        return executorGraph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
     }
 
     /** Records one parent-to-child edge. Batch IDs, not reusable task names, keep nodes distinct. */
@@ -136,7 +136,7 @@ public final class TaskGraphData {
     ValueGraph<String, List<TaskEdge>> generateGraph() {
         Map<EndpointPair<String>, List<TaskEdge>> edgeMap = new LinkedHashMap<>();
         for (TaskEdgeEntry entry : subTaskList) {
-            edgeMap.computeIfAbsent(entry.getEdge(), k -> new ArrayList<>()).add(entry.getValue());
+            edgeMap.computeIfAbsent(entry.edge(), k -> new ArrayList<>()).add(entry.value());
         }
         ImmutableValueGraph.Builder<String, List<TaskEdge>> graphBuilder =
                 ValueGraphBuilder.directed().allowsSelfLoops(true).immutable();
@@ -154,24 +154,24 @@ public final class TaskGraphData {
     }
 
     boolean checkTaskCycle() {
-        ValueGraph<String, List<TaskEdge>> g = getGraph();
+        ValueGraph<String, List<TaskEdge>> g = graph();
         return g != null && Graphs.hasCycle(g.asGraph());
     }
 
     boolean checkSelfLoop() {
-        return getGraph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+        return graph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
     }
 
     ValueGraph<String, List<TaskEdge>> generateExecutorGraph() {
         Map<EndpointPair<String>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
 
-        for (EndpointPair<String> taskEdgePair : getGraph().edges()) {
-            List<TaskEdge> edges = Objects.requireNonNull(getGraph()
-                    .edgeValueOrDefault(taskEdgePair.source(), taskEdgePair.target(), Collections.emptyList()));
+        for (EndpointPair<String> taskEdgePair : graph().edges()) {
+            List<TaskEdge> edges = Objects.requireNonNull(
+                    graph().edgeValueOrDefault(taskEdgePair.source(), taskEdgePair.target(), Collections.emptyList()));
             for (TaskEdge taskEdge : edges) {
-                String sourceExecutor = taskEdge.getSourceExecutorName();
-                String targetExecutor = taskEdge.getExecutorName();
-                if (!taskEdge.isExecutorDeadlockProne()) {
+                String sourceExecutor = taskEdge.sourceExecutorName();
+                String targetExecutor = taskEdge.executorName();
+                if (!taskEdge.executorDeadlockProne()) {
                     continue;
                 }
                 EndpointPair<String> executorPair = EndpointPair.ordered(sourceExecutor, targetExecutor);
@@ -195,14 +195,14 @@ public final class TaskGraphData {
     private ValueGraph<ExecutorIdentity, List<TaskEdge>> generateExecutorIdentityGraph() {
         Map<EndpointPair<ExecutorIdentity>, List<TaskEdge>> executorEdges = new LinkedHashMap<>();
         for (TaskEdgeEntry entry : subTaskList) {
-            TaskEdge edge = entry.getValue();
-            if (!edge.isExecutorDeadlockProne()
-                    || edge.getExecutorIdentity() == null
-                    || edge.getSourceExecutorIdentity() == null) {
+            TaskEdge edge = entry.value();
+            if (!edge.executorDeadlockProne()
+                    || edge.executorIdentity() == null
+                    || edge.sourceExecutorIdentity() == null) {
                 continue;
             }
             EndpointPair<ExecutorIdentity> pair =
-                    EndpointPair.ordered(edge.getSourceExecutorIdentity(), edge.getExecutorIdentity());
+                    EndpointPair.ordered(edge.sourceExecutorIdentity(), edge.executorIdentity());
             executorEdges.computeIfAbsent(pair, k -> new ArrayList<>()).add(edge);
         }
         ImmutableValueGraph.Builder<ExecutorIdentity, List<TaskEdge>> builder = ValueGraphBuilder.directed()

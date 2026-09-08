@@ -45,8 +45,8 @@ class TaskGraphPolarityTest {
 
             TaskGraphData data = TaskGraphObservationContext.data();
             assertThat(data).isNotNull();
-            assertThat(data.isExecutorCycle()).isFalse();
-            assertThat(data.isExecutorSelfLoop()).isFalse();
+            assertThat(data.executorCycle()).isFalse();
+            assertThat(data.executorSelfLoop()).isFalse();
 
             TaskGraphObservationContext.restore(null);
             assertThat(TaskGraphObservationContext.data()).isNull();
@@ -81,8 +81,8 @@ class TaskGraphPolarityTest {
             List<TaskEdgeEntry> entries = new java.util.ArrayList<>();
             data.subTaskList.drainTo(entries);
             assertThat(entries).hasSize(1);
-            assertThat(entries.get(0).getEdge().source()).isEqualTo("root");
-            assertThat(entries.get(0).getEdge().target()).isEqualTo("child");
+            assertThat(entries.get(0).edge().source()).isEqualTo("root");
+            assertThat(entries.get(0).edge().target()).isEqualTo("child");
             TaskGraphObservationContext.restore(null);
         } finally {
             global.close();
@@ -131,7 +131,7 @@ class TaskGraphPolarityTest {
         assertThat(event.hasExecutorCycle()).isFalse();
         assertThat(event.hasExecutorSelfLoop()).isFalse();
         assertThat(event.hasAnyIssue()).isTrue();
-        assertThat(event.getTaskEdges()).contains("task-a[a] -> task-b[b]");
+        assertThat(event.taskEdges()).contains("task-a[a] -> task-b[b]");
         assertThat(String.valueOf(event)).isNotEmpty();
     }
 
@@ -154,9 +154,9 @@ class TaskGraphPolarityTest {
 
                 TaskGraphData data = TaskGraphObservationContext.data();
                 assertThat(data).isNotNull();
-                assertThat(data.isExecutorCycle()).isTrue(); // Real pool-to-pool cycle.
-                assertThat(data.isExecutorSelfLoop()).isFalse(); // But no single-pool loop.
-                assertThat(data.getExecutorGraph().nodes()).isNotEmpty();
+                assertThat(data.executorCycle()).isTrue(); // Real pool-to-pool cycle.
+                assertThat(data.executorSelfLoop()).isFalse(); // But no single-pool loop.
+                assertThat(data.executorGraph().nodes()).isNotEmpty();
             } finally {
                 global.close();
             }

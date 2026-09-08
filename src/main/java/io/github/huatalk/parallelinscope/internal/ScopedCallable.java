@@ -80,7 +80,7 @@ public class ScopedCallable<V> implements Callable<V> {
     }
 
     /** Returns the per-task execution context owned by this wrapper. */
-    public TaskExecutionContext getTaskExecutionContext() {
+    public TaskExecutionContext taskExecutionContext() {
         return taskContext;
     }
 
@@ -91,7 +91,7 @@ public class ScopedCallable<V> implements Callable<V> {
      *
      * @return the task cancellation token
      */
-    public CancellationToken getCancellationToken() {
+    public CancellationToken cancellationToken() {
         return taskContext.batchContext().cancellationToken();
     }
 
@@ -100,7 +100,7 @@ public class ScopedCallable<V> implements Callable<V> {
      *
      * @return the executor name
      */
-    public String getExecutorName() {
+    public String executorName() {
         String parLabel = taskContext.batchContext().parLabel();
         return parLabel == null ? "NA" : parLabel;
     }

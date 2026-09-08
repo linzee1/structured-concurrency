@@ -117,7 +117,7 @@ public final class ActionGate {
      *
      * @return {@code true} when an action is due
      */
-    public synchronized boolean isDue() {
+    public synchronized boolean due() {
         if (minInvocations > 0) {
             if (remainingInvocations > 0 && --remainingInvocations > 0) {
                 return false;
@@ -162,7 +162,7 @@ public final class ActionGate {
      */
     public boolean runIfDue(Runnable candidate) {
         Objects.requireNonNull(candidate, "candidate");
-        if (!isDue()) {
+        if (!due()) {
             return false;
         }
         candidate.run();

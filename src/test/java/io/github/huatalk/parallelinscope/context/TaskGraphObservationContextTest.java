@@ -32,14 +32,14 @@ class TaskGraphObservationContextTest {
         TaskGraphObservationContext context = global.openTaskGraphObservation();
         try {
             assertThat(context.owner()).isSameAs(global);
-            assertThat(context.isClosed()).isFalse();
+            assertThat(context.closed()).isFalse();
             assertThat(TaskGraphObservationContext.current()).isSameAs(context);
             assertThat(TaskGraphObservationContext.data()).isNotNull();
         } finally {
             context.close();
         }
 
-        assertThat(context.isClosed()).isTrue();
+        assertThat(context.closed()).isTrue();
         assertThat(TaskGraphObservationContext.current()).isNull();
 
         // current() stays null after closing even without a fresh thread-local reset.

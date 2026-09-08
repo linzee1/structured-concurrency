@@ -17,15 +17,15 @@ class TaskListenerTest {
         TaskContext context = taskContext();
         TaskEvent<String> event = TaskEvent.failed(context, failure, true);
 
-        assertThat(event.getTaskContext()).isSameAs(context);
-        assertThat(event.getTaskName()).isEqualTo("task");
-        assertThat(event.getSubmitTimeNanos()).isEqualTo(10);
-        assertThat(event.getStartTimeNanos()).isEqualTo(30);
-        assertThat(event.getEndTimeNanos()).isEqualTo(80);
-        assertThat(event.isEnqueued()).isTrue();
-        assertThat(event.isSuccessful()).isFalse();
-        assertThat(event.getResult()).isNull();
-        assertThat(event.getException()).isSameAs(failure);
+        assertThat(event.taskContext()).isSameAs(context);
+        assertThat(event.taskName()).isEqualTo("task");
+        assertThat(event.submitTimeNanos()).isEqualTo(10);
+        assertThat(event.startTimeNanos()).isEqualTo(30);
+        assertThat(event.endTimeNanos()).isEqualTo(80);
+        assertThat(event.enqueued()).isTrue();
+        assertThat(event.successful()).isFalse();
+        assertThat(event.result()).isNull();
+        assertThat(event.exception()).isSameAs(failure);
         assertThat(event.waitTime()).isEqualTo(Duration.ofNanos(20));
         assertThat(event.executionTime()).isEqualTo(Duration.ofNanos(50));
         assertThat(event.totalTime()).isEqualTo(Duration.ofNanos(70));
@@ -35,18 +35,18 @@ class TaskListenerTest {
     void successfulEventCanCarryNoException() {
         TaskContext context = taskContext();
         TaskEvent<String> event = TaskEvent.succeeded(context, "value", false);
-        assertThat(event.isEnqueued()).isFalse();
-        assertThat(event.isSuccessful()).isTrue();
-        assertThat(event.getResult()).isEqualTo("value");
-        assertThat(event.getException()).isNull();
+        assertThat(event.enqueued()).isFalse();
+        assertThat(event.successful()).isTrue();
+        assertThat(event.result()).isEqualTo("value");
+        assertThat(event.exception()).isNull();
     }
 
     @Test
     void successfulEventDistinguishesNullResultFromFailure() {
         TaskEvent<Void> event = TaskEvent.succeeded(taskContext(), null, false);
-        assertThat(event.isSuccessful()).isTrue();
-        assertThat(event.getResult()).isNull();
-        assertThat(event.getException()).isNull();
+        assertThat(event.successful()).isTrue();
+        assertThat(event.result()).isNull();
+        assertThat(event.exception()).isNull();
     }
 
     private static TaskContext taskContext() {

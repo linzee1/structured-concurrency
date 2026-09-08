@@ -211,7 +211,7 @@ public final class GlobalPar implements AutoCloseable {
      *
      * <p>A {@code true} result means new batch submissions and observation scopes are rejected.
      */
-    public boolean isClosed() {
+    public boolean closed() {
         return closed.get();
     }
 

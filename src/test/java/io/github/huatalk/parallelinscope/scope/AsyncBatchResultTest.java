@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.github.huatalk.parallelinscope.internal.FutureState;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -27,13 +26,14 @@ public class AsyncBatchResultTest {
 
         AsyncBatchResult.BatchReport report = batch.report();
 
-        assertThat(report.getStateCounts())
-                .containsEntry(FutureState.SUCCESS, 1)
-                .containsEntry(FutureState.FAILED, 2)
-                .containsEntry(FutureState.CANCELLED, 1)
+        assertThat(report.stateCounts())
+                .containsEntry(TaskOutcome.SUCCESS, 1)
+                .containsEntry(TaskOutcome.USER_FAILURE, 2)
+                .containsEntry(TaskOutcome.MEMBER_CANCELED, 1)
                 .hasSize(3);
-        assertThat(report.getFirstException()).isSameAs(firstFailure);
-        assertThat(batch.reportString()).isEqualTo("SUCCESS:1,FAILED:2,CANCELLED:1 | firstException=first failure");
+        assertThat(report.firstException()).isSameAs(firstFailure);
+        assertThat(batch.reportString())
+                .isEqualTo("SUCCESS:1,USER_FAILURE:2,MEMBER_CANCELED:1 | firstException=first failure");
     }
 
     @Test
@@ -46,35 +46,33 @@ public class AsyncBatchResultTest {
         pending.set("now done");
         AsyncBatchResult.BatchReport afterCompletion = batch.report();
 
-        assertThat(beforeCompletion.getStateCounts())
-                .containsEntry(FutureState.RUNNING, 1)
-                .containsEntry(FutureState.SUCCESS, 1);
-        assertThat(afterCompletion.getStateCounts())
-                .containsOnlyKeys(FutureState.SUCCESS)
-                .containsEntry(FutureState.SUCCESS, 2);
+        assertThat(beforeCompletion.stateCounts())
+                .containsEntry(TaskOutcome.RUNNING, 1)
+                .containsEntry(TaskOutcome.SUCCESS, 1);
+        assertThat(afterCompletion.stateCounts())
+                .containsOnlyKeys(TaskOutcome.SUCCESS)
+                .containsEntry(TaskOutcome.SUCCESS, 2);
     }
 
     @Test
     public void report_emptyBatchHasNoStatesOrException() {
         AsyncBatchResult<String> batch = AsyncBatchResult.of(Collections.<ListenableFuture<String>>emptyList());
 
-        assertThat(batch.report().getStateCounts()).isEmpty();
-        assertThat(batch.report().getFirstException()).isNull();
+        assertThat(batch.report().stateCounts()).isEmpty();
+        assertThat(batch.report().firstException()).isNull();
         assertThat(batch.reportString()).isEmpty();
     }
 
     @Test
     public void batchReport_defensivelyCopiesAndExposesUnmodifiableStateCounts() {
-        Map<FutureState, Integer> source = new java.util.EnumMap<>(FutureState.class);
-        source.put(FutureState.SUCCESS, 1);
+        Map<TaskOutcome, Integer> source = new java.util.EnumMap<>(TaskOutcome.class);
+        source.put(TaskOutcome.SUCCESS, 1);
         AsyncBatchResult.BatchReport report = new AsyncBatchResult.BatchReport(source, null);
 
-        source.put(FutureState.FAILED, 1);
+        source.put(TaskOutcome.USER_FAILURE, 1);
 
-        assertThat(report.getStateCounts())
-                .containsOnlyKeys(FutureState.SUCCESS)
-                .containsEntry(FutureState.SUCCESS, 1);
-        assertThatThrownBy(() -> report.getStateCounts().put(FutureState.CANCELLED, 1))
+        assertThat(report.stateCounts()).containsOnlyKeys(TaskOutcome.SUCCESS).containsEntry(TaskOutcome.SUCCESS, 1);
+        assertThatThrownBy(() -> report.stateCounts().put(TaskOutcome.MEMBER_CANCELED, 1))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -83,8 +81,8 @@ public class AsyncBatchResultTest {
         RuntimeException failure = new RuntimeException("failure");
         AsyncBatchResult.BatchReport report = new AsyncBatchResult.BatchReport(null, failure);
 
-        assertThat(report.getStateCounts()).isNull();
-        assertThat(report.getFirstException()).isSameAs(failure);
+        assertThat(report.stateCounts()).isNull();
+        assertThat(report.firstException()).isSameAs(failure);
         assertThat(report.toString()).contains("stateCounts=null", "firstException=");
     }
 }

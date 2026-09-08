@@ -25,17 +25,17 @@ class ScopedCallableContextRestoreTest {
         assertThat(callable.call()).isEqualTo("value");
         TaskEvent event = captured.get();
         assertThat(event).isNotNull();
-        assertThat(event.getTaskContext()).isSameAs(taskContext);
-        assertThat(event.isSuccessful()).isTrue();
-        assertThat(event.getResult()).isEqualTo("value");
-        assertThat(event.getTaskName()).isEqualTo("listener");
-        assertThat(event.getException()).isNull();
-        assertThat(event.getEndTimeNanos()).isGreaterThanOrEqualTo(event.getStartTimeNanos());
+        assertThat(event.taskContext()).isSameAs(taskContext);
+        assertThat(event.successful()).isTrue();
+        assertThat(event.result()).isEqualTo("value");
+        assertThat(event.taskName()).isEqualTo("listener");
+        assertThat(event.exception()).isNull();
+        assertThat(event.endTimeNanos()).isGreaterThanOrEqualTo(event.startTimeNanos());
         assertThat(callable.executionTime()).isGreaterThanOrEqualTo(0L);
         assertThat(callable.waitTime()).isGreaterThanOrEqualTo(0L);
         assertThat(callable.totalTime()).isGreaterThanOrEqualTo(callable.executionTime());
-        assertThat(callable.getCancellationToken()).isSameAs(context.cancellationToken());
-        assertThat(callable.getExecutorName()).isEqualTo("NA");
+        assertThat(callable.cancellationToken()).isSameAs(context.cancellationToken());
+        assertThat(callable.executorName()).isEqualTo("NA");
         assertThat(callable.toString()).contains("listener", "submitTime", "startTime", "endTime");
     }
 
@@ -55,9 +55,9 @@ class ScopedCallableContextRestoreTest {
                 }));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(callable::call).isSameAs(failure);
-        assertThat(captured.get().getException()).isSameAs(failure);
-        assertThat(captured.get().isSuccessful()).isFalse();
-        assertThat(captured.get().getResult()).isNull();
+        assertThat(captured.get().exception()).isSameAs(failure);
+        assertThat(captured.get().successful()).isFalse();
+        assertThat(captured.get().result()).isNull();
     }
 
     @Test

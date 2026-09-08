@@ -72,7 +72,7 @@ class VariableLinkedBlockingQueueTest {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
         assertThrows(IllegalArgumentException.class, () -> queue.setCapacity(0));
         assertThrows(IllegalArgumentException.class, () -> queue.setCapacity(-3));
-        assertEquals(2, queue.getCapacity());
+        assertEquals(2, queue.capacity());
     }
 
     /**
@@ -86,7 +86,7 @@ class VariableLinkedBlockingQueueTest {
         queue.offer("a");
         queue.offer("b");
         queue.setCapacity(1);
-        assertEquals(1, queue.getCapacity());
+        assertEquals(1, queue.capacity());
         assertEquals(2, queue.size());
         assertEquals(-1, queue.remainingCapacity());
         assertTrue(queue.offer("c"));

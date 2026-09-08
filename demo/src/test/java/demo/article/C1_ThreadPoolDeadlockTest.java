@@ -105,10 +105,10 @@ class C1_ThreadPoolDeadlockTest {
 
                         // 收集内层结果
                         StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < innerResult.getResults().size(); i++) {
+                        for (int i = 0; i < innerResult.results().size(); i++) {
                             if (i > 0) sb.append(",");
                             try {
-                                sb.append(innerResult.getResults().get(i).get(5, TimeUnit.SECONDS));
+                                sb.append(innerResult.results().get(i).get(5, TimeUnit.SECONDS));
                             } catch (Exception e) {
                                 sb.append("error");
                             }
@@ -119,8 +119,8 @@ class C1_ThreadPoolDeadlockTest {
 
             // 验证所有外层任务正常完成，无死锁
             assertThatCode(() -> {
-                        for (int i = 0; i < result.getResults().size(); i++) {
-                            String value = result.getResults().get(i).get(10, TimeUnit.SECONDS);
+                        for (int i = 0; i < result.results().size(); i++) {
+                            String value = result.results().get(i).get(10, TimeUnit.SECONDS);
                             assertThat(value).startsWith("outer-");
                         }
                     })

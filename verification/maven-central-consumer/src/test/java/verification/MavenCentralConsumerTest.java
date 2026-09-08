@@ -43,13 +43,13 @@ class MavenCentralConsumerTest {
                     value -> value * 2,
                     options);
 
-            assertEquals(2, result.getResults().get(0).get());
-            assertEquals(4, result.getResults().get(1).get());
-            assertEquals("consumer-smoke", options.getTaskName());
-            assertEquals(2, options.getParallelism());
+            assertEquals(2, result.results().get(0).get());
+            assertEquals(4, result.results().get(1).get());
+            assertEquals("consumer-smoke", options.taskName());
+            assertEquals(2, options.parallelism());
             assertEquals(5, options.getTimeout());
             assertEquals(TimeUnit.SECONDS, options.getTimeUnit());
-            assertEquals(TaskType.IO_BOUND, options.getTaskType());
+            assertEquals(TaskType.IO_BOUND, options.taskType());
             assertEquals(config, new Par(config).getConfig());
         } finally {
             executor.shutdownNow();
@@ -74,9 +74,9 @@ class MavenCentralConsumerTest {
 
             assertTrue(started.await(5, TimeUnit.SECONDS), "tasks did not start");
             assertThrows(CancellationException.class,
-                    () -> result.getResults().get(0).get(5, TimeUnit.SECONDS));
+                    () -> result.results().get(0).get(5, TimeUnit.SECONDS));
             assertTrue(interrupted.await(5, TimeUnit.SECONDS), "timeout did not interrupt running tasks");
-            assertTrue(result.getResults().stream().allMatch(future -> future.isCancelled()));
+            assertTrue(result.results().stream().allMatch(future -> future.isCancelled()));
         } finally {
             executor.shutdownNow();
         }
@@ -108,10 +108,10 @@ class MavenCentralConsumerTest {
                             .build());
 
             assertThrows(ExecutionException.class,
-                    () -> result.getResults().get(0).get(5, TimeUnit.SECONDS));
+                    () -> result.results().get(0).get(5, TimeUnit.SECONDS));
             assertTrue(siblingsInterrupted.await(5, TimeUnit.SECONDS), "failure did not interrupt sibling tasks");
-            assertTrue(result.getResults().get(1).isCancelled());
-            assertTrue(result.getResults().get(2).isCancelled());
+            assertTrue(result.results().get(1).isCancelled());
+            assertTrue(result.results().get(2).isCancelled());
         } finally {
             executor.shutdownNow();
         }
@@ -140,8 +140,8 @@ class MavenCentralConsumerTest {
                                         .build());
                         innerResult.set(nested);
                         try {
-                            for (int i = 0; i < nested.getResults().size(); i++) {
-                                nested.getResults().get(i).get();
+                            for (int i = 0; i < nested.results().size(); i++) {
+                                nested.results().get(i).get();
                             }
                         } catch (Exception e) {
                             throw new RuntimeException("nested task failed", e);
@@ -155,9 +155,9 @@ class MavenCentralConsumerTest {
 
             assertTrue(innerStarted.await(5, TimeUnit.SECONDS), "nested tasks did not start");
             assertThrows(CancellationException.class,
-                    () -> outerResult.getResults().get(0).get(5, TimeUnit.SECONDS));
+                    () -> outerResult.results().get(0).get(5, TimeUnit.SECONDS));
             assertTrue(innerInterrupted.await(5, TimeUnit.SECONDS), "outer timeout did not interrupt nested tasks");
-            assertTrue(innerResult.get().getResults().stream().allMatch(future -> future.isCancelled()));
+            assertTrue(innerResult.get().results().stream().allMatch(future -> future.isCancelled()));
         } finally {
             executor.shutdownNow();
         }

@@ -56,7 +56,7 @@ AsyncBatchResult<Account> result = httpPar.map(
         client::fetchAccount,
         options);
 
-List<ListenableFuture<Account>> futures = result.getResults();
+List<ListenableFuture<Account>> futures = result.results();
 ```
 
 `parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. An explicit timeout must be positive; omitted timeout uses the global default. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
@@ -183,7 +183,7 @@ queue.awaitDrained();   // optional: wait until drained
 Job job = queue.take(); // real element before drained; poison after drained
 ```
 
-Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `isShutdown()` for "production is closed" and `isDrained()` for "the queue is empty and terminal". Full contract: [draining-close contract](../../zh/design/draining-blocking-queue-contract.md).
+Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](../../zh/design/draining-blocking-queue-contract.md).
 
 ## Operational rules
 

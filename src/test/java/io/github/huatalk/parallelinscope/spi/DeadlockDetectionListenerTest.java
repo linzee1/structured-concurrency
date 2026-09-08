@@ -23,8 +23,8 @@ class DeadlockDetectionListenerTest {
         DeadlockDetectionEvent event = new DeadlockDetectionEvent(false, true, false, false, "tasks", "execs");
         assertThat(event.hasAnyIssue()).isTrue();
         assertThat(event.hasSelfLoop()).isTrue();
-        assertThat(event.getTaskEdges()).isEqualTo("tasks");
-        assertThat(event.getExecutorEdges()).isEqualTo("execs");
+        assertThat(event.taskEdges()).isEqualTo("tasks");
+        assertThat(event.executorEdges()).isEqualTo("execs");
     }
 
     @Test

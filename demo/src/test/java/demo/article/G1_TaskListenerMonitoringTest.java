@@ -136,27 +136,27 @@ public class G1_TaskListenerMonitoringTest {
 
         // 验证：每个事件都有正确的 taskName
         for (TaskListener.TaskEvent event : events) {
-            assertThat(event.getTaskName()).isEqualTo("monitor-demo");
+            assertThat(event.taskName()).isEqualTo("monitor-demo");
         }
 
         // 验证：执行耗时 >= 40ms（因为我们忙等了 50ms）
         for (TaskListener.TaskEvent event : events) {
             assertThat(event.executionTime().toMillis())
-                    .as("Task %s execution time", event.getTaskName())
+                    .as("Task %s execution time", event.taskName())
                     .isGreaterThanOrEqualTo(40);
         }
 
         // 验证：总耗时 >= 执行耗时（total = wait + execution）
         for (TaskListener.TaskEvent event : events) {
             assertThat(event.totalTime().toNanos())
-                    .as("Task %s total time >= execution time", event.getTaskName())
+                    .as("Task %s total time >= execution time", event.taskName())
                     .isGreaterThanOrEqualTo(event.executionTime().toNanos());
         }
 
         // 验证：所有任务成功，没有异常
         for (TaskListener.TaskEvent event : events) {
-            assertThat(event.getException())
-                    .as("Task %s should not have exception", event.getTaskName())
+            assertThat(event.exception())
+                    .as("Task %s should not have exception", event.taskName())
                     .isNull();
         }
 
@@ -168,7 +168,7 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * TaskListener 同样能捕获失败任务的异常信息。
      *
-     * <p>当任务抛出异常时，TaskEvent.getException() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
+     * <p>当任务抛出异常时，TaskEvent.exception() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
      */
     @Test
     void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
@@ -212,17 +212,17 @@ public class G1_TaskListenerMonitoringTest {
 
         // 验证：捕获到了失败任务的异常
         TaskListener.TaskEvent failedEvent = events.stream()
-                .filter(e -> e.getException() != null)
+                .filter(e -> e.exception() != null)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));
-        assertThat(failedEvent.getException().getMessage()).contains("item 2 failed");
+        assertThat(failedEvent.exception().getMessage()).contains("item 2 failed");
 
         // 验证：失败事件也有 taskName
-        assertThat(failedEvent.getTaskName()).isEqualTo("fail-demo");
+        assertThat(failedEvent.taskName()).isEqualTo("fail-demo");
 
         // 验证：成功任务没有异常
         long successCount =
-                events.stream().filter(e -> e.getException() == null).count();
+                events.stream().filter(e -> e.exception() == null).count();
         assertThat(successCount).isEqualTo(1);
 
         // 验证：report 确认结果

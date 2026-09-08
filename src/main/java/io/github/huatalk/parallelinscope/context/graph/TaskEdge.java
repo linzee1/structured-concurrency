@@ -101,7 +101,7 @@ public final class TaskEdge {
      *
      * @return the parallelism
      */
-    public int getParallelism() {
+    public int parallelism() {
         return parallelism;
     }
 
@@ -110,7 +110,7 @@ public final class TaskEdge {
      *
      * @return the task type
      */
-    public TaskType getTaskType() {
+    public TaskType taskType() {
         return taskType;
     }
 
@@ -119,7 +119,7 @@ public final class TaskEdge {
      *
      * @return the executor name
      */
-    public String getExecutorName() {
+    public String executorName() {
         return executorName;
     }
 
@@ -128,7 +128,7 @@ public final class TaskEdge {
      *
      * @return the source executor name
      */
-    public String getSourceExecutorName() {
+    public String sourceExecutorName() {
         return sourceExecutorName;
     }
 
@@ -137,7 +137,7 @@ public final class TaskEdge {
      *
      * @return the task count
      */
-    public int getTaskCount() {
+    public int taskCount() {
         return taskCount;
     }
 
@@ -146,7 +146,7 @@ public final class TaskEdge {
      *
      * @return the timeout in milliseconds
      */
-    public long getTimeoutMillis() {
+    public long timeoutMillis() {
         return timeoutMillis;
     }
 
@@ -155,17 +155,17 @@ public final class TaskEdge {
      *
      * @return {@code true} when nested blocking work can conservatively deadlock
      */
-    public boolean isExecutorDeadlockProne() {
+    public boolean executorDeadlockProne() {
         return executorDeadlockProne;
     }
 
     /** Returns the child supplied-executor identity, or null for legacy edges. */
-    public ExecutorIdentity getExecutorIdentity() {
+    public ExecutorIdentity executorIdentity() {
         return executorIdentity;
     }
 
     /** Returns the parent supplied-executor identity, or null for legacy edges. */
-    public ExecutorIdentity getSourceExecutorIdentity() {
+    public ExecutorIdentity sourceExecutorIdentity() {
         return sourceExecutorIdentity;
     }
 

@@ -120,10 +120,10 @@ public class CancellationTriggerCartesianTest {
     private static void awaitState(CancellationToken token, CancellationToken.State expected)
             throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (token.getState() != expected && System.nanoTime() < deadline) {
+        while (token.state() != expected && System.nanoTime() < deadline) {
             Thread.yield();
         }
-        assertThat(token.getState()).isEqualTo(expected);
+        assertThat(token.state()).isEqualTo(expected);
     }
 
     /** Waits for a controlled task to observe interruption. */

@@ -245,7 +245,7 @@ class DrainingBlockingQueueContractTest {
                 new DrainingBlockingQueue<>(3, Arrays.asList("p", "q"), DrainingBlockingQueue.ShutdownPolicy.empty());
         queue.close();
         assertEquals("p", queue.poll());
-        assertTrue(queue.isDraining());
+        assertTrue(queue.draining());
 
         Iterator<String> iterator = queue.iterator();
         assertTrue(iterator.hasNext());
@@ -271,14 +271,14 @@ class DrainingBlockingQueueContractTest {
                 .build();
         DrainingBlockingQueue<String> queue = new DrainingBlockingQueue<>(3, Arrays.asList("only"), policy);
         queue.close();
-        assertTrue(queue.isDraining());
+        assertTrue(queue.draining());
 
         assertThrows(IllegalStateException.class, () -> queue.add("late"));
         assertThrows(IllegalStateException.class, () -> queue.put("late"));
         assertFalse(queue.offer("late"));
 
         assertEquals("only", queue.take());
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
         assertEquals(0, queue.remainingCapacity());
 
         assertThrows(IllegalStateException.class, () -> queue.clear());
@@ -299,10 +299,10 @@ class DrainingBlockingQueueContractTest {
                 2, Arrays.asList("one", "two"), DrainingBlockingQueue.ShutdownPolicy.empty());
         queue.close();
         queue.clear();
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
 
         queue.clear();
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
         assertFalse(queue.remove("one"));
         assertFalse(queue.removeIf(value -> true));
         assertTrue(queue.isEmpty());
@@ -320,11 +320,11 @@ class DrainingBlockingQueueContractTest {
         DrainingBlockingQueue<String> queue =
                 new DrainingBlockingQueue<>(2, Arrays.asList("r1", "r2"), DrainingBlockingQueue.ShutdownPolicy.empty());
         queue.close();
-        assertTrue(awaitDrainedWithin(queue, 100, TimeUnit.MILLISECONDS) || !queue.isDrained());
-        if (!queue.isDrained()) {
+        assertTrue(awaitDrainedWithin(queue, 100, TimeUnit.MILLISECONDS) || !queue.drained());
+        if (!queue.drained()) {
             queue.clear();
         }
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
         assertEquals(0, queue.size());
     }
 
@@ -337,7 +337,7 @@ class DrainingBlockingQueueContractTest {
         // Still OPEN with stored elements: the guard can never be satisfied, so the
         // timed variant must report a timeout instead of blocking or succeeding.
         assertFalse(open.awaitDrained(30, TimeUnit.MILLISECONDS));
-        assertFalse(open.isDrained());
+        assertFalse(open.drained());
 
         DrainingBlockingQueue<String> empty = new DrainingBlockingQueue<>(1);
         empty.close(); // Close on an empty queue publishes DRAINED directly.
@@ -373,7 +373,7 @@ class DrainingBlockingQueueContractTest {
         waiter.join(TimeUnit.SECONDS.toMillis(5));
         assertFalse(waiter.isAlive());
         assertNull(failure.get());
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
     }
 
     @Test
@@ -493,12 +493,12 @@ class DrainingBlockingQueueContractTest {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(2);
         queue.add(11);
         queue.close();
-        assertTrue(queue.isDraining());
+        assertTrue(queue.draining());
 
         List<Integer> target = new ArrayList<>();
         assertEquals(1, queue.drainTo(target));
         assertEquals(java.util.Collections.singletonList(11), target);
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
     }
 
     // ==================== Batched predicate removal ====================

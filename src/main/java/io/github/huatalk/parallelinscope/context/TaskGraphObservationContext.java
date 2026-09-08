@@ -60,7 +60,7 @@ public final class TaskGraphObservationContext implements AutoCloseable {
     /** Returns the observation scope active on the calling thread, if any. */
     public static @Nullable TaskGraphObservationContext current() {
         TaskGraphObservationContext context = CURRENT.get();
-        return context != null && !context.isClosed() ? context : null;
+        return context != null && !context.closed() ? context : null;
     }
 
     /**
@@ -103,7 +103,7 @@ public final class TaskGraphObservationContext implements AutoCloseable {
      */
     public static boolean hasTaskCycle() {
         TaskGraphData data = data();
-        return data != null && data.isTaskCycle();
+        return data != null && data.taskCycle();
     }
 
     /**
@@ -113,7 +113,7 @@ public final class TaskGraphObservationContext implements AutoCloseable {
      */
     public static boolean hasSelfLoop() {
         TaskGraphData data = data();
-        return data != null && data.isSelfLoop();
+        return data != null && data.selfLoop();
     }
 
     /**
@@ -123,7 +123,7 @@ public final class TaskGraphObservationContext implements AutoCloseable {
      */
     public static boolean hasExecutorCycle() {
         TaskGraphData data = data();
-        return data != null && data.isExecutorCycle();
+        return data != null && data.executorCycle();
     }
 
     /**
@@ -133,14 +133,14 @@ public final class TaskGraphObservationContext implements AutoCloseable {
      */
     public static boolean hasExecutorSelfLoop() {
         TaskGraphData data = data();
-        return data != null && data.isExecutorSelfLoop();
+        return data != null && data.executorSelfLoop();
     }
 
     public GlobalPar owner() {
         return owner;
     }
 
-    public boolean isClosed() {
+    public boolean closed() {
         return closed.get();
     }
 
@@ -189,26 +189,26 @@ public final class TaskGraphObservationContext implements AutoCloseable {
     }
 
     private static @Nullable DeadlockDetectionEvent buildDetectionEvent(TaskGraphData data) {
-        boolean hasTaskCycle = data.isTaskCycle();
-        boolean hasSelfLoop = data.isSelfLoop();
-        boolean hasExecutorCycle = data.isExecutorCycle();
-        boolean hasExecutorSelfLoop = data.isExecutorSelfLoop();
+        boolean hasTaskCycle = data.taskCycle();
+        boolean hasSelfLoop = data.selfLoop();
+        boolean hasExecutorCycle = data.executorCycle();
+        boolean hasExecutorSelfLoop = data.executorSelfLoop();
 
         if (!hasTaskCycle && !hasSelfLoop && !hasExecutorCycle && !hasExecutorSelfLoop) {
             return null;
         }
 
-        String taskEdges = data.getGraph().edges().stream()
+        String taskEdges = data.graph().edges().stream()
                 .map(p -> {
                     List<TaskEdge> edges =
-                            data.getGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
+                            data.graph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
                     return data.displayNode(p.source()) + " -> " + data.displayNode(p.target()) + " " + edges;
                 })
                 .collect(Collectors.joining(", "));
-        String executorEdges = data.getExecutorGraph().edges().stream()
+        String executorEdges = data.executorGraph().edges().stream()
                 .map(p -> {
                     List<TaskEdge> edges =
-                            data.getExecutorGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
+                            data.executorGraph().edgeValueOrDefault(p.source(), p.target(), Collections.emptyList());
                     return p.source() + " -> " + p.target() + " " + edges;
                 })
                 .collect(Collectors.joining(", "));

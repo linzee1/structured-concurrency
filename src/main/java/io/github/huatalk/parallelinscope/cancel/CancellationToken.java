@@ -52,7 +52,7 @@ public class CancellationToken {
         if (parent != null) {
             parent.futureToken.addListener(
                     () -> {
-                        if (parent.getState().shouldInterruptCurrentThread()) {
+                        if (parent.state().shouldInterruptCurrentThread()) {
                             state.compareAndSet(RUNNING, PROPAGATING_CANCELED);
                             futureToken.cancel(true);
                         }
@@ -146,7 +146,7 @@ public class CancellationToken {
      *
      * @return the current state
      */
-    public State getState() {
+    public State state() {
         return state.get();
     }
 
@@ -190,7 +190,7 @@ public class CancellationToken {
         }
 
         /** Returns the state code. */
-        public int getCode() {
+        public int code() {
             return code;
         }
 

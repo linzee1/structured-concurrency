@@ -43,6 +43,10 @@ Two invariants to respect:
 ## Key Conventions
 
 - Java 8 APIs only in `src/main/java`.
+- Accessors use the bare `x()` style everywhere (`token.state()`, `event.result()`);
+  do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
+  third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
+  `Monitor.Guard.isSatisfied()`).
 - Every package has `package-info.java` with `@ParametersAreNonnullByDefault`;
   annotate only exceptions with `@Nullable` — `javax.annotation.Nullable` for
   public API/SPI, `org.checkerframework.checker.nullness.qual.Nullable` for

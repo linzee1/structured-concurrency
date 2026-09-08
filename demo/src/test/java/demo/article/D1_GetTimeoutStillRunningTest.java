@@ -137,7 +137,7 @@ public class D1_GetTimeoutStillRunningTest {
         assertThat(task2Completed.get()).isFalse();
 
         // 验证：所有 Future 都已取消
-        for (Future<Integer> future : result.getResults()) {
+        for (Future<Integer> future : result.results()) {
             assertThat(future.isCancelled() || future.isDone()).isTrue();
         }
     }

@@ -362,10 +362,10 @@ class DrainingBlockingQueueTest {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(5);
         queue.addAll(Arrays.asList(1, 2, 3));
         queue.close();
-        assertTrue(queue.isDraining());
-        assertFalse(queue.isDrained());
+        assertTrue(queue.draining());
+        assertFalse(queue.drained());
         assertTrue(queue.removeIf(value -> true));
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
         assertFalse(queue.removeIf(value -> true));
     }
 
@@ -391,9 +391,9 @@ class DrainingBlockingQueueTest {
     @Test
     void isShutdownIsFalseWhenOpenAndTrueAfterClose() {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>(2);
-        assertFalse(queue.isShutdown());
+        assertFalse(queue.shutdown());
         queue.close();
-        assertTrue(queue.isShutdown());
+        assertTrue(queue.shutdown());
     }
 
     @Test
@@ -419,7 +419,7 @@ class DrainingBlockingQueueTest {
         queue.add(1);
         queue.close();
         assertTrue(queue.remove(Integer.valueOf(1)));
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
         assertFalse(queue.remove(Integer.valueOf(1)));
         assertFalse(queue.remove(null));
     }
@@ -467,15 +467,15 @@ class DrainingBlockingQueueTest {
         queue.addAll(Arrays.asList(1, 2));
         queue.close();
 
-        assertTrue(queue.isShutdown());
-        assertTrue(queue.isDraining());
-        assertFalse(queue.isDrained());
+        assertTrue(queue.shutdown());
+        assertTrue(queue.draining());
+        assertFalse(queue.drained());
         assertEquals(2, queue.size());
         assertFalse(queue.isEmpty());
         assertEquals(1, queue.take());
         assertEquals(2, queue.poll());
-        assertTrue(queue.isDrained());
-        assertFalse(queue.isDraining());
+        assertTrue(queue.drained());
+        assertFalse(queue.draining());
         assertTrue(queue.awaitDrained(1, TimeUnit.SECONDS));
     }
 
@@ -483,9 +483,9 @@ class DrainingBlockingQueueTest {
     void closeEmptyQueuePublishesDrainedImmediately() throws Exception {
         DrainingBlockingQueue<Integer> queue = new DrainingBlockingQueue<>();
         queue.close();
-        assertTrue(queue.isShutdown());
-        assertFalse(queue.isDraining());
-        assertTrue(queue.isDrained());
+        assertTrue(queue.shutdown());
+        assertFalse(queue.draining());
+        assertTrue(queue.drained());
         queue.awaitDrained();
         assertTrue(queue.awaitDrained(1, TimeUnit.MILLISECONDS));
     }
@@ -575,7 +575,7 @@ class DrainingBlockingQueueTest {
         assertNull(failure.get());
         assertEquals(2, queue.poll());
         queue.close();
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
     }
 
     @Test
@@ -639,7 +639,7 @@ class DrainingBlockingQueueTest {
         assertTrue(queue.removeIf(value -> value % 2 == 1));
         assertEquals(1, queue.size());
         assertTrue(queue.remove(Integer.valueOf(2)));
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
         assertFalse(queue.removeIf(value -> true));
         assertFalse(queue.remove(2));
 
@@ -666,7 +666,7 @@ class DrainingBlockingQueueTest {
         assertEquals(1, queue.size());
         assertEquals(1, queue.drainTo(target));
         assertIterableEquals(Arrays.asList(1, 2, 3), target);
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
     }
 
     @Test
@@ -677,7 +677,7 @@ class DrainingBlockingQueueTest {
         CollectionThatFails target = new CollectionThatFails();
         assertThrows(IllegalStateException.class, () -> queue.drainTo(target));
         assertTrue(queue.isEmpty());
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
     }
 
     @Test
@@ -819,10 +819,10 @@ class DrainingBlockingQueueTest {
         Iterator<Integer> it = queue.iterator();
         assertEquals(1, it.next());
         it.remove();
-        assertFalse(queue.isDrained());
+        assertFalse(queue.drained());
         assertEquals(2, it.next());
         it.remove();
-        assertTrue(queue.isDrained());
+        assertTrue(queue.drained());
     }
 
     @Test

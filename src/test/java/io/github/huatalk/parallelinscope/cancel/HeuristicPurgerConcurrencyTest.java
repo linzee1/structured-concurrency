@@ -217,9 +217,9 @@ public class HeuristicPurgerConcurrencyTest {
 
         /** Counts capacity snapshots. */
         @Override
-        public int getCapacity() {
+        public int capacity() {
             accessCount.incrementAndGet();
-            return super.getCapacity();
+            return super.capacity();
         }
 
         /** Resets the counter after purge has entered its controlled blocking point. */

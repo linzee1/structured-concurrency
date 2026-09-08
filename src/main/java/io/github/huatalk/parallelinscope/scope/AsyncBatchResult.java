@@ -3,7 +3,6 @@ package io.github.huatalk.parallelinscope.scope;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.github.huatalk.parallelinscope.internal.FutureInspector;
-import io.github.huatalk.parallelinscope.internal.FutureState;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -37,7 +36,7 @@ public final class AsyncBatchResult<T> {
      *
      * @return the submission-loop future
      */
-    public ListenableFuture<?> getSubmitCanceller() {
+    public ListenableFuture<?> submitCanceller() {
         return submitCanceller;
     }
 
@@ -46,7 +45,7 @@ public final class AsyncBatchResult<T> {
      *
      * @return the individual result futures
      */
-    public List<ListenableFuture<T>> getResults() {
+    public List<ListenableFuture<T>> results() {
         return results;
     }
 
@@ -74,23 +73,27 @@ public final class AsyncBatchResult<T> {
     }
 
     /**
-     * Generates execution report: counts tasks by state and extracts first failure exception.
+     * Generates execution report: counts tasks by outcome and extracts first failure exception.
      *
-     * @return a BatchReport containing state counts and the first exception (if any)
+     * @return a BatchReport containing outcome counts and the first exception (if any)
      */
     public BatchReport report() {
-        Map<FutureState, Integer> stateMap = results.stream()
+        Map<TaskOutcome, Integer> outcomeMap = results.stream()
                 .collect(Collectors.toMap(
-                        FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(FutureState.class)));
+                        FutureInspector::state, x -> 1, Integer::sum, () -> new EnumMap<>(TaskOutcome.class)));
         Throwable firstException = null;
-        if (stateMap.containsKey(FutureState.FAILED)) {
+        if (outcomeMap.containsKey(TaskOutcome.USER_FAILURE)
+                || outcomeMap.containsKey(TaskOutcome.SUBMISSION_FAILURE)) {
             firstException = results.stream()
-                    .filter(x -> FutureInspector.state(x) == FutureState.FAILED)
+                    .filter(x -> {
+                        TaskOutcome outcome = FutureInspector.state(x);
+                        return outcome == TaskOutcome.USER_FAILURE || outcome == TaskOutcome.SUBMISSION_FAILURE;
+                    })
                     .map(FutureInspector::exceptionNow)
                     .findFirst()
                     .orElse(null);
         }
-        return new BatchReport(stateMap, firstException);
+        return new BatchReport(outcomeMap, firstException);
     }
 
     /**
@@ -102,26 +105,26 @@ public final class AsyncBatchResult<T> {
      */
     public String reportString() {
         BatchReport r = report();
-        Map<FutureState, Integer> stateCounts = r.getStateCounts();
+        Map<TaskOutcome, Integer> stateCounts = r.stateCounts();
         if (stateCounts == null) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
         boolean first = true;
-        for (Map.Entry<FutureState, Integer> e : stateCounts.entrySet()) {
+        for (Map.Entry<TaskOutcome, Integer> e : stateCounts.entrySet()) {
             if (!first) sb.append(',');
             sb.append(e.getKey()).append(':').append(e.getValue());
             first = false;
         }
-        if (r.getFirstException() != null) {
-            sb.append(" | firstException=").append(r.getFirstException().getMessage());
+        if (r.firstException() != null) {
+            sb.append(" | firstException=").append(r.firstException().getMessage());
         }
         return sb.toString();
     }
 
     /** Immutable report of batch task execution state. */
     public static final class BatchReport {
-        private final @Nullable Map<FutureState, Integer> stateCounts;
+        private final @Nullable Map<TaskOutcome, Integer> stateCounts;
         private final Throwable firstException;
 
         /**
@@ -130,7 +133,7 @@ public final class AsyncBatchResult<T> {
          * @param stateCounts counts keyed by terminal or current future state
          * @param firstException the first observed failure, or {@code null}
          */
-        public BatchReport(@Nullable Map<FutureState, Integer> stateCounts, @Nullable Throwable firstException) {
+        public BatchReport(@Nullable Map<TaskOutcome, Integer> stateCounts, @Nullable Throwable firstException) {
             this.stateCounts = immutableStateCounts(stateCounts);
             this.firstException = firstException;
         }
@@ -141,7 +144,7 @@ public final class AsyncBatchResult<T> {
          * @return the immutable state count map, or {@code null} when unavailable
          */
         @Nullable
-        public Map<FutureState, Integer> getStateCounts() {
+        public Map<TaskOutcome, Integer> stateCounts() {
             return stateCounts;
         }
 
@@ -151,7 +154,7 @@ public final class AsyncBatchResult<T> {
          * @return the first failure, or {@code null} if no task failed
          */
         @Nullable
-        public Throwable getFirstException() {
+        public Throwable firstException() {
             return firstException;
         }
 
@@ -160,12 +163,12 @@ public final class AsyncBatchResult<T> {
             return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
         }
 
-        private static @Nullable Map<FutureState, Integer> immutableStateCounts(
-                @Nullable Map<FutureState, Integer> stateCounts) {
+        private static @Nullable Map<TaskOutcome, Integer> immutableStateCounts(
+                @Nullable Map<TaskOutcome, Integer> stateCounts) {
             if (stateCounts == null) {
                 return null;
             }
-            EnumMap<FutureState, Integer> copy = new EnumMap<>(FutureState.class);
+            EnumMap<TaskOutcome, Integer> copy = new EnumMap<>(TaskOutcome.class);
             copy.putAll(stateCounts);
             return Collections.unmodifiableMap(copy);
         }
