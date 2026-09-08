@@ -80,13 +80,17 @@ public interface CombineFunction<R> {
     R apply(CompletedTaskValues values) throws Exception;
 }
 
-public interface CompletedTaskValues {
-    <T> T value(TaskRef<T> ref);
+public final class CompletedTaskValues {
+    CompletedTaskValues(...) { ... } // 包私有构造，框架独占实例化
+
+    public <T> T value(TaskRef<T> ref) { ... }
 }
 ```
 
 要点：
 
+- `CompletedTaskValues` 是 final class 而非 interface：用户从不实现它，只在 lambda 中调用 `value(ref)`；实例化由框架独占，"视图仅在 `apply` 期间有效、回调返回后可释放引用"的语义不受第三方实现干扰；
+- `CombineFunction` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为 `USER_FAILURE`），combine 与 member 并列在同一定义 API 上，受检异常处理必须对称；JDK 函数式接口中没有"单参且抛受检异常"的类型，这是新增此接口的唯一理由。注意 Batch（`Par.map`）的用户函数是不抛受检异常的 JDK `Function`——这是既有分叉（batch 元素仿 `Stream.map`，group member 仿 `ExecutorService.submit(Callable)`），combine 跟随 member 一侧。备选方案 `Function<CompletedTaskValues, R>`（零新增函数式接口、用户自行包装受检异常）被拒绝：运行时异常虽仍能收敛 `USER_FAILURE`，但同一 Builder 内 member/combine 不对称，且包装污染 `TaskCompletion.failure()` 的 cause 链；
 - `combine(ref, executorName, function, options)` 在配置期校验：参数为 null、ref 名称与任一 member 或 combine 重复，立即拒绝；一个 definition 至多一个 combine。executor 只接受注册名（submit 时经 `GlobalPar.par(executorName)` 解析，未知名称抛 `IllegalArgumentException`），不提供 `Par` 实例重载，与 member 对称；
 - `TaskGroup` 不新增泛型参数，也不新增 `resultFuture()`：terminal future 通过既有的 `group.future(combineRef)` 取回，类型安全、未知 ref 校验和 Guava 终态语义全部复用成员路径；
 - `combineOptions` 即 `MultiTaskOptions`，读取 name/timeout/taskType/rejectEnqueue，与 member 一致；不能覆盖 Group 的取消策略，listeners 仍只有组级读取；
