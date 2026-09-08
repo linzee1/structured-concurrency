@@ -39,14 +39,14 @@ public final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> impleme
      * --------------------------  -------------------------------------------------------------
      * SUBMITTED                   No worker has claimed the runnable yet.
      * RUNNING                     A worker has claimed the runnable.
-     * CANCELLED_BEFORE_RUN        Cancellation won before run() claimed the runnable.
+     * CANCELED_BEFORE_RUN         Cancellation won before run() claimed the runnable.
      * CANCEL_REQUESTED_RUNNING    Cancellation followed a run() claim.
      * TERMINAL                    run() has returned.
      *
      * State transitions:
      *
      *                          cancellation wins
-     * SUBMITTED ----------------------------------------------> CANCELLED_BEFORE_RUN
+     * SUBMITTED ----------------------------------------------> CANCELED_BEFORE_RUN
      *     |
      *     | worker run() wins
      *     v
@@ -186,8 +186,8 @@ public final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> impleme
             ExecutionPhase current = phase.get();
             if (current == ExecutionPhase.SUBMITTED) {
                 // Cancel won before run(): no worker will emit phases, so report it here and release.
-                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
-                    notifyPhase(ExecutionPhase.CANCELLED_BEFORE_RUN);
+                if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELED_BEFORE_RUN)) {
+                    notifyPhase(ExecutionPhase.CANCELED_BEFORE_RUN);
                     phaseObserver = NOOP;
                 }
             } else if (current == ExecutionPhase.RUNNING) {

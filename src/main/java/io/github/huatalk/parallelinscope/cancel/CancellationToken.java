@@ -1,12 +1,12 @@
 package io.github.huatalk.parallelinscope.cancel;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.FAIL_FAST_CANCELED;
-import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.MUTUAL_CANCELED;
-import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.PROPAGATING_CANCELED;
+import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.CANCELED;
+import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.FAIL_FAST;
+import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.PROPAGATED_CANCELED;
 import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.RUNNING;
 import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.SUCCESS;
-import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.TIMEOUT_CANCELED;
+import static io.github.huatalk.parallelinscope.cancel.CancellationToken.State.TIMEOUT;
 
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.FutureCallback;
@@ -51,7 +51,7 @@ public class CancellationToken {
      *
      * <p>This constructor is the single parent-propagation mechanism: when the parent's work is
      * canceled, timed out, or fail-fast-canceled (any parent state for which interruption is
-     * required), this token transitions to {@code PROPAGATING_CANCELED} and cancels its linked
+     * required), this token transitions to {@code PROPAGATED_CANCELED} and cancels its linked
      * future. No additional wiring in {@link #bind} or the caller is needed.
      *
      * @param parent the parent token, or {@code null} for a root token
@@ -75,7 +75,7 @@ public class CancellationToken {
         if (parent != null) {
             parent.futureToken.addListener(
                     () -> {
-                        if (parent.state().shouldInterruptCurrentThread() && transitionTo(PROPAGATING_CANCELED)) {
+                        if (parent.state().shouldInterruptCurrentThread() && transitionTo(PROPAGATED_CANCELED)) {
                             futureToken.cancel(true);
                         }
                     },
@@ -114,7 +114,7 @@ public class CancellationToken {
      * Connects this token to submitted work and arms its deadline.
      *
      * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
-     * {@code TIMEOUT_CANCELED} when its deadline expires first, and {@code FAIL_FAST_CANCELED}
+     * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
      * when any future fails. Every canceling transition cancels the futures and the submission
      * canceller; cancelling an already-successful future is a no-op, so a late cancel never
      * destroys a recorded result. An already-expired deadline simply schedules the timeout for
@@ -146,7 +146,7 @@ public class CancellationToken {
                         // Commit the state before cancelling: a listener can still fix a cause (a
                         // task group escalating a member timeout) before cascade cancellation makes
                         // every path look like fail-fast.
-                        transitionTo(failure instanceof TimeoutException ? TIMEOUT_CANCELED : FAIL_FAST_CANCELED);
+                        transitionTo(failure instanceof TimeoutException ? TIMEOUT : FAIL_FAST);
                         allFutures.cancel(true);
                     }
                 },
@@ -171,7 +171,7 @@ public class CancellationToken {
      * @param useInterrupt whether to interrupt running threads
      */
     public void cancel(boolean useInterrupt) {
-        if (transitionTo(MUTUAL_CANCELED)) {
+        if (transitionTo(CANCELED)) {
             futureToken.cancel(useInterrupt);
         }
     }
@@ -184,7 +184,7 @@ public class CancellationToken {
      * the group's completion reason stays {@code TIMEOUT} instead of collapsing into fail-fast.
      */
     public void timeoutCancel() {
-        if (transitionTo(TIMEOUT_CANCELED)) {
+        if (transitionTo(TIMEOUT)) {
             futureToken.cancel(true);
         }
     }
@@ -201,11 +201,11 @@ public class CancellationToken {
     /**
      * Returns the terminal state that originated the cancellation, following propagation links.
      *
-     * <p>When this token was canceled by its parent, its own state is {@code PROPAGATING_CANCELED}
+     * <p>When this token was canceled by its parent, its own state is {@code PROPAGATED_CANCELED}
      * and carries no reason; this method walks the parent chain to the first token whose terminal
-     * state is not {@code PROPAGATING_CANCELED} and returns that originating state. A token that
+     * state is not {@code PROPAGATED_CANCELED} and returns that originating state. A token that
      * reached its terminal state on its own (or is still running) simply reports {@link #state()}.
-     * The walk is safe at any moment: a token only transitions to {@code PROPAGATING_CANCELED}
+     * The walk is safe at any moment: a token only transitions to {@code PROPAGATED_CANCELED}
      * after its parent committed a terminal state, and terminal states never change afterwards.
      *
      * @return the originating terminal state, or the current state when nothing propagated
@@ -213,7 +213,7 @@ public class CancellationToken {
     public State originState() {
         CancellationToken token = this;
         State s = token.state();
-        while (s == PROPAGATING_CANCELED && token.parent != null) {
+        while (s == PROPAGATED_CANCELED && token.parent != null) {
             token = token.parent;
             s = token.state();
         }
@@ -262,13 +262,13 @@ public class CancellationToken {
         /** The task completed successfully. */
         SUCCESS(1),
         /** A sibling task failed, triggering fail-fast cancellation. */
-        FAIL_FAST_CANCELED(-1),
+        FAIL_FAST(-1),
         /** The task timed out. */
-        TIMEOUT_CANCELED(-2),
+        TIMEOUT(-2),
         /** The token was explicitly canceled. */
-        MUTUAL_CANCELED(-3),
+        CANCELED(-3),
         /** The parent token was canceled. */
-        PROPAGATING_CANCELED(-4);
+        PROPAGATED_CANCELED(-4);
 
         private final int code;
 

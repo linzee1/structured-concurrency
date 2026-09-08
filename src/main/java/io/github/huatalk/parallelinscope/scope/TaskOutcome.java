@@ -11,6 +11,14 @@ package io.github.huatalk.parallelinscope.scope;
  * <p>{@link io.github.huatalk.parallelinscope.internal.FutureInspector} maps an arbitrary {@code
  * Future} onto these values conservatively; richer outcomes are available when the task exposes a
  * phase hint (see {@code ExecutionPhaseHintFuture}).
+ *
+ * <p>This enum is also the terminal vocabulary of a whole task group: {@link
+ * TaskGroupResult#outcome()} reports one of {@link #SUCCESS}, {@link #USER_FAILURE}, {@link
+ * #SUBMISSION_FAILURE}, {@link #TIMEOUT}, {@link #MEMBER_CANCELED}, or {@link #GROUP_CANCELED} —
+ * a failing group adopts the failed member's own outcome. At group level, {@link #MEMBER_CANCELED}
+ * means the cancellation originated from (or was applied directly to) a single member, while
+ * {@link #GROUP_CANCELED} means the group was canceled as a whole or the cancellation propagated
+ * down from an enclosing scope.
  */
 public enum TaskOutcome {
     /** Task has not reached a terminal state. */

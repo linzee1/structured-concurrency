@@ -116,7 +116,7 @@ public class ExecutionPhaseCartesianTest {
             assertThat(future.isCancelled()).isTrue();
             assertThat(entered.getCount()).isOne();
             assertThat(interrupted).isFalse();
-            assertThat(phases).containsExactly(ExecutionPhase.CANCELLED_BEFORE_RUN);
+            assertThat(phases).containsExactly(ExecutionPhase.CANCELED_BEFORE_RUN);
         } else if (timing == Timing.RUNNING) {
             assertThat(future.isCancelled()).isTrue();
             if (mayInterrupt) {

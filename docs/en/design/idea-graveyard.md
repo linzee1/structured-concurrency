@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> Historical examples in this note may use the pre-v0.2 API. Current application wiring uses `GlobalPar.builder()` and `BatchExecutionOptions`; see the [migration guide](../migration-v0.2.md).
+> Historical examples in this note may use the pre-v0.2 API. Current application wiring uses `GlobalPar.builder()` and `MultiTaskOptions`; see the [migration guide](../migration-v0.2.md).
 
 This page records features we seriously considered but ultimately decided not to implement, together with the reasons for rejecting them.
 

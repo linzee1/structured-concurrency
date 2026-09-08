@@ -85,7 +85,7 @@ final class ListenableCompletionService<V> implements CompletionService<V> {
     private static Consumer<ExecutionPhase> phaseObserverFor(Runnable queuedCancellationObserver) {
         Objects.requireNonNull(queuedCancellationObserver);
         return phase -> {
-            if (phase == ExecutionPhase.CANCELLED_BEFORE_RUN) {
+            if (phase == ExecutionPhase.CANCELED_BEFORE_RUN) {
                 queuedCancellationObserver.run();
             }
         };

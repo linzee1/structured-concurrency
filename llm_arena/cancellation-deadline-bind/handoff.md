@@ -129,5 +129,5 @@ for (MemberState member : memberStates.values()) {
 
 - `ParallelTaskGroupTest`：成员主动取消相关用例按新语义（级联、reason 变化）改；deadline/超时归因用例按归因表校准。契约 §8.2 测试原样会挂，属预期。
 - `CancellationTokenTest` 等 4 个改名测试补 deadline 用例（parent min、expired-at-bind、cancel-fails-on-done-future）。
-- 文档：`docs/zh/design/parallel-task-group-contract-final.md` §8.2/§8.4 按新语义改写；user-guide 取消章节；migration-v0.2 记 batch 元素取消时 token state 由 `FAIL_FAST_CANCELED` 概念迁移的说明（如采纳）；AGENTS.md 里「lateBind wires...」invariant 改名与改写。
+- 文档：`design/task-group-cancellation.md` §8.2/§8.4 按新语义改写；user-guide 取消章节；migration-v0.2 记 batch 元素取消时 token state 由 `FAIL_FAST_CANCELED` 概念迁移的说明（如采纳）；AGENTS.md 里「lateBind wires...」invariant 改名与改写。
 - 全量 `mvn test` + `mvn spotless:apply` 收尾。

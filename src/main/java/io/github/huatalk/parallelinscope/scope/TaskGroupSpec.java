@@ -41,20 +41,25 @@ public final class TaskGroupSpec {
 
     /** Immutable description of one group member. */
     public static final class MemberSpec<T> {
-        private final String memberName;
+        private final TaskRef<T> ref;
         private final String executorName;
         private final Callable<T> callable;
         private final MultiTaskOptions options;
 
-        private MemberSpec(String memberName, String executorName, Callable<T> callable, MultiTaskOptions options) {
-            this.memberName = memberName;
+        private MemberSpec(TaskRef<T> ref, String executorName, Callable<T> callable, MultiTaskOptions options) {
+            this.ref = ref;
             this.executorName = executorName;
             this.callable = callable;
             this.options = options;
         }
 
         public String memberName() {
-            return memberName;
+            return ref.memberName();
+        }
+
+        /** The token the member was registered with; carries the captured result type. */
+        public TaskRef<T> ref() {
+            return ref;
         }
 
         /** Name of the {@code Par} registered on the submitting {@code GlobalPar}. */
@@ -80,18 +85,22 @@ public final class TaskGroupSpec {
             this.groupOptions = Objects.requireNonNull(groupOptions, "groupOptions cannot be null");
         }
 
+        /**
+         * Registers one member. The token carries the member name and captures its result type;
+         * name nullness and blankness are rejected by the {@link TaskRef} constructor, while a
+         * duplicate name is rejected here.
+         */
         public <T> TaskRef<T> task(
-                String memberName, String executorName, Callable<T> callable, MultiTaskOptions options) {
-            Objects.requireNonNull(memberName, "memberName cannot be null");
-            if (memberName.trim().isEmpty()) throw new IllegalArgumentException("memberName cannot be empty");
+                TaskRef<T> ref, String executorName, Callable<T> callable, MultiTaskOptions options) {
+            Objects.requireNonNull(ref, "ref cannot be null");
             Objects.requireNonNull(executorName, "executorName cannot be null");
             Objects.requireNonNull(callable, "callable cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
-            if (members.containsKey(memberName)) {
-                throw new IllegalArgumentException("Duplicate memberName '" + memberName + "'");
+            if (members.containsKey(ref.memberName())) {
+                throw new IllegalArgumentException("Duplicate memberName '" + ref.memberName() + "'");
             }
-            members.put(memberName, new MemberSpec<>(memberName, executorName, callable, options));
-            return new TaskRef<>(memberName);
+            members.put(ref.memberName(), new MemberSpec<>(ref, executorName, callable, options));
+            return ref;
         }
 
         public TaskGroupSpec build() {

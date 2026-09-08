@@ -1,41 +1,44 @@
 # Guava ListenableFuture 取消传播机制
 
-> 起因：`CancellationToken.bind` 曾从 addCallback 形态重写成链式调用（`withTimeout → transform → catchingAsync`），
-> 目标是简洁、功能不变，实际引入两个 bug，6 个测试挂掉。两个 bug 都源于对 Guava 取消传播语义的隐含错误假设。
+> `CancellationToken.bind` 的正确性依赖一组 Guava 取消传播语义，这些语义并不直观。
 > 本文记录这套机制与正确用法。全部结论对 `guava-33.6.0-jre` 源码逐条验证过，每节附源码位置。
 
-## 1. 事故复盘
-
-改动前（正确）：
+## 1. 当前 bind 形态
 
 ```java
-FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
-        .catchingAsync(Throwable.class, ex -> Futures.immediateCancelledFuture(), directExecutor())
-        .withTimeout(timeout, timer);
+public <T> void bind(
+        List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
+    // deadline 存在 token 内部（构造时与 parent 取 min），bind 不再接收 Duration
+    FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
+            .withTimeout(Duration.ofNanos(deadlineNanos - System.nanoTime()), timer);
+    // 统一取消句柄：successfulAsList 要等全部 input 完成才终态，
+    // 所以在「某个成员已失败」的时刻它仍然 pending，取消它能级联到所有 inputs
+    ListenableFuture<?> allFutures =
+            Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 
-// 统一取消句柄：successfulAsList 要等全部 input 完成才终态，
-// 所以在「某个成员已失败」的时刻它仍然 pending，取消它能级联到所有 inputs
-ListenableFuture<?> allFutures =
-        Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
-
-failFastFuture.addCallback(new FutureCallback<>() {
-    onSuccess: CAS SUCCESS;
-    onFailure: CAS TIMEOUT/FAIL_FAST; allFutures.cancel(true);
-}, directExecutor());
+    failFastFuture.addCallback(new FutureCallback<>() {
+        onSuccess: transitionTo(SUCCESS);
+        onFailure: transitionTo(TIMEOUT 或 FAIL_FAST); allFutures.cancel(true);
+    }, directExecutor());
+    futureToken.setFuture(failFastFuture);
+}
 ```
 
-改动后（bug）：取消动作挪进 `catchingAsync` 的 fallback，统一取消句柄换成 `allAsList`。
+两条形状约束决定了这个形态（机制见 §2/§3，规则汇总见 §7）：
 
-| bug | 现象 | 根因 |
-|---|---|---|
-| 1 | 成员失败后 siblings 不被取消 | 成员失败的瞬间 `allAsList` 就已**失败终态**，对已完成 future 调 `cancel` 是 no-op，级联不到 inputs |
-| 2 | 手动 `cancel()` 后 submitCanceller 不被取消 | 取消动作只写在 `catchingAsync` fallback 里，而 top-down 取消传播**绕过 fallback**（见 §2.1） |
+1. **取消动作必须放在 `addCallback` 里**：top-down 取消到达不了 `catchingAsync` 的
+   fallback（§2.1），写在 fallback 里的取消逻辑是死代码；`addCallback` 的 `onFailure`
+   两个方向都会触发（§2.3）。
+2. **统一取消句柄必须是还 pending 的组合 future（`successfulAsList`）**：`allAsList`
+   在第一个失败/取消时就终态，对已完成 future 调 `cancel` 是 no-op，级联不到 inputs（§3）。
 
 ## 2. 机制一：取消和失败是两条传播路径
 
 失败沿链**向下游**（output 方向）传播：input 失败 → output 失败（transform 跳过、catching 进 fallback）。
 取消沿链**向上游**（input 方向）传播：output 被取消 → `afterDone()` → `maybePropagateCancellationTo(input)`
 → input 被取消 → 一路传到链基。方向相反，是全部混乱的来源。
+
+以一条通用组合链示意两个方向（不代表 bind 的实际形状，bind 里没有 catchingAsync）：
 
 ```text
 output.cancel(true)                     member.future.cancel(true)
@@ -58,7 +61,7 @@ if ((localInputFuture == null | ...)
 ```
 
 top-down 取消先取消 catchingAsync 的**输出**，之后 input 完成触发 `run()`，`isCancelled()` 命中直接 return。
-fallback 里的任何逻辑（包括取消 submitCanceller）在这条路径上是死代码。
+fallback 里的任何逻辑在这条路径上都是死代码。
 
 ### 2.2 bottom-up：取消会以 CancellationException 进 fallback
 
@@ -74,7 +77,7 @@ fallback 里的任何逻辑（包括取消 submitCanceller）在这条路径上�
 
 `Futures.CallbackListener.run()` 对 future `getUninterruptibly`，cancelled future 抛
 `CancellationException`（RuntimeException）→ `catch (RuntimeException | Error e)` → `onFailure(e)` 被调用。
-**两个方向都进 onFailure**——这是 addCallback 与 catching 系的本质区别，也是旧实现正确的原因。
+**两个方向都进 onFailure**——这是 addCallback 与 catching 系的本质区别。
 
 ## 3. 机制二：组合 future 的取消级联（allAsList ≠ successfulAsList）
 
@@ -89,7 +92,7 @@ fallback 里的任何逻辑（包括取消 submitCanceller）在这条路径上�
 | 适用角色 | 「全部成功才算成功」的判定器 | **统一取消句柄** |
 
 结论：**能安全当取消句柄用的，只有还 pending 的组合 future**。
-`allAsList` 在第一个失败/取消时就终态，天然错过取消窗口——这是 bug 1 的机制。
+`allAsList` 在第一个失败/取消时就终态，天然错过取消窗口。
 `successfulAsList(futures, submitCanceller)` 嵌套一层，把任务 futures 和 submitter 拉进同一个可取消句柄。
 
 ## 4. setFuture 与 cancel 的双向桥

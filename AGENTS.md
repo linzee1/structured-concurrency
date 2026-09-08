@@ -81,3 +81,14 @@ Never commit secrets, `.env` files, GPG keys, or repository credentials.
 
 - `docs/en/user-guide.md` - Read when changing user-facing behavior.
 - `docs/en/migration-v0.2.md` - Breaking changes from the `0.1.x` API.
+
+## Design Documents
+
+Before changing the execution engine, cancellation, task groups, or queue
+behavior, read `design/AGENTS.md` first and load only the documents whose
+summaries match your task — do not pre-read everything.
+Overview: task group contract → `design/task-group-*.md`; cancellation
+propagation mechanics → `design/cancellation-propagation.md`; queue
+lifecycle contract → `design/draining-queue-contract.md`; design rationale
+and rejected ideas → `docs/zh/design/philosophy.md` and
+`docs/zh/design/idea-graveyard.md`; immutable decision records → `adr/`.

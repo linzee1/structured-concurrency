@@ -75,10 +75,10 @@ global.par("myExecutor").map(items, item -> {
 
 | Source | Token state | Meaning |
 |---|---|---|
-| Sibling failure | `FAIL_FAST_CANCELED` | One task failed and the rest of the batch was cancelled |
-| Timeout | `TIMEOUT_CANCELED` | The configured timeout elapsed |
-| Manual cancellation | `MUTUAL_CANCELED` | Application code called `CancellationToken.cancel()` |
-| Parent cancellation | `PROPAGATING_CANCELED` | An outer scope cancelled a nested scope |
+| Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
+| Timeout | `TIMEOUT` | The configured timeout elapsed |
+| Manual cancellation | `CANCELED` | Application code called `CancellationToken.cancel()` |
+| Parent cancellation | `PROPAGATED_CANCELED` | An outer scope cancelled a nested scope |
 
 All sources are observed through the same token state check. Nested `Par.map` calls inherit a parent token, so cancellation propagates to child tasks at their next checkpoint or blocking operation.
 

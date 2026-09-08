@@ -174,7 +174,7 @@ public class ListenableCompletionServiceTest {
         ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 2, cancelledPhases::add);
 
         assertThat(cancelled.cancel(false)).isTrue();
-        assertThat(cancelledPhases).containsExactly(ExecutionPhase.CANCELLED_BEFORE_RUN);
+        assertThat(cancelledPhases).containsExactly(ExecutionPhase.CANCELED_BEFORE_RUN);
 
         List<ExecutionPhase> runningCancellationPhases = new java.util.concurrent.CopyOnWriteArrayList<>();
         CountDownLatch started = new CountDownLatch(1);

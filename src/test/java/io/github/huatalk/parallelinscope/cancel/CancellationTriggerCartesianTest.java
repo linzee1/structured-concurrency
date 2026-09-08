@@ -63,9 +63,8 @@ public class CancellationTriggerCartesianTest {
                 token.cancel(true);
             }
 
-            CancellationToken.State expected = trigger == Trigger.TIMEOUT
-                    ? CancellationToken.State.TIMEOUT_CANCELED
-                    : CancellationToken.State.MUTUAL_CANCELED;
+            CancellationToken.State expected =
+                    trigger == Trigger.TIMEOUT ? CancellationToken.State.TIMEOUT : CancellationToken.State.CANCELED;
             awaitState(token, expected);
             awaitCancelled(fixture.future);
             awaitCancelled(submitter);
@@ -98,7 +97,7 @@ public class CancellationTriggerCartesianTest {
             token.bind(Collections.singletonList(fixture.future), Futures.immediateVoidFuture(), timer);
             token.cancel(false);
 
-            awaitState(token, CancellationToken.State.MUTUAL_CANCELED);
+            awaitState(token, CancellationToken.State.CANCELED);
             awaitCancelled(fixture.future);
             assertThat(fixture.interrupted)
                     .as("cancel(false) must preserve the non-interrupting contract")

@@ -2,6 +2,7 @@ package io.github.huatalk.parallelinscope.scope;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -37,7 +38,7 @@ import javax.annotation.Nullable;
  * <p>A group is described by a reusable {@link TaskGroupSpec} and submitted via {@link
  * #submit(GlobalPar, TaskGroupSpec)}, which builds, starts, and submits all members in one call.
  * Member futures are looked up by name ({@link #members()}, {@link #findMember(String)}) or through
- * the typed {@link TaskRef} tokens handed out while configuring the spec ({@link #future(TaskRef)}).
+ * the typed {@link TaskRef} tokens registered while configuring the spec ({@link #future(TaskRef)}).
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
  * deadline, or any single member deadline cancels every unfinished member. All outcomes are
@@ -61,7 +62,7 @@ public final class TaskGroup implements AutoCloseable {
     private final CancellationToken groupToken;
 
     private int terminalCount;
-    private @Nullable TaskGroupCompletionReason completionReason;
+    private @Nullable TaskOutcome outcome;
     private @Nullable String failedMemberName;
     private boolean closed;
 
@@ -103,15 +104,25 @@ public final class TaskGroup implements AutoCloseable {
         return members;
     }
 
-    /** Resolves the future of the member the token was created for in this group. */
+    /**
+     * Resolves the future of the member the token was created for in this group.
+     *
+     * @throws IllegalArgumentException if no member carries the token's name, or if the token's
+     *     raw result type is not assignable from the type the member was registered with (a token
+     *     claiming a supertype of the registered type is accepted)
+     */
     @SuppressWarnings("unchecked")
     public <T> ListenableFuture<T> future(TaskRef<T> ref) {
         Objects.requireNonNull(ref, "ref cannot be null");
-        ListenableFuture<?> future = members.get(ref.memberName());
-        if (future == null) {
+        MemberState member = memberStates.get(ref.memberName());
+        if (member == null) {
             throw new IllegalArgumentException("No member named '" + ref.memberName() + "'");
         }
-        return (ListenableFuture<T>) future;
+        if (!ref.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
+            throw new IllegalArgumentException("Member '" + ref.memberName() + "' was registered with result type "
+                    + member.resultType + " but the ref claims " + ref.resultType());
+        }
+        return (ListenableFuture<T>) member.future;
     }
 
     /** Cancels every unfinished member without blocking for user code to stop. */
@@ -141,7 +152,7 @@ public final class TaskGroup implements AutoCloseable {
         // the group converges on TIMEOUT, not FAILED. A member that inherits the group deadline
         // resolves to exactly the same deadlineNanos and skips this step: downward propagation is
         // wired by the CancellationToken constructor listener (group token -> member token
-        // PROPAGATING_CANCELED), and member future cancellation is covered by the group bind above,
+        // PROPAGATED_CANCELED), and member future cancellation is covered by the group bind above,
         // so a member bind would only arm a redundant timer for the same instant. Note that a
         // skipped member token never binds, so it stays RUNNING forever (it never observes SUCCESS);
         // attribution reads the group token instead (see classifyCancelled).
@@ -151,7 +162,7 @@ public final class TaskGroup implements AutoCloseable {
                 continue;
             }
             memberToken.addStateListener(state -> {
-                if (state == CancellationToken.State.TIMEOUT_CANCELED) {
+                if (state == CancellationToken.State.TIMEOUT) {
                     groupToken.timeoutCancel();
                 }
             });
@@ -226,21 +237,21 @@ public final class TaskGroup implements AutoCloseable {
      * still reported as {@link TaskOutcome#TIMEOUT}.
      */
     private TaskOutcome classifyCancelled(MemberState member) {
-        if (member.context.batchContext().cancellationToken().state() == CancellationToken.State.TIMEOUT_CANCELED) {
+        if (member.context.batchContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
             return TaskOutcome.TIMEOUT;
         }
         switch (groupToken.state()) {
-            case TIMEOUT_CANCELED:
+            case TIMEOUT:
                 return TaskOutcome.TIMEOUT;
-            case FAIL_FAST_CANCELED:
+            case FAIL_FAST:
                 return TaskOutcome.FAIL_FAST;
-            case PROPAGATING_CANCELED:
+            case PROPAGATED_CANCELED:
                 // An ancestor timeout stays a timeout; any other propagated cause is a plain
                 // group cancellation from this group's viewpoint.
-                return groupToken.originState() == CancellationToken.State.TIMEOUT_CANCELED
+                return groupToken.originState() == CancellationToken.State.TIMEOUT
                         ? TaskOutcome.TIMEOUT
                         : TaskOutcome.GROUP_CANCELED;
-            case MUTUAL_CANCELED:
+            case CANCELED:
                 return TaskOutcome.GROUP_CANCELED;
             case SUCCESS:
             case RUNNING:
@@ -253,8 +264,8 @@ public final class TaskGroup implements AutoCloseable {
         TaskGroupResult result;
         synchronized (this) {
             if (closed || terminalCount != memberStates.size()) return;
-            if (completionReason == null) {
-                completionReason = deriveCompletionReason();
+            if (outcome == null) {
+                outcome = deriveOutcome();
             }
             closed = true;
             result = snapshot();
@@ -264,34 +275,37 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Derives the group reason from the group token state. A canceled group token with no failed
-     * member means the trigger was a direct member cancellation, which is a plain cancel.
+     * Derives the group outcome from the group token state. On fail-fast, the group reports the
+     * failed member's own outcome; a fail-fast with no failed member means the trigger was a
+     * direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELED}.
      */
-    private TaskGroupCompletionReason deriveCompletionReason() {
+    private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
-            case TIMEOUT_CANCELED:
-                return TaskGroupCompletionReason.TIMEOUT;
-            case FAIL_FAST_CANCELED:
-                return failedMemberName != null ? TaskGroupCompletionReason.FAILED : TaskGroupCompletionReason.CANCELED;
-            case PROPAGATING_CANCELED:
-                return groupToken.originState() == CancellationToken.State.TIMEOUT_CANCELED
-                        ? TaskGroupCompletionReason.TIMEOUT
-                        : TaskGroupCompletionReason.CANCELED;
-            case MUTUAL_CANCELED:
-                return TaskGroupCompletionReason.CANCELED;
+            case TIMEOUT:
+                return TaskOutcome.TIMEOUT;
+            case FAIL_FAST:
+                return failedMemberName != null
+                        ? memberStates.get(failedMemberName).reason
+                        : TaskOutcome.MEMBER_CANCELED;
+            case PROPAGATED_CANCELED:
+                return groupToken.originState() == CancellationToken.State.TIMEOUT
+                        ? TaskOutcome.TIMEOUT
+                        : TaskOutcome.GROUP_CANCELED;
+            case CANCELED:
+                return TaskOutcome.GROUP_CANCELED;
             case SUCCESS:
             case RUNNING:
             default:
                 boolean allSuccess =
                         memberStates.values().stream().allMatch(member -> member.reason == TaskOutcome.SUCCESS);
-                return allSuccess ? TaskGroupCompletionReason.SUCCESS : TaskGroupCompletionReason.CANCELED;
+                return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELED;
         }
     }
 
     private void completeEmpty() {
         TaskGroupResult result;
         synchronized (this) {
-            completionReason = TaskGroupCompletionReason.SUCCESS;
+            outcome = TaskOutcome.SUCCESS;
             closed = true;
             result = snapshot();
         }
@@ -311,7 +325,7 @@ public final class TaskGroup implements AutoCloseable {
                 startTimeNanos,
                 System.nanoTime(),
                 deadlineNanos,
-                completionReason,
+                outcome,
                 failedMemberName,
                 snapshots);
     }
@@ -408,7 +422,8 @@ public final class TaskGroup implements AutoCloseable {
                                 taskContext,
                                 future,
                                 par.submissionExecutor(),
-                                batch.taskType() == TaskType.CPU_BOUND));
+                                batch.taskType() == TaskType.CPU_BOUND,
+                                member.ref().resultType()));
             }
             int index = 0;
             for (MemberState state : states.values()) {
@@ -433,6 +448,7 @@ public final class TaskGroup implements AutoCloseable {
         private final ExecutionPhaseHintFuture<Object> future;
         private final Executor executor;
         private final boolean cpuBound;
+        private final TypeToken<?> resultType;
         private @Nullable TaskOutcome reason;
         private @Nullable Throwable failure;
         private boolean counted;
@@ -442,12 +458,14 @@ public final class TaskGroup implements AutoCloseable {
                 TaskExecutionContext context,
                 ExecutionPhaseHintFuture<Object> future,
                 Executor executor,
-                boolean cpuBound) {
+                boolean cpuBound,
+                TypeToken<?> resultType) {
             this.name = name;
             this.context = context;
             this.future = future;
             this.executor = executor;
             this.cpuBound = cpuBound;
+            this.resultType = resultType;
         }
 
         /** Submits once with the member's batch scope installed; CPU-bound work runs inline on rejection. */

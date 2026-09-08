@@ -156,10 +156,10 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 
 | 触发源 | Token 状态 | 说明 |
 |---|---|---|
-| 兄弟任务失败 | `FAIL_FAST_CANCELED` | 同一批次中某个任务抛异常，其余任务被取消 |
-| 超时 | `TIMEOUT_CANCELED` | 超过 `MultiTaskOptions` 指定的超时时间 |
-| 手动取消 | `MUTUAL_CANCELED` | 代码调用了 `CancellationToken.cancel()` |
-| 父作用域取消 | `PROPAGATING_CANCELED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
+| 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
+| 超时 | `TIMEOUT` | 超过 `MultiTaskOptions` 指定的超时时间 |
+| 手动取消 | `CANCELED` | 代码调用了 `CancellationToken.cancel()` |
+| 父作用域取消 | `PROPAGATED_CANCELED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 
 所有触发源最终都通过同一个 `CancellationToken.getState().shouldInterruptCurrentThread()` 判断——checkpoint 不需要关心取消的原因，只需要知道"是否应该停止"。
 
@@ -175,8 +175,8 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 ```
 
 当 B 失败时：
-1. 外层 token 转为 `FAIL_FAST_CANCELED`。
-2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATING_CANCELED`。
+1. 外层 token 转为 `FAIL_FAST`。
+2. A 和 C 的子 token 通过父子链自动转为 `PROPAGATED_CANCELED`。
 3. A 和 C 的内层任务在下一次 checkpoint 或 I/O 阻塞时响应取消。
 
 你不需要手动编排这个传播——前提是内层任务中有足够的 checkpoint。
