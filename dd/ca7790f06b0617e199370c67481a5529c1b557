@@ -1,0 +1,407 @@
+src/main/java/io/github/monadrome/parallelinscope/scope/MultiTaskOptions.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3
+demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 79
+demo/articles/E1-queue-flooding.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 54-57,93
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 95
+src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,9-11
+demo/docs/zh-CN/articles/G6-batch-db-query.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 95
+demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-10
+demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 6-9
+src/test/java/io/github/monadrome/parallelinscope/cancel/CancellationTokenTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/docs/zh-CN/articles/E1-queue-flooding.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 89
+demo/articles/G4-named-executor-pool.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 80
+demo/src/test/java/demo/article/B1_MdcContextLostTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8
+demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 80
+design/task-group-api-and-options.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 56
+src/main/java/io/github/monadrome/parallelinscope/scope/ExecutorRuntime.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5
+src/test/java/io/github/monadrome/parallelinscope/context/graph/TaskGraphExportTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8-9
+src/test/java/io/github/monadrome/parallelinscope/context/graph/TaskGraphPolarityTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5-9,113,128
+demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 7-11
+src/test/java/io/github/monadrome/parallelinscope/scope/ScopePrimitivesTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6-8
+src/test/java/io/github/monadrome/parallelinscope/control/ActionGateTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/articles/B2-function-signature-bloat.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 44-47,80
+docs/zh-CN/visuals/parallel-in-scope-user-guide.html
+  s_7f40c5316c897a::t_fce5cc324e4d58 6-8,11
+demo/articles/F1-cpu-task-queuing.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 46-50,84
+src/main/java/io/github/monadrome/parallelinscope/internal/ListenableCompletionService.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,7
+demo/articles/D2-late-bind-race-condition.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 58-62,92
+demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 72
+src/main/java/io/github/monadrome/parallelinscope/internal/ScopedCallable.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3-8
+src/main/java/io/github/monadrome/parallelinscope/spi/TaskListener.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3,10
+src/test/java/io/github/monadrome/parallelinscope/scope/GlobalParPoliciesTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6
+CHANGELOG.md
+  s_7f40c5316c897a::t_8e1acd4c16b55b 67
+  s_7f40c5316c897a::t_fce5cc324e4d58 68
+  s_7f40c5316c897a::t_518badb534adcd 7-8
+scripts/verify-maven-central.sh
+  s_7f40c5316c897a::t_fce5cc324e4d58 5
+demo/README.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 66-67,70-74,78
+docs/zh/reference/nullability-annotations.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 34
+demo/src/test/java/demo/article/QuickStartTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8,97
+explore/PR文档与代码一致性分析.md
+  s_7f40c5316c897a::t_fd0e7ac268229a 12
+src/main/java/io/github/monadrome/parallelinscope/internal/SubmissionException.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/main/java/io/github/monadrome/parallelinscope/spi/TaskGroupListener.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3
+demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 6-9
+src/main/java/io/github/monadrome/parallelinscope/scope/GlobalPar.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8-11
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 120
+src/test/java/io/github/monadrome/parallelinscope/context/graph/TaskGraphBatchIdentityTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5-11,166,179,190
+demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 77
+src/main/java/io/github/monadrome/parallelinscope/context/graph/TaskEdge.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3-4
+src/main/java/io/github/monadrome/parallelinscope/context/TaskGraphObservationScope.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,4-8
+docs/en/index.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 11-12
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskType.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3,8
+src/main/java/io/github/monadrome/parallelinscope/queue/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 4,8,12
+src/main/java/io/github/monadrome/parallelinscope/context/graph/TaskGraphData.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,9
+demo/articles/G1-task-listener-monitoring.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 48-52,83
+demo/articles/C2-cached-vs-fixed-pool.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 54-57,100
+src/test/java/io/github/monadrome/parallelinscope/cancel/HeuristicPurgerBoundaryTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8
+src/main/java/io/github/monadrome/parallelinscope/context/SubmissionScope.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3
+docs/zh-CN/visuals/parallel-in-scope-architecture.html
+  s_7f40c5316c897a::t_fce5cc324e4d58 6-8,11
+demo/README.en.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 33
+src/test/java/io/github/monadrome/parallelinscope/internal/SlidingWindowSubmitterTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,9-13
+blogs/CancellationToken-lateBind-竞态分析翻车记录.md
+  s_7f40c5316c897a::t_fd0e7ac268229a 9,43
+src/main/java/io/github/monadrome/parallelinscope/scope/GlobalParPurgePolicy.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 73
+demo/articles/B1-threadlocal-context-lost.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 39-42,74
+demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 67
+demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+docs/en/migration-v0.2.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 66,69-70
+  s_7f40c5316c897a::t_577ed3254f8e07 5-6
+src/main/java/io/github/monadrome/parallelinscope/cancel/Checkpoints.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3-4
+README.en.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8,18
+src/main/java/io/github/monadrome/parallelinscope/internal/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 79
+README.zh-CN.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8,18
+reports/recent-update-analysis.html
+  s_7f40c5316c897a::t_fce5cc324e4d58 260
+src/main/java/io/github/monadrome/parallelinscope/spi/ExecutionPhase.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/main/java/io/github/monadrome/parallelinscope/spi/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3
+src/test/java/io/github/monadrome/parallelinscope/cancel/HeuristicPurgerCartesianTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8
+src/test/java/io/github/monadrome/parallelinscope/cancel/HeuristicPurgerExpiryTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8
+src/test/java/io/github/monadrome/parallelinscope/internal/ListenableCompletionServiceTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,9
+src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueContractTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/src/test/java/demo/ArchitectureConstraintsTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 29-33,37
+src/main/java/io/github/monadrome/parallelinscope/cancel/HeuristicPurger.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 12,114
+src/test/java/io/github/monadrome/parallelinscope/cancel/CheckpointsOutcomeTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/context/TaskGraphObservationScopeTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,7-8,104,116,118,128,130
+demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 6-9
+src/main/java/io/github/monadrome/parallelinscope/scope/ExecutorIdentity.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 71
+src/test/java/io/github/monadrome/parallelinscope/cancel/HeuristicPurgerQueueCompatibilityTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueCartesianTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/scope/MultiTaskContextTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6
+src/test/java/io/github/monadrome/parallelinscope/scope/MultiTaskOptionsTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/internal/TaskExecutionContextTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6-7
+src/test/java/io/github/monadrome/parallelinscope/cancel/LeanCancellationExceptionTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/articles/G5-batch-http-calls.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 71
+src/main/java/io/github/monadrome/parallelinscope/scope/BlockingRisk.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 9-13
+src/test/java/io/github/monadrome/parallelinscope/internal/ExecutionPhaseCartesianTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskGroupSpec.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+README.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8,10,20
+src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueSignalTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 77
+demo/articles/E2-submitter-pool-offloading.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 48-51,77
+demo/docs/zh-CN/articles/G1-task-listener-monitoring.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 78
+docs/zh/design/idea-graveyard.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 18
+src/test/java/io/github/monadrome/parallelinscope/scope/GlobalParTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,7-9,355,489
+src/main/java/io/github/monadrome/parallelinscope/internal/SlidingWindowSubmitter.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,11-14
+src/test/java/io/github/monadrome/parallelinscope/scope/MultiTaskOptionsMatrixTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/articles/G6-batch-db-query.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 46-49,98
+src/main/java/io/github/monadrome/parallelinscope/scope/Par.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6-12,30
+src/test/java/io/github/monadrome/parallelinscope/scope/TaskCompletionTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/main/java/io/github/monadrome/parallelinscope/cancel/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskBatchResult.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5-7
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskOutcome.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,11
+src/test/java/io/github/monadrome/parallelinscope/queue/SmartBlockingQueueTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6-9
+demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 84
+demo/articles/A2-nested-cancel-propagation.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 78
+demo/articles/G3-checkpoints-cooperative-cancel.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 50-54,88
+demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8
+docs/zh/migration-v0.2.md
+  s_7f40c5316c897a::t_d0666a866a7229 5-6
+  s_7f40c5316c897a::t_fce5cc324e4d58 57,70-71
+src/main/java/io/github/monadrome/parallelinscope/cancel/CancellationToken.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,4-9,182,227
+src/main/java/io/github/monadrome/parallelinscope/internal/TokenOutcomes.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3-4
+demo/pom.xml
+  s_7f40c5316c897a::t_fce5cc324e4d58 7,29
+demo/docs/zh-CN/articles/I3-sliding-window-vs-semaphore.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 95
+src/main/java/io/github/monadrome/parallelinscope/scope/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3
+demo/articles/I1-idea-graveyard.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 3,124
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskGroup.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,9-18
+src/main/java/io/github/monadrome/parallelinscope/scope/GlobalParDeadlockPolicy.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 72
+src/test/java/io/github/monadrome/parallelinscope/cancel/CancellationTriggerCartesianTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/scope/ScopedTaskContractTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8-10
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 84
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 100
+src/main/java/io/github/monadrome/parallelinscope/context/graph/TaskEdgeEntry.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/cancel/CancellationTokenLateBindRaceTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/spi/DeadlockDetectionListenerTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5
+verification/maven-central-consumer/pom.xml
+  s_7f40c5316c897a::t_fce5cc324e4d58 7,20
+demo/articles/E3-closable-blocking-queue.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 123,170
+src/test/java/io/github/monadrome/parallelinscope/scope/TaskBatchResultTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,9-10
+src/main/java/io/github/monadrome/parallelinscope/scope/MultiTaskContext.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3-4
+guava-monitor-code-reading-report.html
+  s_7f40c5316c897a::t_fce5cc324e4d58 420
+demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 76
+demo/src/main/java/demo/basic/BasicParDemo.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3-6
+demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 77
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskCompletion.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskGroupResult.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+docs/zh/design/philosophy.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 16
+demo/src/test/java/demo/article/G1_TaskListenerMonitoringTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-10
+AGENTS.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 8,24
+src/main/java/io/github/monadrome/parallelinscope/control/ActionGate.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 220
+demo/architecture-constraints.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 25-26,32,38-42,58,133,136,146-147
+demo/articles/I4-vs-completable-future.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 99
+demo/src/test/java/demo/article/E1_QueueFloodingTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+demo/articles/H1-defensive-null-handling.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 54-57,88
+src/main/java/io/github/monadrome/parallelinscope/internal/TaskSubmissions.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,4-7
+demo/articles/A3-lean-vs-fat-exception.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 37-40,79
+src/test/java/io/github/monadrome/parallelinscope/cancel/HeuristicPurgerConcurrencyTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8
+src/main/java/io/github/monadrome/parallelinscope/internal/ExecutionPhaseHintFuture.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,4-5
+src/test/java/io/github/monadrome/parallelinscope/control/ActionGateBoundaryTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/internal/FutureInspectorTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,8-13
+src/main/java/io/github/monadrome/parallelinscope/internal/FutureInspector.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3
+demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+demo/articles/G2-batch-result-report.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 62-65,123
+demo/src/main/java/demo/integration/BatchProcessingDemo.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3-6
+src/main/java/io/github/monadrome/parallelinscope/context/graph/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3
+src/main/java/io/github/monadrome/parallelinscope/queue/SmartBlockingQueue.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,4-6
+src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/main/java/io/github/monadrome/parallelinscope/scope/TaskRef.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/articles/I3-sliding-window-vs-semaphore.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 94
+demo/articles/C1-thread-pool-deadlock.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 38-42,82
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 123,170
+src/test/java/io/github/monadrome/parallelinscope/cancel/CheckpointsTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,6-9
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 4-8
+mkdocs/mkdocs.yml
+  s_7f40c5316c897a::t_fce5cc324e4d58 3,6-7,24,30,104-112,139
+src/main/java/io/github/monadrome/parallelinscope/context/package-info.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3
+src/main/java/io/github/monadrome/parallelinscope/spi/DeadlockDetectionListener.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+demo/articles/I2-java8-compatibility-cost.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 81
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-8
+demo/src/test/java/demo/article/G6_BatchDbQueryTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+docs/zh/index.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 11-13
+src/main/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueue.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/context/graph/TaskEdgeTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5-6
+pom.xml
+  s_7f40c5316c897a::t_fce5cc324e4d58 7,16,19-21,27,39-41,232,235,240
+demo/articles/A1-cancel-true-ignored.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 38-42,71
+demo/src/main/java/demo/basic/CancellationDemo.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 4-8
+demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+src/main/java/io/github/monadrome/parallelinscope/cancel/LeanCancellationException.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+src/main/java/io/github/monadrome/parallelinscope/internal/TaskExecutionContext.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,3
+src/test/java/io/github/monadrome/parallelinscope/internal/ScopedCallableContextRestoreTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1,5-7
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 3-7
+demo/articles/D1-get-timeout-task-still-running.md
+  s_7f40c5316c897a::t_fce5cc324e4d58 48-52,82
+demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 5-9
+src/test/java/io/github/monadrome/parallelinscope/cancel/CancellationPropagationCartesianTest.java
+  s_7f40c5316c897a::t_fce5cc324e4d58 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ddca7790f06b0617e199370c67481a5529c1b557",
+  "prompts": {},
+  "sessions": {
+    "s_7f40c5316c897a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "955e9121-8e6d-4c08-9ec1-a44fae537df2",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
