@@ -35,11 +35,11 @@ for (int i = 0; i < 2; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.TaskType;
 
 // 方案：内层使用独立的 CachedThreadPool，避免嵌套死锁
 ExecutorService outerPool = Executors.newFixedThreadPool(2);
@@ -79,4 +79,4 @@ TaskBatchResult<String> result = par.map( items, item -> {
 
 ---
 
-> 📁 完整测试代码：[C1_ThreadPoolDeadlockTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java)
+> 📁 完整测试代码：[C1_ThreadPoolDeadlockTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java)

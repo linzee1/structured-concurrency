@@ -120,7 +120,7 @@ Java 8 `LinkedBlockingQueue.Itr` 形状：构造 O(1) 捕获首节点，`current
 
 ## 示例
 
-完整可运行测试见 `src/test/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueueTest.java`。
+完整可运行测试见 `src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueTest.java`。
 
 ```java
 Integer poison = Integer.valueOf(-1);
@@ -167,7 +167,7 @@ post-close put -> queue is closed: put
 - `removeIfDoesNotHoldTheLockWhileEvaluatingThePredicate`：谓词在锁外执行，不阻塞并发操作
 - `mutationsDrainNormallyWhileDrainingAndAreConfiguredAfterDrained`：DRAINING 变更照常、DRAINED 按策略
 
-> 📁 完整测试代码：[DrainingBlockingQueueTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/src/test/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueueTest.java)
+> 📁 完整测试代码：[DrainingBlockingQueueTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueTest.java)
 
 ## 总结
 

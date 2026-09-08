@@ -47,11 +47,11 @@ for (int i = 0; i < 1_000_000; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -85,4 +85,4 @@ CPU 任务与 IO 任务的取消能力对比：
 
 ---
 
-> 📁 完整测试代码：[G3_CheckpointsCooperativeCancelTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java)
+> 📁 完整测试代码：[G3_CheckpointsCooperativeCancelTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java)

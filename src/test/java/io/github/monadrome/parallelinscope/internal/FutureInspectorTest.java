@@ -1,0 +1,160 @@
+package io.github.monadrome.parallelinscope.internal;
+
+import static org.assertj.core.api.Assertions.*;
+
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
+import io.github.monadrome.parallelinscope.cancel.*;
+import io.github.monadrome.parallelinscope.context.*;
+import io.github.monadrome.parallelinscope.context.graph.*;
+import io.github.monadrome.parallelinscope.queue.*;
+import io.github.monadrome.parallelinscope.scope.*;
+import io.github.monadrome.parallelinscope.spi.*;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Tests for Future state inspection via FutureInspector.
+ *
+ * @author Eric Lin (linqinghua4 at gmail dot com)
+ */
+public class FutureInspectorTest {
+
+    @Test
+    public void testOutcome_success() {
+        ListenableFuture<String> future = Futures.immediateFuture("ok");
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.SUCCESS);
+    }
+
+    @Test
+    public void testOutcome_canceled() {
+        ListenableFuture<String> future = Futures.immediateCancelledFuture();
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+    }
+
+    @Test
+    public void testOutcome_failed() {
+        ListenableFuture<String> future = Futures.immediateFailedFuture(new RuntimeException("fail"));
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.USER_FAILURE);
+    }
+
+    @Test
+    public void testOutcome_running() {
+        SettableFuture<String> future = SettableFuture.create();
+        assertThat(FutureInspector.outcome(future)).isEqualTo(TaskOutcome.RUNNING);
+    }
+
+    @Test
+    public void hintFutureReportsRunningWhenNotDone() {
+        ExecutionPhaseHintFuture<String> pending = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
+        assertThat(FutureInspector.outcome(pending)).isEqualTo(TaskOutcome.RUNNING);
+    }
+
+    @Test
+    public void hintFutureReportsSuccessAfterRun() {
+        ExecutionPhaseHintFuture<String> succeeded = ExecutionPhaseHintFuture.create(() -> "done", phase -> {});
+        succeeded.run();
+        assertThat(FutureInspector.outcome(succeeded)).isEqualTo(TaskOutcome.SUCCESS);
+    }
+
+    @Test
+    public void hintFutureReportsSubmissionFailureInsteadOfUserFailure() {
+        ExecutionPhaseHintFuture<String> rejected = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
+        rejected.submitPrepared(
+                command -> {
+                    throw new java.util.concurrent.RejectedExecutionException("full");
+                },
+                false);
+        assertThat(FutureInspector.outcome(rejected)).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+    }
+
+    @Test
+    public void hintFutureReportsUserFailureForCallableThrow() {
+        ExecutionPhaseHintFuture<String> failed = ExecutionPhaseHintFuture.create(
+                () -> {
+                    throw new IllegalStateException("boom");
+                },
+                phase -> {});
+        failed.run();
+        assertThat(FutureInspector.outcome(failed)).isEqualTo(TaskOutcome.USER_FAILURE);
+    }
+
+    @Test
+    public void hintFutureReportsMemberCanceledOnCancel() {
+        ExecutionPhaseHintFuture<String> canceled = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
+        canceled.cancel(true);
+        assertThat(FutureInspector.outcome(canceled)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+    }
+
+    @Test
+    public void testExceptionNow_failed() {
+        RuntimeException expected = new RuntimeException("fail");
+        ListenableFuture<String> future = Futures.immediateFailedFuture(expected);
+        Throwable actual = FutureInspector.exceptionNow(future);
+        assertThat(actual).isSameAs(expected);
+    }
+
+    @Test
+    public void testExceptionNow_success() {
+        ListenableFuture<String> future = Futures.immediateFuture("ok");
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(future)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void testExceptionNow_pendingAndCanceledAreRejected() {
+        SettableFuture<String> pending = SettableFuture.create();
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(pending))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not completed");
+
+        ListenableFuture<String> canceled = Futures.immediateCancelledFuture();
+        assertThatThrownBy(() -> FutureInspector.exceptionNow(canceled))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("canceled");
+    }
+
+    @Test
+    public void interruptedFutureInspectionRestoresInterruptStatus() {
+        Future<Object> interrupted = new Future<Object>() {
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                return false;
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return false;
+            }
+
+            @Override
+            public boolean isDone() {
+                return true;
+            }
+
+            @Override
+            public Object get() throws InterruptedException {
+                throw new InterruptedException("test");
+            }
+
+            @Override
+            public Object get(long timeout, TimeUnit unit) throws InterruptedException {
+                throw new InterruptedException("test");
+            }
+        };
+        try {
+            Thread.currentThread().interrupt();
+            assertThat(FutureInspector.outcome(interrupted)).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+            Thread.interrupted();
+
+            Thread.currentThread().interrupt();
+            assertThatThrownBy(() -> FutureInspector.exceptionNow(interrupted))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+}

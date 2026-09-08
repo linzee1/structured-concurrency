@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.huatalk</groupId>
+    <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
     <version>0.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -13,18 +13,18 @@
     <description>
         parallel-in-scope — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
     </description>
-    <url>https://github.com/huatalk/parallel-in-scope</url>
+    <url>https://github.com/monadrome/parallel-in-scope</url>
 
     <scm>
-        <connection>scm:git:https://github.com/huatalk/parallel-in-scope.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/huatalk/parallel-in-scope.git</developerConnection>
-        <url>https://github.com/huatalk/parallel-in-scope</url>
+        <connection>scm:git:https://github.com/monadrome/parallel-in-scope.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/monadrome/parallel-in-scope.git</developerConnection>
+        <url>https://github.com/monadrome/parallel-in-scope</url>
         <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
         <system>GitHub Issues</system>
-        <url>https://github.com/huatalk/parallel-in-scope/issues</url>
+        <url>https://github.com/monadrome/parallel-in-scope/issues</url>
     </issueManagement>
 
     <licenses>
@@ -36,9 +36,9 @@
 
     <developers>
         <developer>
-            <id>huatalk</id>
-            <name>huatalk</name>
-            <url>https://github.com/huatalk</url>
+            <id>monadrome</id>
+            <name>monadrome</name>
+            <url>https://github.com/monadrome</url>
         </developer>
     </developers>
 
@@ -229,15 +229,15 @@
                         <configuration>
                             <testPlugin>junit5</testPlugin>
                             <targetClasses>
-                                <param>io.github.huatalk.parallelinscope.*</param>
+                                <param>io.github.monadrome.parallelinscope.*</param>
                             </targetClasses>
                             <targetTests>
-                                <param>io.github.huatalk.parallelinscope.*</param>
+                                <param>io.github.monadrome.parallelinscope.*</param>
                             </targetTests>
                             <!-- Demonstration programs are executable examples, not library
                                  contract code; keep them out of the mutation score denominator. -->
                             <excludedClasses>
-                                <param>io.github.huatalk.parallelinscope.queue.*Demo*</param>
+                                <param>io.github.monadrome.parallelinscope.queue.*Demo*</param>
                             </excludedClasses>
                             <outputFormats>
                                 <param>HTML</param>

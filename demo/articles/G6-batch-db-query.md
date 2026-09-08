@@ -43,10 +43,10 @@ for (Future<List<User>> f : futures) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
 
 // 1. 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(8);
@@ -95,4 +95,4 @@ System.out.println("查询完成: " + allUsers.size() + " 条");
 
 ---
 
-> 📁 完整测试代码：[G6_BatchDbQueryTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java)
+> 📁 完整测试代码：[G6_BatchDbQueryTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java)

@@ -36,10 +36,10 @@ for (int i = 0; i < 3; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -71,4 +71,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)
+> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)

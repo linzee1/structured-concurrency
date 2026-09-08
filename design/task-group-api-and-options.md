@@ -53,7 +53,7 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 ## 3. 公共 API
 
-公共类型放在 `io.github.huatalk.parallelinscope.scope`；监听 SPI 放在 `io.github.huatalk.parallelinscope.spi`。
+公共类型放在 `io.github.monadrome.parallelinscope.scope`；监听 SPI 放在 `io.github.monadrome.parallelinscope.spi`。
 
 ### 3.1 创建与使用
 

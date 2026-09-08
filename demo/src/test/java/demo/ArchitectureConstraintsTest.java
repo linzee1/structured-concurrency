@@ -26,15 +26,15 @@ class ArchitectureConstraintsTest {
 
     /** 禁止访问的内部包列表 */
     private static final List<String> FORBIDDEN_PACKAGES = Arrays.asList(
-            "io.github.huatalk.parallelinscope.internal",
-            "io.github.huatalk.parallelinscope.cancel",
-            "io.github.huatalk.parallelinscope.context",
-            "io.github.huatalk.parallelinscope.context.graph",
-            "io.github.huatalk.parallelinscope.queue");
+            "io.github.monadrome.parallelinscope.internal",
+            "io.github.monadrome.parallelinscope.cancel",
+            "io.github.monadrome.parallelinscope.context",
+            "io.github.monadrome.parallelinscope.context.graph",
+            "io.github.monadrome.parallelinscope.queue");
 
     /** 允许的例外类（来自禁止包的白名单） */
     private static final List<String> ALLOWED_EXCEPTIONS =
-            Arrays.asList("io.github.huatalk.parallelinscope.cancel.Checkpoints");
+            Arrays.asList("io.github.monadrome.parallelinscope.cancel.Checkpoints");
 
     @Test
     void testNoForbiddenPackageImports() throws IOException {

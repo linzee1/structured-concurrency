@@ -3,10 +3,10 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

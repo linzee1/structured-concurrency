@@ -51,10 +51,10 @@ for (int i = 0; i < 2; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 
 import java.util.Arrays;
 import java.util.List;
@@ -97,4 +97,4 @@ TaskBatchResult<String> result = par.map( items, item -> {
 
 ---
 
-> 📁 完整测试代码：[C2_CachedVsFixedPoolTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java)
+> 📁 完整测试代码：[C2_CachedVsFixedPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java)

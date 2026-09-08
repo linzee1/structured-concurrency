@@ -2,6 +2,8 @@
 
 Version `0.2.0` replaces the mutable configuration-and-resolver API with an immutable execution topology. This is a source-breaking migration.
 
+The publishing identity also moves because the GitHub account was renamed `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` becomes `io.github.monadrome:parallel-in-scope`, and the root Java package `io.github.huatalk.parallelinscope` becomes `io.github.monadrome.parallelinscope`. Update dependency coordinates, imports, `package` declarations, and service-loading names. `0.1.0` stays published under the old coordinates on Maven Central.
+
 | `0.1.x` | `0.2.0` |
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(name, executor)` |
@@ -61,11 +63,11 @@ be submitted repeatedly. The group entry class itself was renamed from `Parallel
 `TaskGroup`, joining its `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener` family. There is no
 compatibility shim because the earlier builder API was not released as a stable contract.
 
-The completed-task record is unified into a single class, `io.github.huatalk.parallelinscope.scope.TaskCompletion`: a `TaskListener` receives it at task completion, and `TaskGroupResult.members()` embeds one per member as its terminal snapshot. It replaces both the old `TaskListener.TaskEvent` and `TaskGroupMemberResult`, and exposes the task's identity and timing as flat fields — `taskName()`, `unitId()`, `taskIndex()`, `submitTimeNanos()`, `startTimeNanos()`, `endTimeNanos()` — plus `outcome()`, `successful()`, `result()`, `failure()`, and `enqueued()` (now derived from the queue wait). The read-only `TaskContext` view was removed; the engine plumbing previously reachable through `TaskContext.multiTaskContext()` (cancellation token, deadline, structural parent) is no longer part of the listener/result surface. `result()` is only non-null on listener delivery of a successful task — a group member's result stays in its future — and `taskIndex()` is always zero for group members. A successful task may return null, so use `successful()` rather than testing the result for null. Listener callbacks run outside the completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
+The completed-task record is unified into a single class, `io.github.monadrome.parallelinscope.scope.TaskCompletion`: a `TaskListener` receives it at task completion, and `TaskGroupResult.members()` embeds one per member as its terminal snapshot. It replaces both the old `TaskListener.TaskEvent` and `TaskGroupMemberResult`, and exposes the task's identity and timing as flat fields — `taskName()`, `unitId()`, `taskIndex()`, `submitTimeNanos()`, `startTimeNanos()`, `endTimeNanos()` — plus `outcome()`, `successful()`, `result()`, `failure()`, and `enqueued()` (now derived from the queue wait). The read-only `TaskContext` view was removed; the engine plumbing previously reachable through `TaskContext.multiTaskContext()` (cancellation token, deadline, structural parent) is no longer part of the listener/result surface. `result()` is only non-null on listener delivery of a successful task — a group member's result stays in its future — and `taskIndex()` is always zero for group members. A successful task may return null, so use `successful()` rather than testing the result for null. Listener callbacks run outside the completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
 
 Task outcome classification is unified into a single enum, `TaskOutcome`, replacing both
-`io.github.huatalk.parallelinscope.internal.FutureState` and
-`io.github.huatalk.parallelinscope.scope.TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
+`io.github.monadrome.parallelinscope.internal.FutureState` and
+`io.github.monadrome.parallelinscope.scope.TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
 former member-reason values so it serves both batch reports and group member results. Mapping from
 the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
 `TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).

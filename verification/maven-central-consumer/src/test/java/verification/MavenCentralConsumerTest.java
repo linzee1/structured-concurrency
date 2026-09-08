@@ -1,10 +1,10 @@
 package verification;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.scope.AsyncBatchResult;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParConfig;
+import io.github.monadrome.parallelinscope.scope.ParOptions;
+import io.github.monadrome.parallelinscope.scope.TaskType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 

@@ -9,7 +9,7 @@
 
 ```xml
 <dependency>
-    <groupId>io.github.huatalk</groupId>
+    <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
     <version>0.2.0-SNAPSHOT</version>
 </dependency>
@@ -111,4 +111,4 @@ Throwable firstError = batchReport.firstException();          // null if all suc
 更多用法请参考项目 README 和 `demo/` 目录下的示例代码。
 
 ---
-> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/QuickStartTest.java)
+> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/QuickStartTest.java)

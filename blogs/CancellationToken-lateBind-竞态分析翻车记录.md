@@ -6,7 +6,7 @@
 
 ## 问题背景
 
-项目里有一个协作式取消令牌 `CancellationToken`（`src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationToken.java`），核心是两个成员：
+项目里有一个协作式取消令牌 `CancellationToken`（`src/main/java/io/github/monadrome/parallelinscope/cancel/CancellationToken.java`），核心是两个成员：
 
 ```java
 private final SettableFuture<Object> futureToken = SettableFuture.create();
@@ -40,7 +40,7 @@ public void cancel(boolean useInterrupt) {
 
 ## 验证：测试推翻结论
 
-写了三个测试（`src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenLateBindRaceTest.java`）。
+写了三个测试（`src/test/java/io/github/monadrome/parallelinscope/cancel/CancellationTokenLateBindRaceTest.java`）。
 
 ### 场景一：cancel 先于 lateBind
 

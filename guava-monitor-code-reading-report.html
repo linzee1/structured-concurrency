@@ -417,7 +417,7 @@ public void put(E element) throws InterruptedException {
   }
 }</code></pre>
           <p><code>resize()</code>、<code>take()</code>、<code>put()</code> 和普通状态修改都经过同一个 Monitor。替换队列后不需要显式广播；离开时新状态会被 Guard 重新判断。</p>
-          <p class="location"><code>src/main/java/io/github/huatalk/parallelinscope/queue/SimpleResizableBlockingQueueV2.java:36</code>；<code>:61</code>；<code>:136</code></p>
+          <p class="location"><code>src/main/java/io/github/monadrome/parallelinscope/queue/SimpleResizableBlockingQueueV2.java:36</code>；<code>:61</code>；<code>:136</code></p>
         </div>
 
         <table>

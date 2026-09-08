@@ -13,7 +13,7 @@ source: "原创"
 > 本文记录 v0.2 前后的设计演进，部分代码片段使用历史 API。当前公开 API 以[使用指南](../user-guide.md)和 [v0.2 迁移指南](../migration-v0.2.md) 为准。
 
 
-> 本文随仓库按 [Apache License 2.0](https://github.com/HuaTalk/parallel-in-scope/blob/main/LICENSE) 许可使用和转载；请保留许可证要求的版权与许可声明。
+> 本文随仓库按 [Apache License 2.0](https://github.com/monadrome/parallel-in-scope/blob/main/LICENSE) 许可使用和转载；请保留许可证要求的版权与许可声明。
 
 ## 引言
 

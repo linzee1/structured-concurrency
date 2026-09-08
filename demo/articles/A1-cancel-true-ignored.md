@@ -35,11 +35,11 @@ futures.forEach(f -> f.cancel(true));
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
-import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -68,4 +68,4 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
+> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
