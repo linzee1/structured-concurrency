@@ -45,11 +45,11 @@ account-page group
 | 成员身份 | `taskIndex` | 唯一 `memberName` |
 | 返回类型 | 全部为同一个 `R` | 每个成员可以有不同 `T` |
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
-| 调度 | `ConcurrentLimitExecutor` 滑动窗口 | submit 时为全部成员准备后逐一独立提交 |
+| 调度 | `SlidingWindowSubmitter` 滑动窗口 | submit 时为全部成员准备后逐一独立提交 |
 | 完成 | 固定 futures 全部终态 | submit 时冻结的全部成员 future 终态 |
 | 关系 | 嵌套 Batch 可以形成 TaskGraph 依赖边 | membership 本身不是依赖边 |
 
-Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外暴露 `AsyncBatchResult<Object>`。
+Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外暴露 `TaskBatchResult<Object>`。
 
 ## 3. 公共 API
 

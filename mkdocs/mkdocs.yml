@@ -19,7 +19,7 @@ nav:
       - Design philosophy: design/philosophy.md
       - Idea Graveyard: design/idea-graveyard.md
   - Tests & Cases:
-      - AsyncBatchResult test design: testing/async-batch-result-report-test-design.md
+      - TaskBatchResult test design: testing/task-batch-result-report-test-design.md
       - AI concurrency review case study: case-studies/ai-concurrency-review-false-positive.md
   - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
 
@@ -134,7 +134,7 @@ plugins:
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md
             - 测试与案例:
-                - AsyncBatchResult 测试设计: testing/async-batch-result-report-test-design.md
+                - TaskBatchResult 测试设计: testing/task-batch-result-report-test-design.md
                 - AI 并发审查误报复盘: case-studies/ai-concurrency-review-false-positive.md
             - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
   - git-revision-date-localized

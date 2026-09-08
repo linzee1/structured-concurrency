@@ -6,10 +6,10 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
 import java.util.List;
@@ -152,7 +152,7 @@ class D2_LateBindRaceConditionTest {
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            BatchExecutionOptions options = BatchExecutionOptions.of("late-bind-test")
+            MultiTaskOptions options = MultiTaskOptions.of("late-bind-test")
                     .parallelism(PARALLELISM)
                     .timeout(java.time.Duration.ofMillis(batchTimeoutMs))
                     .taskType(TaskType.IO_BOUND)
@@ -164,7 +164,7 @@ class D2_LateBindRaceConditionTest {
             // 1. Submits the initial window and creates Future slots for remaining tasks
             // 2. Calls CancellationToken.lateBind() on the complete logical batch
             // 3. The aggregate timeout gives the batch one shared deadline
-            AsyncBatchResult<String> result = par.map(
+            TaskBatchResult<String> result = par.map(
                     items,
                     taskId -> {
                         try {

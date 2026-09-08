@@ -4,10 +4,10 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
 import io.github.huatalk.parallelinscope.cancel.CancellationToken;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import io.github.huatalk.parallelinscope.context.graph.TaskEdge;
-import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
 import io.github.huatalk.parallelinscope.internal.ExecutionPhaseHintFuture;
+import io.github.huatalk.parallelinscope.internal.SlidingWindowSubmitter;
 import io.github.huatalk.parallelinscope.internal.TaskExecutionContext;
 import io.github.huatalk.parallelinscope.internal.TaskSubmissions;
 import java.util.List;
@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
  * <ul>
  *   <li>Resolution of {@link MultiTaskOptions} into a batch context
  *   <li>Scoped task preparation via {@link io.github.huatalk.parallelinscope.internal.TaskSubmissions}
- *   <li>Concurrency-limited submission via {@link ConcurrentLimitExecutor}
+ *   <li>Concurrency-limited submission via {@link SlidingWindowSubmitter}
  *   <li>Parent-child {@link CancellationToken} chaining
  *   <li>Late binding for timeout and fail-fast cancellation
  *   <li>Heuristic cleanup of canceled queued tasks
@@ -69,10 +69,7 @@ public final class Par {
     ExecutionPhaseHintFuture<Object> prepareGroupTask(
             Callable<Object> callable, MultiTaskContext batchContext, TaskExecutionContext taskContext) {
         return TaskSubmissions.prepare(
-                taskContext,
-                callable,
-                globalPar.executionPolicyFor(displayName).taskListeners(),
-                runtime.phaseObserver());
+                taskContext, callable, globalPar.taskListenersFor(displayName), runtime.phaseObserver());
     }
 
     ExecutorIdentity executorIdentity() {
@@ -100,13 +97,13 @@ public final class Par {
      *     task encloses this call
      * @throws IllegalStateException if the owning GlobalPar has begun shutdown
      */
-    public <T, R> AsyncBatchResult<R> map(
+    public <T, R> TaskBatchResult<R> map(
             @Nullable List<T> list, Function<? super T, ? extends R> function, MultiTaskOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
         return globalPar.whileOpen(() -> mapWhileOpen(list, function, options));
     }
 
-    private <T, R> AsyncBatchResult<R> mapWhileOpen(
+    private <T, R> TaskBatchResult<R> mapWhileOpen(
             @Nullable List<T> list, Function<? super T, ? extends R> function, MultiTaskOptions options) {
         int taskCount = list == null ? 0 : list.size();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
@@ -114,11 +111,11 @@ public final class Par {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
         MultiTaskContext parent = currentTask == null ? null : currentTask.batchContext();
-        TaskGraphObservationContext currentObservation = TaskGraphObservationContext.current();
-        TaskGraphObservationContext observation = parent != null
-                        && parent.taskGraphObservationContext() != null
-                        && parent.taskGraphObservationContext().owner() == globalPar
-                ? parent.taskGraphObservationContext()
+        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
+        TaskGraphObservationScope observation = parent != null
+                        && parent.taskGraphObservationScope() != null
+                        && parent.taskGraphObservationScope().owner() == globalPar
+                ? parent.taskGraphObservationScope()
                 : parent == null && currentObservation != null && currentObservation.owner() == globalPar
                         ? currentObservation
                         : null;
@@ -127,7 +124,7 @@ public final class Par {
         return executeGlobal(list, item -> () -> function.apply(item), batchContext);
     }
 
-    private <T, R> AsyncBatchResult<R> executeGlobal(
+    private <T, R> TaskBatchResult<R> executeGlobal(
             @Nullable List<T> list, Function<T, Callable<R>> callableMapper, MultiTaskContext batchContext) {
         if (list == null || list.isEmpty()) return emptyBatchResult();
         TaskEdge edge = new TaskEdge(
@@ -146,10 +143,10 @@ public final class Par {
                 .mapToObj(index -> TaskSubmissions.prepare(
                         new TaskExecutionContext(batchContext, index, ticker.read()),
                         callableMapper.apply(list.get(index)),
-                        globalPar.executionPolicyFor(displayName).taskListeners(),
+                        globalPar.taskListenersFor(displayName),
                         runtime.phaseObserver()))
                 .collect(toImmutableList());
-        AsyncBatchResult<R> result = new ConcurrentLimitExecutor<R>(
+        TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
                         runtime.submissionExecutor(), batchContext, globalPar.submitterPool())
                 .submitAll(tasks);
         batchContext.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
@@ -163,7 +160,7 @@ public final class Par {
      */
     private static void logForking(MultiTaskContext context, TaskEdge edge) {
         MultiTaskContext parent = context.parent();
-        TaskGraphObservationContext.logTaskPair(
+        TaskGraphObservationScope.logTaskPair(
                 parent == null ? null : parent.batchId(),
                 parent == null ? null : parent.taskName(),
                 context.batchId(),
@@ -171,7 +168,7 @@ public final class Par {
                 edge);
     }
 
-    private static <T> AsyncBatchResult<T> emptyBatchResult() {
-        return AsyncBatchResult.of(ImmutableList.of());
+    private static <T> TaskBatchResult<T> emptyBatchResult() {
+        return TaskBatchResult.of(ImmutableList.of());
     }
 }

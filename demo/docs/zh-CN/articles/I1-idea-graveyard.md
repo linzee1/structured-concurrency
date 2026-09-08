@@ -63,7 +63,7 @@ public Par parallelInScope(
 
 **提议：** 用 `CompletableFuture` 替代 Guava `ListenableFuture` 作为 API 返回类型。
 
-**为什么拒绝：** `ListenableFuture` 是更好的并发原语——它的 `addListener(Runnable, Executor)` 强制指定回调线程池，避免了 `CompletableFuture` 默认用 `ForkJoinPool.commonPool()` 的坑。我们的内部实现（`ConcurrentLimitExecutor`、`FluentFuture.withTimeout`、`Futures.allAsList`）全部基于 Guava 原语，提供 CF 适配层意味着维护两套 Future 语义。
+**为什么拒绝：** `ListenableFuture` 是更好的并发原语——它的 `addListener(Runnable, Executor)` 强制指定回调线程池，避免了 `CompletableFuture` 默认用 `ForkJoinPool.commonPool()` 的坑。我们的内部实现（`SlidingWindowSubmitter`、`FluentFuture.withTimeout`、`Futures.allAsList`）全部基于 Guava 原语，提供 CF 适配层意味着维护两套 Future 语义。
 
 **替代方案：** 如果调用方确实需要 CF，一行代码转换：
 
@@ -108,7 +108,8 @@ par.map( urls, url -> {
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-BatchExecutionOptions opts = BatchExecutionOptions.of("fetch").taskType(TaskType.IO_BOUND).parallelism(concurrency).build();
+MultiTaskOptions opts = MultiTaskOptions.of("fetch").taskType(TaskType.IO_BOUND).parallelism(concurrency)
+        .timeout(java.time.Duration.ofMillis(5000)).build();
 ```
 
 ---

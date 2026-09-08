@@ -38,8 +38,10 @@ Two invariants to respect:
 - `CancellationToken.bind()` wires deadline, fail-fast, and parent
   propagation only after all futures are submitted; the deadline itself lives
   in the token (min of the requested deadline and the parent's).
-- `ConcurrentLimitExecutor.submitAll()` returns the exact queued
-  `FutureRunnable` object.
+- `SlidingWindowSubmitter.submitAll()` returns the exact prepared
+  `ExecutionPhaseHintFuture` for tasks in the initial parallelism window;
+  tasks beyond the window are returned as `SettableFuture` placeholders
+  bridged via `setFuture()` when a slot frees.
 
 ## Key Conventions
 
@@ -53,6 +55,9 @@ Two invariants to respect:
   public API/SPI, `org.checkerframework.checker.nullness.qual.Nullable` for
   internal code (both provided scope).
 - Logging goes through JUL (`java.util.logging.Logger`).
+- The `Scope` suffix marks a closeable lifecycle scope (`SubmissionScope`,
+  `TaskGraphObservationScope`); the `Context` suffix marks a data carrier
+  (a view or resolved parameters).
 - Pre-stable API: public APIs and SPI may change between `0.x` releases without
   compatibility shims. During the `0.x` phase, a breaking change is acceptable
   when it provides a meaningful improvement and has a sufficiently documented
@@ -76,6 +81,13 @@ Two invariants to respect:
 - Full release builds, PIT mutation tests, or `mvn deploy`.
 
 Never commit secrets, `.env` files, GPG keys, or repository credentials.
+
+## Subagent Usage
+
+When the coding agent is Kimi Code, implement code changes directly in the
+main agent; do not proactively delegate implementation to subagents. The only
+exceptions are read-only exploration/analysis subagents and cases where the
+user explicitly asks for subagent delegation.
 
 ## Reference Documents
 

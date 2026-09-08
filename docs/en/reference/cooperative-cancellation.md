@@ -10,7 +10,7 @@ Java `Thread.interrupt()` only interrupts blocking operations such as `sleep`, `
 |---|---|---|
 | Before task execution | `ScopedCallable` runs `Checkpoints.checkpoint()` | None |
 | During blocking I/O | `futureToken.cancel(true)` interrupts the blocking operation | None |
-| Sliding-window submission | `ConcurrentLimitExecutor` stops submitting after cancellation | None |
+| Sliding-window submission | `SlidingWindowSubmitter` stops submitting after cancellation | None |
 
 ### Sliding-window placeholders
 

@@ -20,14 +20,14 @@ Java 8 引入了 `CompletableFuture`，但 `CompletableFuture.allOf()` 的取消
 
 Java 10 的 `var` 让局部变量声明更简洁，Java 16 的 `Record` 让不可变数据类不再需要手写 `equals`、`hashCode`、`toString`。在 Java 8 中，我们只能用 Builder 模式和 Lombok 来弥补。
 
-`BatchExecutionOptions` 的构建就是典型例子：
+`MultiTaskOptions` 的构建就是典型例子：
 
 ```java
 // Java 16+ 可以用 Record
-BatchExecutionOptions opts = new BatchExecutionOptions("task", 5, 3000, TaskType.IO_BOUND);
+MultiTaskOptions opts = new MultiTaskOptions("task", 5, 3000, TaskType.IO_BOUND);
 
 // Java 8 必须用 Builder
-BatchExecutionOptions opts = BatchExecutionOptions.of("task")
+MultiTaskOptions opts = MultiTaskOptions.of("task")
         .parallelism(5)
         .timeout(java.time.Duration.ofMillis(3000))
         .taskType(TaskType.IO_BOUND)
@@ -40,7 +40,7 @@ Builder 模式更冗长，但更灵活——可以设置默认值、添加校验
 
 Java 21 的虚拟线程（Virtual Threads）让 IO 密集型任务的并发模型彻底改变。一个虚拟线程池可以轻松创建百万级线程，不再需要手动管理线程池大小。
 
-在 Java 8 中，我们必须依赖传统线程池，并用 `ConcurrentLimitExecutor` 的滑动窗口机制来控制并发数。这比虚拟线程更复杂，但至少在 Java 8 环境下是可靠的。
+在 Java 8 中，我们必须依赖传统线程池，并用 `SlidingWindowSubmitter` 的滑动窗口机制来控制并发数。这比虚拟线程更复杂，但至少在 Java 8 环境下是可靠的。
 
 ## 用什么弥补
 
@@ -58,11 +58,11 @@ Java 21 的虚拟线程（Virtual Threads）让 IO 密集型任务的并发模�
 
 `TransmittableThreadLocal`（TTL）解决了跨线程上下文传播的难题。在 Java 21 中，虚拟线程的 `InheritableThreadLocal` 有更好的支持，但在 Java 8 的传统线程池中，任务提交到线程池后上下文就丢失了。
 
-TTL 通过字节码增强，在任务提交时自动捕获上下文，在任务执行时自动恢复。`CancellationToken`、`BatchExecutionOptions`、任务名称等信息都通过 TTL 在父子线程间隐式传递，开发者无需手动搬运。
+TTL 通过字节码增强，在任务提交时自动捕获上下文，在任务执行时自动恢复。`CancellationToken`、`MultiTaskOptions`、任务名称等信息都通过 TTL 在父子线程间隐式传递，开发者无需手动搬运。
 
 ### Builder 模式替代 Records
 
-`BatchExecutionOptions`、`GlobalPar` 等配置类全部采用 Builder 模式。虽然比 Record 多了不少代码，但带来了额外的好处：
+`MultiTaskOptions`、`GlobalPar` 等配置类全部采用 Builder 模式。虽然比 Record 多了不少代码，但带来了额外的好处：
 
 - 默认值可以内置在 Builder 中，用户只需设置差异化的选项
 - 校验逻辑可以在 `build()` 中集中处理，提前发现配置错误

@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>演示问题：CompletableFuture.allOf() 没有并发控制、没有 fail-fast、超时后任务还在跑。
  *
- * <p>演示解决：Par.map() + BatchExecutionOptions 一行搞定 parallelism + timeout + fail-fast。
+ * <p>演示解决：Par.map() + MultiTaskOptions 一行搞定 parallelism + timeout + fail-fast。
  */
 public class G5_BatchHttpCallsTest {
 
@@ -111,7 +111,7 @@ public class G5_BatchHttpCallsTest {
     }
 
     /**
-     * 解决方法：Par.map() + BatchExecutionOptions，并发控制 + fail-fast。
+     * 解决方法：Par.map() + MultiTaskOptions，并发控制 + fail-fast。
      *
      * <p>parallelism=4 限制最多 4 个并发，滑动窗口调度。
      *
@@ -140,7 +140,7 @@ public class G5_BatchHttpCallsTest {
                 "recommendation",
                 "analytics");
 
-        BatchExecutionOptions opts = BatchExecutionOptions.of("batch-http")
+        MultiTaskOptions opts = MultiTaskOptions.of("batch-http")
                 .parallelism(4)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .taskType(TaskType.IO_BOUND)
@@ -148,7 +148,7 @@ public class G5_BatchHttpCallsTest {
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 services,
                 svc -> {
                     try {
@@ -177,9 +177,9 @@ public class G5_BatchHttpCallsTest {
 
         // 验证：report 包含 CANCELLED（fail-fast 取消了兄弟任务）和 FAILED
         String report = result.reportString();
-        assertThat(report).as("Report should show FAILED task (payment)").contains("FAILED");
+        assertThat(report).as("Report should show USER_FAILURE task (payment)").contains("USER_FAILURE");
         assertThat(report)
-                .as("Report should show CANCELLED tasks from fail-fast")
-                .contains("CANCELLED");
+                .as("Report should show MEMBER_CANCELED tasks from fail-fast")
+                .contains("MEMBER_CANCELED");
     }
 }

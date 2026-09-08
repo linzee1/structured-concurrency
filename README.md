@@ -28,12 +28,12 @@ GlobalPar execution = GlobalPar.builder()
         .register("io", Executors.newFixedThreadPool(8))
         .build();
 
-BatchExecutionOptions options = BatchExecutionOptions.of("fetch-user")
+MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
         .parallelism(4)
         .timeout(Duration.ofSeconds(3))
         .build();
 
-AsyncBatchResult<User> result = execution.par("io")
+TaskBatchResult<User> result = execution.par("io")
         .map(userIds, userService::findById, options);
 ```
 

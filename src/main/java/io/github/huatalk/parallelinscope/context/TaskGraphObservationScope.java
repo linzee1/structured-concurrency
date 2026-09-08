@@ -37,30 +37,30 @@ import javax.annotation.Nullable;
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public final class TaskGraphObservationContext implements AutoCloseable {
+public final class TaskGraphObservationScope implements AutoCloseable {
 
-    private static final Logger logger = Logger.getLogger(TaskGraphObservationContext.class.getName());
+    private static final Logger logger = Logger.getLogger(TaskGraphObservationScope.class.getName());
 
     /** Identity-propagating TTL: the default copy returns the same scope reference to workers. */
-    private static final TransmittableThreadLocal<TaskGraphObservationContext> CURRENT =
-            new TransmittableThreadLocal<TaskGraphObservationContext>() {};
+    private static final TransmittableThreadLocal<TaskGraphObservationScope> CURRENT =
+            new TransmittableThreadLocal<TaskGraphObservationScope>() {};
 
     private final GlobalPar owner;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final @Nullable TaskGraphObservationContext previousContext;
+    private final @Nullable TaskGraphObservationScope previousScope;
     private final TaskGraphData data;
 
-    public TaskGraphObservationContext(GlobalPar owner) {
+    public TaskGraphObservationScope(GlobalPar owner) {
         this.owner = Objects.requireNonNull(owner, "owner cannot be null");
-        this.previousContext = CURRENT.get();
+        this.previousScope = CURRENT.get();
         CURRENT.set(this);
         this.data = new TaskGraphData();
     }
 
     /** Returns the observation scope active on the calling thread, if any. */
-    public static @Nullable TaskGraphObservationContext current() {
-        TaskGraphObservationContext context = CURRENT.get();
-        return context != null && !context.closed() ? context : null;
+    public static @Nullable TaskGraphObservationScope current() {
+        TaskGraphObservationScope scope = CURRENT.get();
+        return scope != null && !scope.closed() ? scope : null;
     }
 
     /**
@@ -69,19 +69,19 @@ public final class TaskGraphObservationContext implements AutoCloseable {
      * @return the current request data, or {@code null} outside an observation scope
      */
     public static @Nullable TaskGraphData data() {
-        TaskGraphObservationContext context = current();
-        return context == null ? null : context.data;
+        TaskGraphObservationScope scope = current();
+        return scope == null ? null : scope.data;
     }
 
     /** Installs an observation scope on the current worker thread. */
-    public static void install(TaskGraphObservationContext context) {
-        CURRENT.set(Objects.requireNonNull(context, "context cannot be null"));
+    public static void install(TaskGraphObservationScope scope) {
+        CURRENT.set(Objects.requireNonNull(scope, "scope cannot be null"));
     }
 
     /** Restores a scope captured before entering a scoped worker task. */
-    public static void restore(@Nullable TaskGraphObservationContext context) {
-        if (context == null) CURRENT.remove();
-        else CURRENT.set(context);
+    public static void restore(@Nullable TaskGraphObservationScope scope) {
+        if (scope == null) CURRENT.remove();
+        else CURRENT.set(scope);
     }
 
     /** Records a new-model edge using unique batch identities and display labels. */
@@ -151,8 +151,8 @@ public final class TaskGraphObservationContext implements AutoCloseable {
                 runDeadlockDetection();
             } finally {
                 if (CURRENT.get() == this) {
-                    if (previousContext == null) CURRENT.remove();
-                    else CURRENT.set(previousContext);
+                    if (previousScope == null) CURRENT.remove();
+                    else CURRENT.set(previousScope);
                 }
             }
         }

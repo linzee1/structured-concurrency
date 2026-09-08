@@ -2,7 +2,7 @@ package io.github.huatalk.parallelinscope.context.graph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import io.github.huatalk.parallelinscope.scope.ExecutorIdentity;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
 import io.github.huatalk.parallelinscope.scope.GlobalParDeadlockPolicy;
@@ -23,7 +23,7 @@ class TaskGraphPolarityTest {
 
     @AfterEach
     void clearThreadState() {
-        TaskGraphObservationContext.restore(null);
+        TaskGraphObservationScope.restore(null);
     }
 
     /** Non-deadlock-prone edge so executor-level detection stays clean in polarity tests. */
@@ -34,23 +34,23 @@ class TaskGraphPolarityTest {
     @Test
     void acyclicEdgesEvaluateEveryDetectionPredicateFalse() {
         GlobalPar global = GlobalPar.builder().build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationContext.logTaskPair("root", "root-label", "a", "task-a", plainEdge());
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+            TaskGraphObservationScope.logTaskPair("root", "root-label", "a", "task-a", plainEdge());
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
 
-            assertThat(TaskGraphObservationContext.hasTaskCycle()).isFalse();
-            assertThat(TaskGraphObservationContext.hasSelfLoop()).isFalse();
-            assertThat(TaskGraphObservationContext.hasExecutorCycle()).isFalse();
-            assertThat(TaskGraphObservationContext.hasExecutorSelfLoop()).isFalse();
+            assertThat(TaskGraphObservationScope.hasTaskCycle()).isFalse();
+            assertThat(TaskGraphObservationScope.hasSelfLoop()).isFalse();
+            assertThat(TaskGraphObservationScope.hasExecutorCycle()).isFalse();
+            assertThat(TaskGraphObservationScope.hasExecutorSelfLoop()).isFalse();
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data).isNotNull();
             assertThat(data.executorCycle()).isFalse();
             assertThat(data.executorSelfLoop()).isFalse();
 
-            TaskGraphObservationContext.restore(null);
-            assertThat(TaskGraphObservationContext.data()).isNull();
-            assertThat(TaskGraphObservationContext.hasTaskCycle()).isFalse();
+            TaskGraphObservationScope.restore(null);
+            assertThat(TaskGraphObservationScope.data()).isNull();
+            assertThat(TaskGraphObservationScope.hasTaskCycle()).isFalse();
         } finally {
             global.close();
         }
@@ -69,10 +69,10 @@ class TaskGraphPolarityTest {
     @Test
     void logTaskPairDefaultsMissingParentAndLabelsToRootAndNA() throws Exception {
         GlobalPar global = GlobalPar.builder().build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
-            TaskGraphObservationContext.logTaskPair(null, null, "child", null, plainEdge());
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
+            TaskGraphObservationScope.logTaskPair(null, null, "child", null, plainEdge());
 
-            TaskGraphData data = TaskGraphObservationContext.data();
+            TaskGraphData data = TaskGraphObservationScope.data();
             assertThat(data).isNotNull();
             Map<String, String> labels = labelsOf(data);
             assertThat(labels).containsEntry("root", "NA");
@@ -83,7 +83,7 @@ class TaskGraphPolarityTest {
             assertThat(entries).hasSize(1);
             assertThat(entries.get(0).edge().source()).isEqualTo("root");
             assertThat(entries.get(0).edge().target()).isEqualTo("child");
-            TaskGraphObservationContext.restore(null);
+            TaskGraphObservationScope.restore(null);
         } finally {
             global.close();
         }
@@ -98,9 +98,9 @@ class TaskGraphPolarityTest {
                         .listener(event -> detections.incrementAndGet())
                         .build())
                 .build();
-        try (TaskGraphObservationContext outer = global.openTaskGraphObservation()) {
+        try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             // Acyclic chain only: no cycle, no self-loop anywhere.
-            TaskGraphObservationContext.logTaskPair("r", "r", "x", "x", plainEdge());
+            TaskGraphObservationScope.logTaskPair("r", "r", "x", "x", plainEdge());
             assertThat(detections.get()).isZero();
         }
         assertThat(detections.get()).isZero();
@@ -117,11 +117,11 @@ class TaskGraphPolarityTest {
                         .listener(captured::set)
                         .build())
                 .build();
-        try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
+        try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             // Task-level cycle a -> b -> a using NON-deadlock-prone edges: the task cycle is real,
             // but no executor dependency edges exist at all.
-            TaskGraphObservationContext.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
-            TaskGraphObservationContext.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
+            TaskGraphObservationScope.logTaskPair("a", "task-a", "b", "task-b", plainEdge());
+            TaskGraphObservationScope.logTaskPair("b", "task-b", "a", "task-a", plainEdge());
         }
 
         io.github.huatalk.parallelinscope.spi.DeadlockDetectionListener.DeadlockDetectionEvent event = captured.get();
@@ -143,16 +143,16 @@ class TaskGraphPolarityTest {
             ExecutorIdentity firstIdentity = new ExecutorIdentity(firstPool);
             ExecutorIdentity secondIdentity = new ExecutorIdentity(secondPool);
             GlobalPar global = GlobalPar.builder().build();
-            try (TaskGraphObservationContext ignored = global.openTaskGraphObservation()) {
+            try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
                 TaskEdge forward = new TaskEdge(
                         1, TaskType.IO_BOUND, firstIdentity, secondIdentity, "first", "second", 1, 10L, true);
                 TaskEdge back = new TaskEdge(
                         1, TaskType.IO_BOUND, secondIdentity, firstIdentity, "second", "first", 1, 10L, true);
 
-                TaskGraphObservationContext.logTaskPair("a", "a", "b", "b", forward);
-                TaskGraphObservationContext.logTaskPair("b", "b", "a", "a", back);
+                TaskGraphObservationScope.logTaskPair("a", "a", "b", "b", forward);
+                TaskGraphObservationScope.logTaskPair("b", "b", "a", "a", back);
 
-                TaskGraphData data = TaskGraphObservationContext.data();
+                TaskGraphData data = TaskGraphObservationScope.data();
                 assertThat(data).isNotNull();
                 assertThat(data.executorCycle()).isTrue(); // Real pool-to-pool cycle.
                 assertThat(data.executorSelfLoop()).isFalse(); // But no single-pool loop.

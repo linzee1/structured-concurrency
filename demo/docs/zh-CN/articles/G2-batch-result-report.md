@@ -45,15 +45,15 @@ for (int i = 0; i < 10; i++) {
 
 ## 解决方法
 
-`AsyncBatchResult` 封装了所有任务的 `ListenableFuture`，一行调用 `reportString()` 即可拿到人类可读的状态概览。报告反映的是调用时每个 Future 的真实终态，包括 `SUCCESS`、`FAILED` 和 `CANCELLED`。
+`TaskBatchResult` 封装了所有任务的 `ListenableFuture`，一行调用 `reportString()` 即可拿到人类可读的状态概览。报告反映的是调用时每个 Future 的真实终态，包括 `SUCCESS`、`USER_FAILURE` 和 `MEMBER_CANCELED`。
 
 ```
 SUCCESS:6
 ```
 
 如果需要结构化数据，调用 `report()` 返回 `BatchReport` 对象：
-- `getStateCounts()` — 返回 `Map<FutureState, Integer>`，按状态分组计数
-- `getFirstException()` — 返回第一个失败任务的异常（无失败时为 null）
+- `stateCounts()` — 返回 `Map<TaskOutcome, Integer>`，按状态分组计数
+- `firstException()` — 返回第一个失败任务的异常（无失败时为 null）
 
 还可以自定义格式拼接，比如用于日志或监控上报。
 
@@ -67,13 +67,13 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-BatchExecutionOptions opts = BatchExecutionOptions.of("batch-task")
+MultiTaskOptions opts = MultiTaskOptions.of("batch-task")
         .parallelism(4)
         .timeout(java.time.Duration.ofMillis(5000))
         .build();
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6);
-AsyncBatchResult<Integer> result = par.map( items, x -> {
+TaskBatchResult<Integer> result = par.map( items, x -> {
     return x * 2;
 }, opts);
 
@@ -82,32 +82,32 @@ System.out.println(result.reportString());
 // 输出示例: SUCCESS:6
 
 // 结构化访问
-AsyncBatchResult.BatchReport report = result.report();
-System.out.println("状态统计: " + report.getStateCounts());
-System.out.println("首个异常: " + report.getFirstException());
+TaskBatchResult.BatchReport report = result.report();
+System.out.println("状态统计: " + report.stateCounts());
+System.out.println("首个异常: " + report.firstException());
 ```
 
 ### Fail-fast 场景
 
-如果任务函数抛出异常，`Par.map()` 会触发 fail-fast，取消尚未完成的 sibling。因此输入中有 4 个“理论上会失败”的任务，并不保证最终报告有 4 个 `FAILED`：其中一些任务可能在执行到抛异常之前就已经被取消。
+如果任务函数抛出异常，`Par.map()` 会触发 fail-fast，取消尚未完成的 sibling。因此输入中有 4 个“理论上会失败”的任务，并不保证最终报告有 4 个 `USER_FAILURE`：其中一些任务可能在执行到抛异常之前就已经被取消。
 
 这类场景应验证稳定不变量，而不是固定状态数量：
 
 ```java
-AsyncBatchResult.BatchReport report = result.report();
-int total = report.getStateCounts().values().stream()
+TaskBatchResult.BatchReport report = result.report();
+int total = report.stateCounts().values().stream()
         .mapToInt(Integer::intValue)
         .sum();
 
 assert total == items.size();
-assert report.getFirstException() != null;
+assert report.firstException() != null;
 ```
 
-报告示例可能是 `FAILED:1,CANCELLED:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
+报告示例可能是 `USER_FAILURE:1,MEMBER_CANCELED:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
 
 对比两种方式：
 
-| 维度 | 原生 Future 手动统计 | AsyncBatchResult.reportString() |
+| 维度 | 原生 Future 手动统计 | TaskBatchResult.reportString() |
 |------|---------------------|--------------------------------|
 | 代码量 | 20+ 行 | 1 行 |
 | 异常提取 | 手动 getCause() | 自动取第一个失败异常 |

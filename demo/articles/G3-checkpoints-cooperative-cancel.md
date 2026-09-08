@@ -30,27 +30,27 @@ futures.forEach(f -> f.cancel(true));
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `Checkpoints.check()` ——一个轻量级的协作式检查点。在循环体内调用它，框架会检查当前任务的 `CancellationToken` 是否已取消。如果已取消，立即抛出 `LeanCancellationException`（无栈帧，零开销），任务当场停止。
+`parallel-in-scope` 提供了 `Checkpoints.checkpoint(taskName, lean)` ——一个轻量级的协作式检查点。在循环体内调用它，框架会检查当前任务的 `CancellationToken` 是否已取消。如果已取消，立即抛出 `LeanCancellationException`（无栈帧，零开销），任务当场停止。
 
 ```java
 // 在 CPU 密集循环中插入检查点
 for (int i = 0; i < 1_000_000; i++) {
-    Checkpoints.check(); // 轻量级：检查 CancellationToken 状态
+    Checkpoints.checkpoint("heavy-compute", true); // 轻量级：检查 CancellationToken 状态
     result += heavyCompute(i);
 }
 ```
 
 此外，`Checkpoints.sleep(ms)` 替代 `Thread.sleep()`，自动将中断信号转化为协作式取消异常，统一了取消语义。
 
-配合 `BatchExecutionOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.check()` 即可实现同样的及时取消效果。
+配合 `MultiTaskOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.checkpoint(taskName, true)` 即可实现同样的及时取消效果。
 
 ## 代码
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 
 // 配置线程池和 Par 实例
@@ -61,13 +61,13 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // IO 任务：Thread.sleep 响应中断，超时取消自然生效
-BatchExecutionOptions ioOpts = BatchExecutionOptions.of("api-call").taskType(TaskType.IO_BOUND)
+MultiTaskOptions ioOpts = MultiTaskOptions.of("api-call").taskType(TaskType.IO_BOUND)
         .parallelism(3)
         .timeout(java.time.Duration.ofMillis(500))
         .build();
 
 List<String> urls = Arrays.asList("url1", "url2", "url3");
-AsyncBatchResult<String> result = par.map( urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     Thread.sleep(5000);  // 响应中断，500ms 后被取消
     return fetchContent(url);
 }, ioOpts);
@@ -80,8 +80,8 @@ CPU 任务与 IO 任务的取消能力对比：
 |------|------------|------------|
 | Thread.interrupt() | 无效（不检查中断标志） | 有效（sleep/wait/IO 抛 InterruptedException） |
 | cancel(true) | Future 标记取消，任务继续执行 | 线程被中断，任务立即停止 |
-| Checkpoints.check() | 有效（显式检查 CancellationToken） | 不需要（中断机制已足够） |
-| 推荐做法 | 循环体内插入 Checkpoints.check() | 直接用 Par.map() + timeout |
+| Checkpoints.checkpoint() | 有效（显式检查 CancellationToken） | 不需要（中断机制已足够） |
+| 推荐做法 | 循环体内插入 Checkpoints.checkpoint() | 直接用 Par.map() + timeout |
 
 ---
 

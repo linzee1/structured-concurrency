@@ -6,8 +6,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.cancel.HeuristicPurger;
-import io.github.huatalk.parallelinscope.context.TaskGraphObservationContext;
+import io.github.huatalk.parallelinscope.context.TaskGraphObservationScope;
 import io.github.huatalk.parallelinscope.spi.ExecutionPhase;
+import io.github.huatalk.parallelinscope.spi.TaskListener;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +36,7 @@ import java.util.function.Supplier;
  * Immutable application execution topology containing logical {@link Par} entries.
  *
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
- * policies, and executor bindings cannot change. This is an application-scoped resource, normally
+ * listeners, policies, and executor bindings cannot change. This is an application-scoped resource, normally
  * created at the composition root and closed during application or container shutdown. It owns its
  * timer, submission, and maintenance services; registered executors are borrowed and are never
  * shut down by this object.
@@ -50,8 +52,8 @@ public final class GlobalPar implements AutoCloseable {
     private final Map<String, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
     private final String defaultName;
-    private final GlobalExecutionPolicy executionPolicy;
-    private final Map<String, GlobalExecutionPolicy> policyOverrides;
+    private final List<TaskListener> taskListeners;
+    private final Map<String, List<TaskListener>> taskListenerOverrides;
     private final GlobalParDeadlockPolicy deadlockPolicy;
     private final GlobalParPurgePolicy purgePolicy;
     private final HeuristicPurger purger;
@@ -64,8 +66,12 @@ public final class GlobalPar implements AutoCloseable {
     private final ListeningExecutorService submitterPool;
 
     private GlobalPar(Builder builder) {
-        this.executionPolicy = builder.executionPolicy;
-        this.policyOverrides = Collections.unmodifiableMap(new LinkedHashMap<>(builder.policyOverrides));
+        this.taskListeners = Collections.unmodifiableList(new ArrayList<>(builder.taskListeners));
+        Map<String, List<TaskListener>> overrides = new LinkedHashMap<>();
+        for (Map.Entry<String, List<TaskListener>> entry : builder.taskListenerOverrides.entrySet()) {
+            overrides.put(entry.getKey(), Collections.unmodifiableList(new ArrayList<>(entry.getValue())));
+        }
+        this.taskListenerOverrides = Collections.unmodifiableMap(overrides);
         this.deadlockPolicy = builder.deadlockPolicy;
         this.purgePolicy = builder.purgePolicy;
         this.purger = new HeuristicPurger(
@@ -140,13 +146,22 @@ public final class GlobalPar implements AutoCloseable {
         return Optional.ofNullable(pars.get(name));
     }
 
-    public GlobalExecutionPolicy executionPolicy() {
-        return executionPolicy;
+    /**
+     * Returns the immutable default task-listener snapshot shared by every {@link Par} without an
+     * override. Listener callbacks run on task execution paths and must therefore be non-blocking
+     * and tolerate concurrent invocation.
+     */
+    public List<TaskListener> taskListeners() {
+        return taskListeners;
     }
 
-    public GlobalExecutionPolicy executionPolicyFor(String name) {
-        GlobalExecutionPolicy override = policyOverrides.get(name);
-        return override == null ? executionPolicy : override;
+    /**
+     * Returns the immutable listener list for the named {@link Par}: its override when one was
+     * configured, otherwise the default {@link #taskListeners()}.
+     */
+    public List<TaskListener> taskListenersFor(String name) {
+        List<TaskListener> override = taskListenerOverrides.get(name);
+        return override == null ? taskListeners : override;
     }
 
     public GlobalParDeadlockPolicy deadlockPolicy() {
@@ -186,13 +201,13 @@ public final class GlobalPar implements AutoCloseable {
     /**
      * Opens a request-scoped task-graph observation owned by this topology.
      *
-     * <p>The caller must close the returned context. Only nested batches belonging to this same
+     * <p>The caller must close the returned scope. Only nested batches belonging to this same
      * {@code GlobalPar} join it; crossing to another topology deliberately starts no shared graph.
      *
      * @throws IllegalStateException if this GlobalPar has begun shutdown
      */
-    public TaskGraphObservationContext openTaskGraphObservation() {
-        return whileOpen(() -> new TaskGraphObservationContext(this));
+    public TaskGraphObservationScope openTaskGraphObservation() {
+        return whileOpen(() -> new TaskGraphObservationScope(this));
     }
 
     /**
@@ -347,26 +362,34 @@ public final class GlobalPar implements AutoCloseable {
 
     public static final class Builder {
         private final Map<String, ExecutorService> executors = new LinkedHashMap<>();
-        private GlobalExecutionPolicy executionPolicy =
-                GlobalExecutionPolicy.builder().build();
-        private final Map<String, GlobalExecutionPolicy> policyOverrides = new LinkedHashMap<>();
+        private final List<TaskListener> taskListeners = new ArrayList<>();
+        private final Map<String, List<TaskListener>> taskListenerOverrides = new LinkedHashMap<>();
         private GlobalParDeadlockPolicy deadlockPolicy =
                 GlobalParDeadlockPolicy.builder().build();
         private GlobalParPurgePolicy purgePolicy =
                 GlobalParPurgePolicy.builder().build();
         private String defaultName;
 
-        public Builder executionPolicy(GlobalExecutionPolicy policy) {
-            this.executionPolicy = Objects.requireNonNull(policy);
+        /**
+         * Appends a task listener to the default list shared by every {@link Par} without an
+         * override. May be called repeatedly to register several listeners.
+         */
+        public Builder taskListener(TaskListener listener) {
+            taskListeners.add(Objects.requireNonNull(listener));
             return this;
         }
 
-        public Builder parPolicyOverride(String name, GlobalExecutionPolicy policy) {
+        /**
+         * Appends a task listener to the override list of the named {@link Par}, replacing the
+         * default list for that entry. May be called repeatedly with the same name to register
+         * several listeners; the name must be {@link #register(String, ExecutorService)
+         * registered} before {@link #build()}.
+         */
+        public Builder parTaskListener(String name, TaskListener listener) {
             if (name == null || name.isEmpty()) throw new IllegalArgumentException("name must not be empty");
-            if (policyOverrides.containsKey(name)) {
-                throw new IllegalArgumentException("Duplicate policy override for Par '" + name + "'");
-            }
-            policyOverrides.put(name, Objects.requireNonNull(policy));
+            taskListenerOverrides
+                    .computeIfAbsent(name, key -> new ArrayList<>())
+                    .add(Objects.requireNonNull(listener));
             return this;
         }
 
@@ -404,9 +427,9 @@ public final class GlobalPar implements AutoCloseable {
             if (defaultName != null && !executors.containsKey(defaultName)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultName);
             }
-            for (String name : policyOverrides.keySet()) {
+            for (String name : taskListenerOverrides.keySet()) {
                 if (!executors.containsKey(name)) {
-                    throw new IllegalArgumentException("policy override is not registered: " + name);
+                    throw new IllegalArgumentException("task listener override is not registered: " + name);
                 }
             }
             return new GlobalPar(this);

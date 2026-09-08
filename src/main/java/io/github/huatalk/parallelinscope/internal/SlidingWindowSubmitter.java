@@ -9,8 +9,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.huatalk.parallelinscope.context.SubmissionScope;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
 import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.List;
 import java.util.Objects;
@@ -35,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <V> the result type of tasks
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
-public class ConcurrentLimitExecutor<V> {
+public class SlidingWindowSubmitter<V> {
 
     private final ListenableCompletionService<V> cs;
     private final BlockingQueue<ListenableFuture<V>> blockingQueue = new LinkedBlockingQueue<>();
@@ -43,7 +43,7 @@ public class ConcurrentLimitExecutor<V> {
     private final ListeningExecutorService submitterPool;
 
     /** Creates a submitter for the new immutable batch runtime context. */
-    public ConcurrentLimitExecutor(
+    public SlidingWindowSubmitter(
             ListeningExecutorService pool, MultiTaskContext batchContext, ListeningExecutorService submitterPool) {
         this.batchContext = Objects.requireNonNull(batchContext, "batchContext cannot be null");
         this.submitterPool = Objects.requireNonNull(submitterPool, "submitterPool cannot be null");
@@ -58,11 +58,11 @@ public class ConcurrentLimitExecutor<V> {
      * prepared future enters the worker pool.
      *
      * @param tasks prepared task futures to execute
-     * @return AsyncBatchResult containing individual task futures
+     * @return TaskBatchResult containing individual task futures
      */
-    public AsyncBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
+    public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return AsyncBatchResult.of(ImmutableList.of());
+            return TaskBatchResult.of(ImmutableList.of());
         }
 
         ImmutableList.Builder<ListenableFuture<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
@@ -78,14 +78,14 @@ public class ConcurrentLimitExecutor<V> {
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
                     resultBuilder.add(Futures.immediateFailedFuture(failure));
                 }
-                return AsyncBatchResult.of(resultBuilder.build());
+                return TaskBatchResult.of(resultBuilder.build());
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
             ImmutableList<ListenableFuture<V>> results = resultBuilder.build();
-            return AsyncBatchResult.of(results);
+            return TaskBatchResult.of(results);
         }
 
         // Async submit remaining tasks
@@ -111,7 +111,7 @@ public class ConcurrentLimitExecutor<V> {
                 },
                 directExecutor());
 
-        return AsyncBatchResult.of(submittingFuture, results);
+        return TaskBatchResult.of(submittingFuture, results);
     }
 
     private ListenableFuture<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
@@ -178,7 +178,7 @@ public class ConcurrentLimitExecutor<V> {
      * Completes every future that will never receive a submission so the batch always reaches a
      * terminal state. Direct placeholder cancellation produces {@code CANCELLED}; an interrupted
      * submitter or rejected submission records its cause. Without this cleanup, {@link
-     * Futures#allAsList} could wait forever and hide the reason in {@link AsyncBatchResult#report()}.
+     * Futures#allAsList} could wait forever and hide the reason in {@link TaskBatchResult#report()}.
      *
      * @param result the batch futures
      * @param fromIndex the first never-submitted future index (inclusive)

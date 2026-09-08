@@ -35,7 +35,7 @@ BatchExecutionOptions options = BatchExecutionOptions.of("fetch-user")
         .timeout(Duration.ofSeconds(3))
         .build();
 
-AsyncBatchResult<User> result = global.par("io")
+TaskBatchResult<User> result = global.par("io")
         .map(userIds, userService::findById, options);
 ```
 

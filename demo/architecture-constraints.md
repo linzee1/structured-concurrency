@@ -22,7 +22,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 
 | 包名 | 说明 |
 |------|------|
-| `io.github.huatalk.parallelinscope.scope` | 核心 API（Par, BatchExecutionOptions, AsyncBatchResult, GlobalPar） |
+| `io.github.huatalk.parallelinscope.scope` | 核心 API（Par, BatchExecutionOptions, TaskBatchResult, GlobalPar） |
 | `io.github.huatalk.parallelinscope.spi` | 扩展点（TaskListener, DeadlockDetectionListener） |
 
 #### 允许访问的类（例外）
@@ -105,7 +105,7 @@ mvn test
 │  ┌─────────────────────────────────────────────────┐   │
 │  │                scope (公共 API)                   │   │
 │  │  ┌─────┐ ┌──────────┐ ┌──────────────┐         │   │
-│  │  │ Par │ │ BatchExecutionOptions│ │AsyncBatchResult│         │   │
+│  │  │ Par │ │ BatchExecutionOptions│ │TaskBatchResult│         │   │
 │  │  └─────┘ └──────────┘ └──────────────┘         │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
@@ -130,7 +130,7 @@ mvn test
 
 ```java
 // 错误 1: 访问内部包
-import io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutor;
+import io.github.huatalk.parallelinscope.internal.SlidingWindowSubmitter;
 
 // 错误 2: 使用主项目包名
 package io.github.huatalk.parallelinscope.demo;  // 应该是 demo.basic

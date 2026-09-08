@@ -8,7 +8,7 @@
 | `new Par(config)` | `global.par(name)` |
 | `ParOptions` | `MultiTaskOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
-| `ParConfig` 的 timeout/listener 默认值 | `GlobalExecutionPolicy` |
+| `ParConfig` 的 timeout/listener 默认值 | `GlobalPar.Builder.taskListener(...)`（timeout 仍按调用声明） |
 | `ParConfig` 的 livelock 设置 | `GlobalParDeadlockPolicy` |
 | `ParConfig` 的 purge 设置 | `GlobalParPurgePolicy` |
 | 调用时按名称解析执行器 | `GlobalPar` 构建期绑定执行器 |
@@ -29,7 +29,7 @@
 `timeout(Duration)` 设置正数显式超时，`inheritTimeout()` 声明继承外层作用域的 deadline。
 两者都未声明或同时声明时 `build()` 抛出 `IllegalArgumentException`。访问器由
 `Duration timeout()` 改为 `Optional<Duration> timeout()`；空值表示继承。
-`GlobalExecutionPolicy.defaultTimeoutMillis` 已删除，不再存在隐式的全局默认超时。
+原先的全局默认超时已删除，不再存在隐式的全局默认超时。
 `MultiTaskContext.resolve` 相应不再接收 policy 参数，调用时删除该实参。
 
 deadline 解析遵循统一规则：显式 timeout 取自身上限与外层硬 deadline 的较早者；继承时解析为
@@ -63,7 +63,7 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 之上补充了 `RUNNING`，因此可同时服务批量报告与组成员结果。映射关系：`FutureState.FAILED` →
 `TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELED`，
 `TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
-`AsyncBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
+`TaskBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
 `TaskGroupMemberResult` 的成员终态由 `outcome()` 暴露并返回 `TaskOutcome`（由早期的
 `completionReason()` 改名而来）。
 
@@ -83,5 +83,21 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 
 `ExecutionPhase.CANCELLED_BEFORE_RUN` 拼写修正为 `CANCELED_BEFORE_RUN`，与库内统一的
 单 L `CANCELED` 拼写一致。
+
+`GlobalExecutionPolicy` 已删除：它的唯一内容是 `TaskListener` 列表，监听器现在直接注册在
+`GlobalPar.Builder` 上。原先 `GlobalExecutionPolicy.builder().taskListener(l).build()` 传给
+`executionPolicy(policy)` 的写法改为 builder 上的 `taskListener(l)`；按 Par 覆盖的
+`parPolicyOverride(name, policy)` 改为每个监听器一次 `parTaskListener(name, l)`——同一 name
+重复调用是追加而不是报错，覆盖列表对该 Par 仍然整体替换默认列表。`GlobalPar` 的
+`executionPolicy()`/`executionPolicyFor(name)` 访问器相应改为
+`taskListeners()`/`taskListenersFor(name)`。
+
+`AsyncBatchResult` 改名为 `TaskBatchResult`（嵌套类型 `BatchReport` 名称不变）：它是"一批任务
+的结果"，并非 async 专属概念。内部的 `ConcurrentLimitExecutor` 改名为
+`SlidingWindowSubmitter`，与实际职责一致——按滑动窗口提交已准备的 tasks。
+`TaskGraphObservationContext` 改名为 `TaskGraphObservationScope`：它是可关闭的观察作用域，
+命名规则统一为 `Scope` 表示有生命周期的可关闭作用域、`Context` 表示数据载体。入口方法
+`GlobalPar.openTaskGraphObservation()` 名称不变；`MultiTaskContext` 的访问器相应由
+`taskGraphObservationContext()` 改名为 `taskGraphObservationScope()`。
 
 旧的 `ParConfig`、`ParOptions`、`ExecutorResolver`、`GlobalParConfig` 及旧版 `Par` 入口都不是兼容别名。迁移时请同时更新 import、构建方式和调用方式。注册的执行器仍由应用拥有并负责关闭。

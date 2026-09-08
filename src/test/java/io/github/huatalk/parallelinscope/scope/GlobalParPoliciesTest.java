@@ -6,40 +6,45 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.huatalk.parallelinscope.spi.TaskListener;
 import org.junit.jupiter.api.Test;
 
-/** Builder validation matrix for {@link GlobalPar} policies and its policy overrides. */
+/** Builder validation matrix for {@link GlobalPar} policies and its task-listener overrides. */
 class GlobalParPoliciesTest {
 
     @Test
-    void parPolicyOverrideRejectsBlankNamesDuplicatesAndNullPolicies() {
+    void parTaskListenerRejectsBlankNamesAndNullListenersAndAppendsPerPar() {
         GlobalPar.Builder builder = GlobalPar.builder();
-        GlobalExecutionPolicy policy = GlobalExecutionPolicy.builder().build();
+        TaskListener first = event -> {};
+        TaskListener second = event -> {};
 
-        assertThat(builder.parPolicyOverride("orders", policy)).isSameAs(builder);
+        assertThat(builder.parTaskListener("orders", first)).isSameAs(builder);
 
-        assertThatThrownBy(() -> builder.parPolicyOverride(null, policy)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.parPolicyOverride("", policy)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> GlobalPar.builder().parPolicyOverride("fresh", null))
+        assertThatThrownBy(() -> builder.parTaskListener(null, first)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.parTaskListener("", first)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> GlobalPar.builder().parTaskListener("fresh", null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> builder.parPolicyOverride("orders", policy))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate");
 
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("billing", java.util.concurrent.Executors.newSingleThreadExecutor())
-                .parPolicyOverride("billing", GlobalExecutionPolicy.builder().build())
+                .register("billing", executor)
+                .taskListener(first)
+                .parTaskListener("billing", first)
+                .parTaskListener("billing", second)
                 .build();
         try {
             assertThat(global.closed()).isFalse();
+            assertThat(global.taskListeners()).containsExactly(first);
+            assertThat(global.taskListenersFor("billing")).containsExactly(first, second);
+            assertThatThrownBy(() -> global.taskListenersFor("billing").clear())
+                    .isInstanceOf(UnsupportedOperationException.class);
         } finally {
             global.close();
+            executor.shutdownNow();
         }
     }
 
     @Test
-    void policyOverridesWithoutRegisteredNameFailBuildAndRegisterRejectsDuplicates() {
+    void taskListenerOverridesWithoutRegisteredNameFailBuildAndRegisterRejectsDuplicates() {
         assertThatThrownBy(() -> GlobalPar.builder()
-                        .parPolicyOverride(
-                                "ghost", GlobalExecutionPolicy.builder().build())
+                        .parTaskListener("ghost", event -> {})
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not registered");
@@ -92,14 +97,19 @@ class GlobalParPoliciesTest {
     }
 
     @Test
-    void deadlockPolicyAndExecutionPolicyBuildersExposeFluentSelfReturns() {
+    void deadlockPolicyAndTaskListenerBuildersExposeFluentSelfReturns() {
         GlobalParDeadlockPolicy.Builder deadlock = GlobalParDeadlockPolicy.builder();
         assertThat(deadlock.enabled(true)).isSameAs(deadlock);
         assertThat(deadlock.build().enabled()).isTrue();
 
-        GlobalExecutionPolicy.Builder execution = GlobalExecutionPolicy.builder();
+        GlobalPar.Builder listeners = GlobalPar.builder();
         TaskListener listener = event -> {};
-        assertThat(execution.taskListener(listener)).isSameAs(execution);
-        assertThat(execution.build().taskListeners()).containsExactly(listener);
+        assertThat(listeners.taskListener(listener)).isSameAs(listeners);
+        GlobalPar global = listeners.build();
+        try {
+            assertThat(global.taskListeners()).containsExactly(listener);
+        } finally {
+            global.close();
+        }
     }
 }

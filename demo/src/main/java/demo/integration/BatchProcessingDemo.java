@@ -1,9 +1,9 @@
 package demo.integration;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -41,7 +41,7 @@ public class BatchProcessingDemo {
 
         try {
             // 2. 配置批处理参数
-            BatchExecutionOptions options = BatchExecutionOptions.of("batch-demo")
+            MultiTaskOptions options = MultiTaskOptions.of("batch-demo")
                     .parallelism(4)
                     .timeout(java.time.Duration.ofMillis(30000))
                     .build();
@@ -53,7 +53,7 @@ public class BatchProcessingDemo {
             System.out.println("开始批量处理...");
             long startTime = System.currentTimeMillis();
 
-            AsyncBatchResult<Integer> result = par.map(
+            TaskBatchResult<Integer> result = par.map(
                     largeDataset,
                     n -> {
                         // 模拟复杂计算

@@ -13,12 +13,8 @@ a dynamically growing batch.
 Create `GlobalPar` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
 
 ```java
-GlobalExecutionPolicy defaults = GlobalExecutionPolicy.builder()
-        .taskListener(metricsListener)
-        .build();
-
 GlobalPar global = GlobalPar.builder()
-        .executionPolicy(defaults)
+        .taskListener(metricsListener)
         .register("database", databaseExecutor)
         .register("http", httpExecutor)
         .defaultPar("http")
@@ -50,7 +46,7 @@ MultiTaskOptions options = MultiTaskOptions.of("fetch-account")
         .rejectEnqueue(false)
         .build();
 
-AsyncBatchResult<Account> result = httpPar.map(
+TaskBatchResult<Account> result = httpPar.map(
         accountIds,
         client::fetchAccount,
         options);
@@ -140,7 +136,7 @@ Nested `map` calls inherit the current `MultiTaskContext` when they run inside a
 
 ```java
 databasePar.map(ids, id -> {
-    AsyncBatchResult<Response> children = httpPar.map(
+    TaskBatchResult<Response> children = httpPar.map(
             endpoints(id), client::call, httpOptions);
     return collect(children);
 }, databaseOptions);
@@ -153,7 +149,7 @@ Use an [observation scope](#observe-nested-work) when the request needs graph di
 Task-graph observation is explicitly scoped to one `GlobalPar`. The scope owns graph cleanup and, when enabled, invokes potential-deadlock listeners at the end of the request. A cycle is a structural risk signal, not proof that threads are currently deadlocked.
 
 ```java
-try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
+try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // Calls made below this scope, including nested calls on other Pars in global,
     // are recorded in the same graph.
     service.handleRequest();

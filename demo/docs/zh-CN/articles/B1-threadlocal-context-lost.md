@@ -49,14 +49,14 @@ Par par = config.defaultPar();
 MDC.put("traceId", "abc-123");
 
 // 配置并行选项
-BatchExecutionOptions opts = BatchExecutionOptions.of("process-orders")
+MultiTaskOptions opts = MultiTaskOptions.of("process-orders")
         .parallelism(4)
         .timeout(java.time.Duration.ofMillis(5000))
         .build();
 
 // 并行处理订单
 List<Order> orders = orderRepository.findPending();
-AsyncBatchResult<ProcessResult> result = par.map( orders, order -> {
+TaskBatchResult<ProcessResult> result = par.map( orders, order -> {
     // TTL 兼容的 MDC 中可以读取 traceId
     log.info("处理订单: {}", order.getId());
     return processOrder(order);

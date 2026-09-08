@@ -51,18 +51,18 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 并行选项：框架自动管理超时和取消
-BatchExecutionOptions opts = BatchExecutionOptions.of("fetch-data")
+MultiTaskOptions opts = MultiTaskOptions.of("fetch-data")
         .parallelism(5)
         .timeout(java.time.Duration.ofMillis(3000))
         .build();
 
 // 函数签名只保留业务参数，零基础设施噪音
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");
-AsyncBatchResult<String> result = par.map( urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     // 框架已自动处理：
     //   - CancellationToken 取消检查（ScopedCallable 内部）
     //   - 超时控制（CancellationToken.lateBind）
-    //   - 并发限制（ConcurrentLimitExecutor 滑动窗口）
+    //   - 并发限制（SlidingWindowSubmitter 滑动窗口）
     //   - SPI 回调（TaskListener）
     // 只需关注业务逻辑
     return doFetch(url);

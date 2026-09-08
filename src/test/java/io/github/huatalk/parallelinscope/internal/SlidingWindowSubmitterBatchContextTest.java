@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.github.huatalk.parallelinscope.context.SubmissionScope;
 import io.github.huatalk.parallelinscope.scope.MultiTaskContext;
 import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.time.Duration;
 import java.util.Arrays;
@@ -26,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-class ConcurrentLimitExecutorBatchContextTest {
+class SlidingWindowSubmitterBatchContextTest {
     @Test
     void installsBatchScopeForInitialAndSlidingWindowSubmissions() throws Exception {
         ConcurrentLinkedQueue<MultiTaskContext> submittedBatches = new ConcurrentLinkedQueue<>();
@@ -42,7 +43,7 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
             MultiTaskContext batch = context(2, 1, TaskType.IO_BOUND);
-            ConcurrentLimitExecutor<Integer> executor = new ConcurrentLimitExecutor<>(workers, batch, submitter);
+            SlidingWindowSubmitter<Integer> executor = new SlidingWindowSubmitter<>(workers, batch, submitter);
 
             assertThat(executor.submitAll(futures(() -> 1, () -> 2)).results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
@@ -62,8 +63,8 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(workers, context(0, 1, TaskType.IO_BOUND), submitter);
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(0, 1, TaskType.IO_BOUND), submitter);
             assertThat(executor.submitAll(java.util.Collections.emptyList()).results())
                     .isEmpty();
         } finally {
@@ -77,8 +78,8 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(3));
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(workers, context(3, 3, TaskType.IO_BOUND), submitter);
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 3, TaskType.IO_BOUND), submitter);
             assertThat(executor.submitAll(futures(() -> 1, () -> 2, () -> 3)).results())
                     .extracting(f -> f.get(1, TimeUnit.SECONDS))
                     .containsExactly(1, 2, 3);
@@ -94,9 +95,9 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch = executor.submitAll(futures(
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(
                     () -> {
                         release.await(2, TimeUnit.SECONDS);
                         return 1;
@@ -125,10 +126,9 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter);
-            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
-                    executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(rejected, context(3, 2, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2, () -> 3));
             assertThat(batch.results()).hasSize(3);
             for (com.google.common.util.concurrent.ListenableFuture<Integer> result : batch.results()) {
                 assertThatThrownBy(result::get).isInstanceOf(java.util.concurrent.ExecutionException.class);
@@ -144,9 +144,9 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         CountDownLatch release = new CountDownLatch(1);
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
-            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch = executor.submitAll(futures(
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(
                     () -> {
                         release.await(2, TimeUnit.SECONDS);
                         return 1;
@@ -173,7 +173,7 @@ class ConcurrentLimitExecutorBatchContextTest {
             AtomicInteger active = new AtomicInteger();
             AtomicInteger maximum = new AtomicInteger();
             CountDownLatch release = new CountDownLatch(1);
-            ConcurrentLimitExecutor<Integer> executor = new ConcurrentLimitExecutor<>(workers, context, submitter);
+            SlidingWindowSubmitter<Integer> executor = new SlidingWindowSubmitter<>(workers, context, submitter);
 
             assertThat(executor.submitAll(futures(
                                     () -> runTracked(active, maximum, release, 1),
@@ -196,8 +196,8 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(rejected, context(1, 1, TaskType.CPU_BOUND), submitter);
             assertThat(executor.submitAll(futures(() -> 7)).results().get(0).get())
                     .isEqualTo(7);
         } finally {
@@ -211,11 +211,10 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
 
-            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
-                    executor.submitAll(futures(() -> 1, () -> 2));
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
 
             assertThat(batch.results())
                     .extracting(future -> future.get(1, TimeUnit.SECONDS))
@@ -232,10 +231,10 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         rejected.shutdownNow();
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(rejected, context(2, 1, TaskType.CPU_BOUND), submitter);
 
-            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch = executor.submitAll(futures(
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(
                     () -> {
                         throw new IllegalStateException("expected failure");
                     },
@@ -292,10 +291,9 @@ class ConcurrentLimitExecutorBatchContextTest {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(firstThenReject);
         ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
         try {
-            ConcurrentLimitExecutor<Integer> executor =
-                    new ConcurrentLimitExecutor<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
-            io.github.huatalk.parallelinscope.scope.AsyncBatchResult<Integer> batch =
-                    executor.submitAll(futures(() -> 1, () -> 2));
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(2, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(() -> 1, () -> 2));
 
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))

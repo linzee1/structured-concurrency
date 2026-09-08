@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -49,8 +49,10 @@ class QuickStartTest {
         List<Integer> numbers = Arrays.asList(1, 2, 3);
 
         // ---- 步骤 2：最小示例 ----
-        BatchExecutionOptions minimalOpts = BatchExecutionOptions.of("square").build();
-        AsyncBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
+        MultiTaskOptions minimalOpts = MultiTaskOptions.of("square")
+                .timeout(java.time.Duration.ofMillis(5000))
+                .build();
+        TaskBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
 
         // 验证：逐个获取结果
         assertThat(result1.results()).hasSize(3);
@@ -59,10 +61,10 @@ class QuickStartTest {
         assertThat(result1.results().get(2).get()).isEqualTo(9);
 
         // ---- 步骤 3：设置超时 ----
-        BatchExecutionOptions timeoutOpts = BatchExecutionOptions.of("square")
+        MultiTaskOptions timeoutOpts = MultiTaskOptions.of("square")
                 .timeout(java.time.Duration.ofMillis(500))
                 .build();
-        AsyncBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
+        TaskBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
 
         // 验证：超时设置下仍然能正常完成
         for (Future<Integer> future : result2.results()) {
@@ -71,12 +73,12 @@ class QuickStartTest {
         }
 
         // ---- 步骤 4：控制并发度 ----
-        BatchExecutionOptions limitedOpts = BatchExecutionOptions.of("process")
+        MultiTaskOptions limitedOpts = MultiTaskOptions.of("process")
                 .parallelism(2)
                 .timeout(java.time.Duration.ofMillis(5000))
                 .build();
         List<Integer> bigList = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
-        AsyncBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
+        TaskBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
 
         // 验证：并发限制下所有结果正确
         assertThat(result3.results()).hasSize(8);
@@ -90,9 +92,9 @@ class QuickStartTest {
         assertThat(report).contains("SUCCESS:8");
 
         // report() 结构化报告
-        AsyncBatchResult.BatchReport batchReport = result3.report();
+        TaskBatchResult.BatchReport batchReport = result3.report();
         assertThat(batchReport.stateCounts())
-                .containsEntry(io.github.huatalk.parallelinscope.internal.FutureState.SUCCESS, 8);
+                .containsEntry(io.github.huatalk.parallelinscope.scope.TaskOutcome.SUCCESS, 8);
         assertThat(batchReport.firstException()).isNull();
     }
 }

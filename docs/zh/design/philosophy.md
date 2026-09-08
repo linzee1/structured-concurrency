@@ -99,7 +99,7 @@ par.map("shared-pool", orders, order -> {
 如果并发编程的痛苦来自"选择太多"，那解法就是**减少选择**。
 
 ```java
-AsyncBatchResult<String> result = par.map(
+TaskBatchResult<String> result = par.map(
     "io-pool",   // 线程池名称
     urls,        // 输入列表
     url -> fetch(url),  // 处理函数
@@ -167,7 +167,7 @@ List<Future<String>> results = pool.invokeAll(callables); // 阻塞到全部完�
 // 阶段 1：启动滑动窗口提交
 // 前 parallelism 个任务立即提交，剩余任务用 SettableFuture 占位并按完成情况补充
 // 每完成一个任务，从队列中取下一个占位符，用 SettableFuture.setFuture() 补充实际任务
-AsyncBatchResult<?> result = ConcurrentLimitExecutor
+TaskBatchResult<?> result = SlidingWindowSubmitter
     .create(executor, options, submitterPool)
     .submitAll(wrappedTasks);
 
@@ -312,7 +312,7 @@ parallel-in-scope 的解决方案是 **请求级 DAG 图**（DAG = Directed Acyc
 
 ```java
 // 请求入口
-try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
+try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
     // 例如上面的嵌套调用会记录两条边：
     //   "processOrder" → "fetchItem"  (executor: shared-pool → shared-pool)

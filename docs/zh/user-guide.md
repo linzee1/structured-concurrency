@@ -9,12 +9,8 @@
 在 composition root 创建 `GlobalPar`。每个逻辑入口在注册时绑定应使用的执行器，并将取得的 `Par` 注入需要它的组件。
 
 ```java
-GlobalExecutionPolicy defaults = GlobalExecutionPolicy.builder()
-        .taskListener(metricsListener)
-        .build();
-
 GlobalPar global = GlobalPar.builder()
-        .executionPolicy(defaults)
+        .taskListener(metricsListener)
         .register("database", databaseExecutor)
         .register("http", httpExecutor)
         .defaultPar("http")
@@ -46,7 +42,7 @@ MultiTaskOptions options = MultiTaskOptions.of("fetch-account")
         .rejectEnqueue(false)
         .build();
 
-AsyncBatchResult<Account> result = httpPar.map(
+TaskBatchResult<Account> result = httpPar.map(
         accountIds,
         client::fetchAccount,
         options);
@@ -76,7 +72,7 @@ httpPar.map(accountIds, id -> {
 
 ```java
 databasePar.map(ids, id -> {
-    AsyncBatchResult<Response> children = httpPar.map(
+    TaskBatchResult<Response> children = httpPar.map(
             endpoints(id), client::call, httpOptions);
     return collect(children);
 }, databaseOptions);
@@ -89,7 +85,7 @@ databasePar.map(ids, id -> {
 任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用潜在死锁检测 listener。检测到循环只表示结构风险，不证明线程当前已经死锁。
 
 ```java
-try (TaskGraphObservationContext observation = global.openTaskGraphObservation()) {
+try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // 这里及其嵌套调用使用 global 中的多个 Par 时，写入同一张任务图。
     service.handleRequest();
 }

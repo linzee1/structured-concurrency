@@ -112,7 +112,7 @@ public class ScopedCallable<V> implements Callable<V> {
 
         MultiTaskContext batchContext = taskContext.batchContext();
         String taskName = batchContext.taskName();
-        // TaskGraphObservationContext is a TransmittableThreadLocal captured by the TtlCallable
+        // TaskGraphObservationScope is a TransmittableThreadLocal captured by the TtlCallable
         // wrapper created at the Par.map boundary.
 
         V result = null;

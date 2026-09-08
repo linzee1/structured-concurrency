@@ -22,20 +22,20 @@ List<String> services = Arrays.asList(
         "order", "user", "payment", "inventory", "notification",
         "billing", "shipping", "review", "recommendation", "analytics");
 
-BatchExecutionOptions opts = BatchExecutionOptions.of("batch-http").taskType(TaskType.IO_BOUND)
+MultiTaskOptions opts = MultiTaskOptions.of("batch-http").taskType(TaskType.IO_BOUND)
         .parallelism(5)        // 最多 5 个并发，保护下游
         .timeout(java.time.Duration.ofMillis(3000))         // 3 秒超时
         .build();
 
-AsyncBatchResult<String> result = par.map( services, svc -> {
+TaskBatchResult<String> result = par.map( services, svc -> {
     return callDownstream(svc);  // 你的 HTTP 调用逻辑
 }, opts);
 
 Thread.sleep(3500);  // 等待任务完成
 System.out.println(result.reportString());
 // 正常: SUCCESS:10
-// 部分超时: SUCCESS:7,CANCELLED:3
-// 有异常: SUCCESS:8,FAILED:1,CANCELLED:1
+// 部分超时: SUCCESS:7,MEMBER_CANCELED:3
+// 有异常: SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1
 ```
 
 关键点：
@@ -60,18 +60,18 @@ for (int i = 0; i < allIds.size(); i += 1000) {
 }
 // shards.size() == 10
 
-BatchExecutionOptions opts = BatchExecutionOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
+MultiTaskOptions opts = MultiTaskOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
         .parallelism(3)        // DB 连接池就 3 个，别超了
         .timeout(java.time.Duration.ofMillis(30000))        // 查询可能慢，30 秒超时
         .build();
 
-AsyncBatchResult<List<User>> result = par.map( shards, shard -> {
+TaskBatchResult<List<User>> result = par.map( shards, shard -> {
     return userMapper.selectByIds(shard);  // 你的 DAO 调用
 }, opts);
 
 // 合并分片结果
 List<User> allUsers = new ArrayList<>();
-for (ListenableFuture<List<User>> future : result.getResults()) {
+for (ListenableFuture<List<User>> future : result.results()) {
     allUsers.addAll(future.get(30, TimeUnit.SECONDS));
 }
 System.out.println("查询到 " + allUsers.size() + " 条记录");
@@ -89,12 +89,12 @@ System.out.println("查询到 " + allUsers.size() + " 条记录");
 一个请求需要同时调 HTTP、查 DB、读缓存，三种 IO 混在一个批次里：
 
 ```java
-BatchExecutionOptions opts = BatchExecutionOptions.of("mixed-io").taskType(TaskType.IO_BOUND)
+MultiTaskOptions opts = MultiTaskOptions.of("mixed-io").taskType(TaskType.IO_BOUND)
         .parallelism(6)
         .timeout(java.time.Duration.ofMillis(5000))         // 统一 5 秒超时
         .build();
 
-AsyncBatchResult<Object> result = par.map( tasks, task -> {
+TaskBatchResult<Object> result = par.map( tasks, task -> {
     if (task instanceof HttpRequest) {
         return httpClient.execute((HttpRequest) task);   // HTTP 调用
     } else if (task instanceof DbQuery) {
@@ -109,10 +109,10 @@ Thread.sleep(5500);
 String report = result.reportString();
 ```
 
-关于超时：用统一的 `BatchExecutionOptions.timeout` 即可，不需要每个任务设不同超时。原因：
+关于超时：用统一的 `MultiTaskOptions.timeout` 即可，不需要每个任务设不同超时。原因：
 - 框架级超时是"兜底"，防止任务永远挂起
 - 如果某个调用需要更细粒度的超时，在任务内部自己处理（比如 HTTP client 的 connectTimeout/readTimeout）
-- 这样保持 `BatchExecutionOptions` 简洁，任务逻辑自包含
+- 这样保持 `MultiTaskOptions` 简洁，任务逻辑自包含
 
 ---
 
@@ -120,17 +120,17 @@ String report = result.reportString();
 
 ### 1. 超时必须设
 
-不设超时 = 任务可能永远挂起。框架默认 60 秒超时，但建议根据业务场景显式设置：
+不设超时 = 任务可能永远挂起。新 API 不再提供默认超时：`timeout(Duration)` 与 `inheritTimeout()` 必须二选一，根级调用缺省 `.build()` 会直接抛异常。根据业务场景显式设置：
 
 ```java
 // 快速 HTTP 调用
-BatchExecutionOptions.of("http").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(3000)).build();
+MultiTaskOptions.of("http").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(3000)).build();
 
 // 数据库查询
-BatchExecutionOptions.of("db").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(30000)).build();
+MultiTaskOptions.of("db").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(30000)).build();
 
 // 文件处理
-BatchExecutionOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(120000)).build();
+MultiTaskOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(120000)).build();
 ```
 
 ### 2. 并行度要匹配资源
@@ -149,12 +149,12 @@ BatchExecutionOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.D
 ```java
 // 一行看全貌
 String report = result.reportString();
-// "SUCCESS:8,FAILED:1,CANCELLED:1 | firstException=timeout"
+// "SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1 | firstException=timeout"
 
 // 结构化访问
-BatchReport r = result.report();
-Map<FutureState, Integer> counts = r.getStateCounts();
-Throwable firstError = r.getFirstException();
+TaskBatchResult.BatchReport r = result.report();
+Map<TaskOutcome, Integer> counts = r.stateCounts();
+Throwable firstError = r.firstException();
 ```
 
 生产环境中，可以把 `reportString()` 打到日志里，配合 TaskListener 做监控告警。
@@ -184,7 +184,8 @@ par.map( items, item -> {
 
 ```java
 // 错误: 等于没有并发控制
-BatchExecutionOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
+MultiTaskOptions.of("bad").parallelism(Integer.MAX_VALUE)
+        .timeout(java.time.Duration.ofMillis(3000)).build();
 ```
 
 正确做法：设一个合理的值，匹配下游资源。
@@ -192,8 +193,8 @@ BatchExecutionOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
 **2. 不设超时**
 
 ```java
-// 错误: 任务可能永远挂起
-BatchExecutionOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
+// 错误: 根级调用必须显式声明超时
+MultiTaskOptions.of("bad").build();  // 直接抛 IllegalArgumentException：timeout(...) 与 inheritTimeout() 二选一
 ```
 
 正确做法：根据场景显式设超时。

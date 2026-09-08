@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.Par;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,7 +69,7 @@ public class BatchBestPracticesTest {
                 "recommendation",
                 "analytics");
 
-        BatchExecutionOptions opts = BatchExecutionOptions.of("batch-http")
+        MultiTaskOptions opts = MultiTaskOptions.of("batch-http")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(5)
                 .timeout(java.time.Duration.ofMillis(3000))
@@ -77,7 +77,7 @@ public class BatchBestPracticesTest {
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 services,
                 svc -> {
                     if ("payment".equals(svc)) {
@@ -104,8 +104,8 @@ public class BatchBestPracticesTest {
 
         // 验证：report 包含 FAILED（payment）和 CANCELLED（被取消的兄弟任务）
         String report = result.reportString();
-        assertThat(report).as("report 应包含 payment 的 FAILED 状态").contains("FAILED");
-        assertThat(report).as("report 应包含被 fail-fast 取消的任务").contains("CANCELLED");
+        assertThat(report).as("report 应包含 payment 的 FAILED 状态").contains("USER_FAILURE");
+        assertThat(report).as("report 应包含被 fail-fast 取消的任务").contains("MEMBER_CANCELED");
     }
 
     // ==================== 场景二：数据库分片查询 ====================
@@ -133,7 +133,7 @@ public class BatchBestPracticesTest {
         }
         assertThat(shards).hasSize(10);
 
-        BatchExecutionOptions opts = BatchExecutionOptions.of("db-batch-query")
+        MultiTaskOptions opts = MultiTaskOptions.of("db-batch-query")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(parallelism)
                 .timeout(java.time.Duration.ofMillis(30000))
@@ -142,7 +142,7 @@ public class BatchBestPracticesTest {
         long start = System.currentTimeMillis();
 
         // 并行分片查询
-        AsyncBatchResult<List<Long>> result = par.map(
+        TaskBatchResult<List<Long>> result = par.map(
                 shards,
                 shard -> {
                     // 模拟 DB 查询耗时 50ms
@@ -187,7 +187,7 @@ public class BatchBestPracticesTest {
         // 模拟混合任务：0=DB, 1=Cache, 2=HTTP(会失败), 3=DB, 4=Cache
         List<String> tasks = Arrays.asList("db-1", "cache-1", "http-1", "db-2", "cache-2");
 
-        BatchExecutionOptions opts = BatchExecutionOptions.of("mixed-io")
+        MultiTaskOptions opts = MultiTaskOptions.of("mixed-io")
                 .taskType(TaskType.IO_BOUND)
                 .parallelism(3)
                 .timeout(java.time.Duration.ofMillis(5000))
@@ -195,7 +195,7 @@ public class BatchBestPracticesTest {
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
-        AsyncBatchResult<String> result = par.map(
+        TaskBatchResult<String> result = par.map(
                 tasks,
                 task -> {
                     if (task.startsWith("http")) {
@@ -222,7 +222,7 @@ public class BatchBestPracticesTest {
 
         // 验证 report 包含 FAILED 和 CANCELLED
         String report = result.reportString();
-        assertThat(report).as("report 应包含 HTTP 调用的 FAILED 状态").contains("FAILED");
-        assertThat(report).as("report 应包含被取消的任务").contains("CANCELLED");
+        assertThat(report).as("report 应包含 HTTP 调用的 FAILED 状态").contains("USER_FAILURE");
+        assertThat(report).as("report 应包含被取消的任务").contains("MEMBER_CANCELED");
     }
 }

@@ -10,7 +10,7 @@ import javax.annotation.Nullable;
  *
  * <p>Implementations can record task execution times, queue wait times, etc. Register through
  * {@link
- * io.github.huatalk.parallelinscope.scope.GlobalExecutionPolicy.Builder#taskListener(TaskListener)}.
+ * io.github.huatalk.parallelinscope.scope.GlobalPar.Builder#taskListener(TaskListener)}.
  *
  * <p>Timing methods return {@link Duration}. Raw nanos timestamps are available via getters.
  *

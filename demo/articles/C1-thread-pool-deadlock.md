@@ -28,17 +28,17 @@ for (int i = 0; i < 2; i++) {
 
 `parallel-in-scope` 在此基础上提供了自动化的死锁检测能力。`TaskGraph` 会自动记录父子任务依赖关系，构建 DAG。在请求结束时，通过 Guava `Graphs.hasCycle()` 检测是否存在环路，并结合 `canDeadlock()` 检查涉及的线程池是否为有界池（`FixedThreadPool`）——只有有界池才会触发死锁告警，无界池（`CachedThreadPool`）天然安全。
 
-此外，`parallel-in-scope` 通过滑动窗口调度（`ConcurrentLimitExecutor`）和超时控制双管齐下：
+此外，`parallel-in-scope` 通过滑动窗口调度（`SlidingWindowSubmitter`）和超时控制双管齐下：
 - 滑动窗口确保不会一次性向池中灌入过多任务，降低死锁概率
-- `BatchExecutionOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
+- `MultiTaskOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
 
 ## 代码
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 
 // 方案：内层使用独立的 CachedThreadPool，避免嵌套死锁
@@ -52,22 +52,22 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 外层任务
-BatchExecutionOptions outerOpts = BatchExecutionOptions.of("outer-task")
+MultiTaskOptions outerOpts = MultiTaskOptions.of("outer-task")
         .parallelism(2)
         .timeout(java.time.Duration.ofMillis(10_000))
         .taskType(TaskType.IO_BOUND)
         .build();
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
-AsyncBatchResult<String> result = par.map( items, item -> {
+TaskBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用不同线程池，不会死锁
-    BatchExecutionOptions innerOpts = BatchExecutionOptions.of("inner-task")
+    MultiTaskOptions innerOpts = MultiTaskOptions.of("inner-task")
             .parallelism(2)
             .timeout(java.time.Duration.ofMillis(5_000))
             .build();
 
     List<String> subItems = Arrays.asList("a", "b");
-    AsyncBatchResult<String> innerResult = par.map( subItems, sub -> {
+    TaskBatchResult<String> innerResult = par.map( subItems, sub -> {
         return item + "-" + sub;
     }, innerOpts);
 

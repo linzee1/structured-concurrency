@@ -25,9 +25,9 @@ futures.forEach(f -> f.cancel(true));
 
 ## 解决方法
 
-`parallel-in-scope` 的 `Par.map()` 提供了超时控制机制。通过 `BatchExecutionOptions.timeout()` 设置单个任务的超时时间，框架会在超时后自动触发取消流程。对于支持中断的操作（如 `Thread.sleep`、阻塞 IO），取消会立即生效并释放线程资源。
+`parallel-in-scope` 的 `Par.map()` 提供了超时控制机制。通过 `MultiTaskOptions.timeout()` 设置单个任务的超时时间，框架会在超时后自动触发取消流程。对于支持中断的操作（如 `Thread.sleep`、阻塞 IO），取消会立即生效并释放线程资源。
 
-配合 `BatchExecutionOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
+配合 `MultiTaskOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
 - `parallelism(3)` 限制最大并行数为 3，采用滑动窗口调度避免线程池过载
 - `taskType(TaskType.IO_BOUND)` 标记为 IO 密集型任务，影响调度策略
 - `timeout(500)` 设置 500ms 超时，超时后自动取消剩余任务
@@ -36,9 +36,9 @@ futures.forEach(f -> f.cancel(true));
 
 ```java
 import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.BatchExecutionOptions;
+import io.github.huatalk.parallelinscope.scope.MultiTaskOptions;
 import io.github.huatalk.parallelinscope.scope.GlobalPar;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.huatalk.parallelinscope.scope.TaskBatchResult;
 import io.github.huatalk.parallelinscope.scope.TaskType;
 
 // 配置线程池和 Par 实例
@@ -49,7 +49,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 设置选项：3 并发，500ms 超时
-BatchExecutionOptions opts = BatchExecutionOptions.of("http-call")
+MultiTaskOptions opts = MultiTaskOptions.of("http-call")
         .parallelism(3)
         .timeout(java.time.Duration.ofMillis(500))
         .taskType(TaskType.IO_BOUND)
@@ -57,7 +57,7 @@ BatchExecutionOptions opts = BatchExecutionOptions.of("http-call")
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2", "url3");
-AsyncBatchResult<String> result = par.map( urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     // 模拟 IO 操作（Checkpoints.sleep 响应框架取消信号）
     Thread.sleep(5000);
     return fetchContent(url);

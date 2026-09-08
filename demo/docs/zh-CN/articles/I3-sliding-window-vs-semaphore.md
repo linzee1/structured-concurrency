@@ -43,7 +43,7 @@ while (index < tasks.size()) {
 }
 ```
 
-`parallel-in-scope` 的 `ConcurrentLimitExecutor` 就是这个模式的实现。它用内部 `ListenableCompletionService` 监听完成事件，`blockingQueue.take()` 作为信号驱动后续提交。
+`parallel-in-scope` 的 `SlidingWindowSubmitter` 就是这个模式的实现。它用内部 `ListenableCompletionService` 监听完成事件，`blockingQueue.take()` 作为信号驱动后续提交。
 
 ## 关键区别
 
@@ -86,7 +86,7 @@ f.cancel(true); // 只取消了这一个，其他 999 个还在队列里
 
 2. **取消干净**：取消操作只需中断提交循环，未提交的任务天然不会执行。配合 `CancellationToken` 的 late-bind 机制，可以实现超时取消、失败快速取消、父子级联取消。
 
-3. **资源隔离**：`ConcurrentLimitExecutor` 使用独立的 `submitterPool` 运行提交循环，不占用工作线程池的线程。信号量方案没有这种隔离——等待许可的线程虽然阻塞，但仍然占着工作池的一个线程槽位。
+3. **资源隔离**：`SlidingWindowSubmitter` 使用独立的 `submitterPool` 运行提交循环，不占用工作线程池的线程。信号量方案没有这种隔离——等待许可的线程虽然阻塞，但仍然占着工作池的一个线程槽位。
 
 信号量方案胜在简单，适合任务数量可控、不需要取消的轻量场景。但当任务量大、需要生命周期管理时，滑动窗口是更稳健的选择。
 

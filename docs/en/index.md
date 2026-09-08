@@ -29,7 +29,7 @@ This page is the English entry point for the user guide, API references, design 
 
 | Document | Role |
 |---|---|
-| [AsyncBatchResult test design](testing/async-batch-result-report-test-design.md) | Stable report contracts and concurrency assertions |
+| [TaskBatchResult test design](testing/task-batch-result-report-test-design.md) | Stable report contracts and concurrency assertions |
 | [AI concurrency review case study](case-studies/ai-concurrency-review-false-positive.md) | A false-positive review and how to verify it |
 
 ## Documentation Roles

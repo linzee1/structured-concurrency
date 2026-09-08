@@ -72,7 +72,7 @@ TaskSubmissions.submitScoped(prepared, batchContext, executor, cpuBound); // exe
 - 支持现有 CPU-bound rejection 后 inline 执行策略，但 inline 也必须遵守已注册和执行权竞态；
 - 每个冻结 future 最终达到终态。
 
-该内核同时供 `Par.map()` 和 Group 使用，避免两套取消/phase/TTL/ScopedCallable 实现。Batch 仍在其上保留 `ConcurrentLimitExecutor` 的滑动窗口，Group 不使用滑动窗口。
+该内核同时供 `Par.map()` 和 Group 使用，避免两套取消/phase/TTL/ScopedCallable 实现。Batch 仍在其上保留 `SlidingWindowSubmitter` 的滑动窗口，Group 不使用滑动窗口。
 
 ## 9. 单任务运行内核的复用边界
 
@@ -91,12 +91,12 @@ TaskSubmissions.submitScoped(prepared, batchContext, executor, cpuBound); // exe
 | `CancellationToken` | outer→group→member 取消传播和中断 |
 | `HeuristicPurger` | 取消排队任务后的有界队列清理 |
 | `TtlCallable` | 已配置 TTL 的提交时快照与恢复 |
-| `TaskGraphObservationContext` | 请求级观测归属 |
+| `TaskGraphObservationScope` | 请求级观测归属 |
 
 ### 9.2 不得复用
 
-- `ConcurrentLimitExecutor`：Group 不使用滑动窗口、placeholder 或 completion queue 驱动提交；
-- `AsyncBatchResult`：Group 是异构成员和固定的具名集合；
+- `SlidingWindowSubmitter`：Group 不使用滑动窗口、placeholder 或 completion queue 驱动提交；
+- `TaskBatchResult`：Group 是异构成员和固定的具名集合；
 - `Par.map(singletonList, ...)`：会引入错误抽象和不必要包装；
 - 虚构的 Group `MultiTaskContext`：membership 不是 Batch；
 - Group ThreadLocal/TTL：Group 由显式对象持有，不是线程隐式状态。
@@ -137,7 +137,7 @@ Group
   └─ invoke prepared submission outside Group lock
 ```
 
-Batch 路径由 `ConcurrentLimitExecutor` 组织滑动窗口，但其 future 创建、phase claim、
+Batch 路径由 `SlidingWindowSubmitter` 组织滑动窗口，但其 future 创建、phase claim、
 SubmissionScope、rejection/inline 和 scoped callable 包装与 Group 共享同一个
 `TaskSubmissions` 内核。不要为 Group 单独复制 `ScopedCallable`、execution phase future 或
 cancellation token。
