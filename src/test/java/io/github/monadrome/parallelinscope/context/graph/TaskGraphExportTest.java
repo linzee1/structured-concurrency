@@ -169,8 +169,8 @@ class TaskGraphExportTest {
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
         java.util.concurrent.atomic.AtomicInteger detections = new java.util.concurrent.atomic.AtomicInteger();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParName.of("outer"), outerExecutor)
+                .register(ParName.of("inner"), innerExecutor)
                 .deadlockPolicy(GlobalParDeadlockPolicy.builder()
                         .enabled(true)
                         .listener(event -> detections.incrementAndGet())
@@ -178,11 +178,11 @@ class TaskGraphExportTest {
                 .build();
         TaskGraphData captured;
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -233,15 +233,15 @@ class TaskGraphExportTest {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParName.of("outer"), outerExecutor)
+                .register(ParName.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -282,9 +282,10 @@ class TaskGraphExportTest {
     @Test
     void directExecutorServiceRecordsTaskGraphButSkipsExecutorGraphs() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatchResult<Integer> batch = global.par("direct")
+            TaskBatchResult<Integer> batch = global.par(ParName.of("direct"))
                     .map(
                             Collections.singletonList(1),
                             value -> value + 1,

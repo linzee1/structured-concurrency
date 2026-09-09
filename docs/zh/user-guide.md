@@ -9,15 +9,20 @@
 在 composition root 创建 `GlobalPar`。每个逻辑入口在注册时绑定应使用的执行器，并将取得的 `Par` 注入需要它的组件。
 
 ```java
+ParName DATABASE = ParName.of("database");
+ParName HTTP = ParName.of("http");
+
 GlobalPar global = GlobalPar.builder()
         .taskListener(metricsListener)
-        .register("database", databaseExecutor)
-        .register("http", httpExecutor)
-        .defaultPar("http")
+        .register(DATABASE, databaseExecutor)
+        .register(HTTP, httpExecutor)
+        .defaultPar(HTTP)
         .build();
 
-Par httpPar = global.par("http");
+Par httpPar = global.par(HTTP);
 ```
+
+`ParName` 是值对象：构造时一次性校验（非 null、非空白），按值相等，因此可以把名称声明为常量复用。它是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个名称可以有意共享同一个执行器。
 
 名称会在构建期校验；`build()` 后 `GlobalPar` 不可变，未知名称的 `par(name)` 会失败。注册的执行器属于调用方：关闭 `GlobalPar` 只会关闭内部 timer 和 submitter 服务，绝不会关闭它们。
 
@@ -68,11 +73,11 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 
 TaskRef<User> user = definition.task(
         new TaskRef<User>("user") {},
-        "database", userRepository::load,
+        DATABASE, userRepository::load,
         MultiTaskOptions.of("load-user").inheritTimeout().build());
 TaskRef<List<Order>> orders = definition.task(
         new TaskRef<List<Order>>("orders") {},
-        "http", orderClient::load,
+        HTTP, orderClient::load,
         MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
@@ -93,7 +98,7 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 ```java
 TaskRef<AccountPage> page = definition.combine(
         new TaskRef<AccountPage>("assemble-page") {},
-        "cpu",
+        ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
         MultiTaskOptions.of("assemble-page").inheritTimeout().build());
 
@@ -165,7 +170,7 @@ GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
 
 GlobalPar global = GlobalPar.builder()
         .purgePolicy(purge)
-        .register("io", ioThreadPool)
+        .register(ParName.of("io"), ioThreadPool)
         .build();
 ```
 

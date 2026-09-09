@@ -24,8 +24,10 @@ A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail
 ```
 
 ```java
+ParName IO = ParName.of("io");
+
 GlobalPar execution = GlobalPar.builder()
-        .register("io", Executors.newFixedThreadPool(8))
+        .register(IO, Executors.newFixedThreadPool(8))
         .build();
 
 MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
@@ -33,7 +35,7 @@ MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
         .timeout(Duration.ofSeconds(3))
         .build();
 
-TaskBatchResult<User> result = execution.par("io")
+TaskBatchResult<User> result = execution.par(IO)
         .map(userIds, userService::findById, options);
 ```
 

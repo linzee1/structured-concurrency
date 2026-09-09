@@ -13,15 +13,20 @@ a dynamically growing batch.
 Create `GlobalPar` at the composition root. Register every logical entry with the executor it must use and pass the resulting `Par` to components that need it.
 
 ```java
+ParName DATABASE = ParName.of("database");
+ParName HTTP = ParName.of("http");
+
 GlobalPar global = GlobalPar.builder()
         .taskListener(metricsListener)
-        .register("database", databaseExecutor)
-        .register("http", httpExecutor)
-        .defaultPar("http")
+        .register(DATABASE, databaseExecutor)
+        .register(HTTP, httpExecutor)
+        .defaultPar(HTTP)
         .build();
 
-Par httpPar = global.par("http");
+Par httpPar = global.par(HTTP);
 ```
+
+`ParName` is a value object: it is validated once at construction (never null, never blank) and compared by value, so the same name can be declared as a constant and reused. It is a logical lookup key, not a resource identity — the physical pool is identified by `ExecutorIdentity` through object reference, and two names may deliberately share one executor.
 
 Names are validated at build time. `GlobalPar` is immutable after `build()`, and `par(name)` fails for an unknown name. The supplied executors are borrowed: closing `GlobalPar` shuts down its internal timer and submitter services only, never a registered executor.
 
@@ -83,11 +88,11 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 
 TaskRef<User> user = definition.task(
         new TaskRef<User>("user") {},
-        "database", userRepository::load,
+        DATABASE, userRepository::load,
         MultiTaskOptions.of("load-user").inheritTimeout().build());
 TaskRef<List<Order>> orders = definition.task(
         new TaskRef<List<Order>>("orders") {},
-        "http", orderClient::load,
+        HTTP, orderClient::load,
         MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
@@ -128,7 +133,7 @@ member succeeds — so it inherits the group's structured cancellation, deadline
 ```java
 TaskRef<AccountPage> page = definition.combine(
         new TaskRef<AccountPage>("assemble-page") {},
-        "cpu",
+        ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
         MultiTaskOptions.of("assemble-page").inheritTimeout().build());
 
@@ -214,7 +219,7 @@ GlobalParPurgePolicy purge = GlobalParPurgePolicy.builder()
 
 GlobalPar global = GlobalPar.builder()
         .purgePolicy(purge)
-        .register("io", ioThreadPool)
+        .register(ParName.of("io"), ioThreadPool)
         .build();
 ```
 

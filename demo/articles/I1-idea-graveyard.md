@@ -47,7 +47,7 @@ public CommandLineRunner registerExecutors(
     return args -> {
         // GlobalPar 构建时注册，运行时不可变
         GlobalPar config = GlobalPar.builder()
-                .register("io-pool", ioPool)
+                .register(ParName.of("io-pool"), ioPool)
                 .build();
         // 注入到 Spring 容器供全局使用
     };

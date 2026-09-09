@@ -53,7 +53,7 @@ import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 // 仅 1 个线程的业务线程池
 ExecutorService pool = Executors.newFixedThreadPool(1);
 GlobalPar config = GlobalPar.builder()
-        .register("my-pool", pool)
+        .register(ParName.of("my-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

@@ -36,20 +36,20 @@ class TaskGroupTest {
         ExecutorService first = Executors.newSingleThreadExecutor();
         ExecutorService second = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("first", first)
-                .register("second", second)
+                .register(ParName.of("first"), first)
+                .register(ParName.of("second"), second)
                 .build();
         try {
             AtomicInteger executions = new AtomicInteger();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
             TaskRef<String> text = definition.task(
                     new TaskRef<>("text") {},
-                    "first",
+                    ParName.of("first"),
                     () -> "value-" + executions.incrementAndGet(),
                     memberOptions("text"));
             TaskRef<Integer> number = definition.task(
                     new TaskRef<>("number") {},
-                    "second",
+                    ParName.of("second"),
                     () -> 40 + executions.incrementAndGet(),
                     memberOptions("number"));
 
@@ -75,7 +75,8 @@ class TaskGroupTest {
     @Test
     void specConfigurationRunsNoTaskAndTtlSnapshotIsTakenAtSubmit() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         TransmittableThreadLocal<String> ttl = new TransmittableThreadLocal<>();
         try {
             AtomicInteger calls = new AtomicInteger();
@@ -83,7 +84,7 @@ class TaskGroupTest {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("ttl"));
             TaskRef<String> member = definition.task(
                     new TaskRef<>("member") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         calls.incrementAndGet();
                         return ttl.get();
@@ -106,13 +107,14 @@ class TaskGroupTest {
     @Test
     void failureIsFailFastAndCancelsUnfinishedSibling() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         CountDownLatch running = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("fail-fast"));
             definition.task(
                     new TaskRef<>("slow") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         running.countDown();
                         Thread.sleep(10_000);
@@ -121,7 +123,7 @@ class TaskGroupTest {
                     memberOptions("slow"));
             definition.task(
                     new TaskRef<>("failure") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         running.await(2, TimeUnit.SECONDS);
                         throw new IllegalStateException("boom");
@@ -145,14 +147,15 @@ class TaskGroupTest {
     @Test
     void groupAndMemberDeadlinesConvergeAsTimeout() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder groupDeadline = TaskGroupDefinition.builder(MultiTaskOptions.of("group-timeout")
                     .timeout(Duration.ofMillis(30))
                     .build());
             groupDeadline.task(
                     new TaskRef<>("slow") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
                         return 1;
@@ -170,7 +173,7 @@ class TaskGroupTest {
                             .build());
             memberDeadline.task(
                     new TaskRef<>("slow") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
                         return 1;
@@ -190,13 +193,14 @@ class TaskGroupTest {
     @Test
     void directMemberCancellationCascadesToUnfinishedSibling() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("member-cancel"));
             TaskRef<Integer> canceled = definition.task(
                     new TaskRef<>("canceled") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         release.await();
                         return 1;
@@ -204,7 +208,7 @@ class TaskGroupTest {
                     memberOptions("canceled"));
             definition.task(
                     new TaskRef<>("sibling") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         release.await(10, TimeUnit.SECONDS);
                         return 2;
@@ -227,14 +231,15 @@ class TaskGroupTest {
     @Test
     void memberTimeoutEscalatesToGroupTimeoutAndCancelsSibling() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(MultiTaskOptions.of("member-timeout")
                     .timeout(Duration.ofSeconds(2))
                     .build());
             definition.task(
                     new TaskRef<>("slow") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
                         return 1;
@@ -242,7 +247,7 @@ class TaskGroupTest {
                     MultiTaskOptions.of("slow").timeout(Duration.ofMillis(50)).build());
             definition.task(
                     new TaskRef<>("sibling") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
                         return 2;
@@ -265,7 +270,8 @@ class TaskGroupTest {
     @Test
     void mixedMemberDeadlinesAttributeBoundAndSkippedPathsCorrectly() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             // "tight" binds its own stricter deadline; "shared" resolves to exactly the group
             // deadline and skips the member bind. Both paths must still attribute TIMEOUT.
@@ -274,7 +280,7 @@ class TaskGroupTest {
                     .build());
             definition.task(
                     new TaskRef<>("tight") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
                         return 1;
@@ -282,7 +288,7 @@ class TaskGroupTest {
                     MultiTaskOptions.of("tight").timeout(Duration.ofMillis(50)).build());
             definition.task(
                     new TaskRef<>("shared") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
                         return 2;
@@ -307,8 +313,8 @@ class TaskGroupTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParName.of("outer"), outer)
+                .register(ParName.of("inner"), inner)
                 .build();
         AtomicReference<CancellationToken> memberToken = new AtomicReference<>();
         AtomicReference<CancellationToken> nestedToken = new AtomicReference<>();
@@ -323,12 +329,12 @@ class TaskGroupTest {
                             .build());
             definition.task(
                     new TaskRef<>("member") {},
-                    "outer",
+                    ParName.of("outer"),
                     () -> {
                         memberToken.set(TaskExecutionContext.current()
                                 .multiTaskContext()
                                 .cancellationToken());
-                        TaskBatchResult<Integer> nested = global.par("inner")
+                        TaskBatchResult<Integer> nested = global.par(ParName.of("inner"))
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> {
@@ -386,14 +392,15 @@ class TaskGroupTest {
     @Test
     void explicitGroupCancellationClassifiesEveryUnfinishedMember() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(2);
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("cancel"));
             for (String name : Arrays.asList("one", "two")) {
                 definition.task(
                         new TaskRef<>(name) {},
-                        "worker",
+                        ParName.of("worker"),
                         () -> {
                             started.countDown();
                             Thread.sleep(10_000);
@@ -421,21 +428,22 @@ class TaskGroupTest {
     @Test
     void inlineMembersRunDuringSubmitOverACompleteFrozenRegistry() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             Thread submitThread = Thread.currentThread();
             AtomicReference<Thread> firstThread = new AtomicReference<>();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inline"));
             TaskRef<Integer> first = definition.task(
                     new TaskRef<>("first") {},
-                    "direct",
+                    ParName.of("direct"),
                     () -> {
                         firstThread.set(Thread.currentThread());
                         return 1;
                     },
                     memberOptions("first"));
             TaskRef<Integer> second =
-                    definition.task(new TaskRef<>("second") {}, "direct", () -> 2, memberOptions("second"));
+                    definition.task(new TaskRef<>("second") {}, ParName.of("direct"), () -> 2, memberOptions("second"));
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -455,21 +463,22 @@ class TaskGroupTest {
         ExecutorService rejecting = new RejectingExecutor();
         ExecutorService normal = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("reject", rejecting)
-                .register("normal", normal)
+                .register(ParName.of("reject"), rejecting)
+                .register(ParName.of("normal"), normal)
                 .build();
         AtomicInteger calls = new AtomicInteger();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("rejection"));
             definition.task(
                     new TaskRef<>("rejected") {},
-                    "reject",
+                    ParName.of("reject"),
                     () -> 1,
                     MultiTaskOptions.of("rejected")
                             .taskType(TaskType.IO_BOUND)
                             .timeout(Duration.ofSeconds(30))
                             .build());
-            definition.task(new TaskRef<>("later") {}, "normal", calls::incrementAndGet, memberOptions("later"));
+            definition.task(
+                    new TaskRef<>("later") {}, ParName.of("normal"), calls::incrementAndGet, memberOptions("later"));
 
             TaskGroupResult result = TaskGroup.submit(global, definition.build())
                     .completionFuture()
@@ -492,7 +501,8 @@ class TaskGroupTest {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         AtomicReference<TaskGroupResult> observed = new AtomicReference<>();
         AtomicReference<TaskExecutionContext> current = new AtomicReference<>();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             MultiTaskOptions options = MultiTaskOptions.of("listener")
                     .listener(event -> {
@@ -503,7 +513,7 @@ class TaskGroupTest {
                     .timeout(Duration.ofSeconds(30))
                     .build();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options);
-            definition.task(new TaskRef<>("one") {}, "direct", () -> 1, memberOptions("one"));
+            definition.task(new TaskRef<>("one") {}, ParName.of("direct"), () -> 1, memberOptions("one"));
 
             TaskGroupResult result = TaskGroup.submit(global, definition.build())
                     .completionFuture()
@@ -520,19 +530,22 @@ class TaskGroupTest {
     @Test
     void definitionValidatesTasksAndIsReusableAcrossSubmits() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("definition"));
-            definition.task(new TaskRef<>("one") {}, "worker", () -> 1, memberOptions("one"));
-            assertThatThrownBy(() -> definition.task(new TaskRef<>("one") {}, "worker", () -> 2, memberOptions("two")))
+            definition.task(new TaskRef<>("one") {}, ParName.of("worker"), () -> 1, memberOptions("one"));
+            assertThatThrownBy(() -> definition.task(
+                            new TaskRef<>("one") {}, ParName.of("worker"), () -> 2, memberOptions("two")))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> definition.task(new TaskRef<>(" ") {}, "worker", () -> 2, memberOptions("blank")))
+            assertThatThrownBy(() -> definition.task(
+                            new TaskRef<>(" ") {}, ParName.of("worker"), () -> 2, memberOptions("blank")))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> definition.task(null, "worker", () -> 2, memberOptions("null")))
+            assertThatThrownBy(() -> definition.task(null, ParName.of("worker"), () -> 2, memberOptions("null")))
                     .isInstanceOf(NullPointerException.class);
 
             TaskGroupDefinition.Builder unknownExecutor = TaskGroupDefinition.builder(groupOptions("unknown"));
-            unknownExecutor.task(new TaskRef<>("member") {}, "missing", () -> 1, memberOptions("member"));
+            unknownExecutor.task(new TaskRef<>("member") {}, ParName.of("missing"), () -> 1, memberOptions("member"));
             assertThatThrownBy(() -> TaskGroup.submit(global, unknownExecutor.build()))
                     .isInstanceOf(IllegalArgumentException.class);
 
@@ -566,11 +579,12 @@ class TaskGroupTest {
     @Test
     void futureRejectsRefWhoseRawTypeDoesNotCoverTheRegisteredType() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("typed"));
-            TaskRef<Integer> member =
-                    definition.task(new TaskRef<Integer>("member") {}, "direct", () -> 1, memberOptions("member"));
+            TaskRef<Integer> member = definition.task(
+                    new TaskRef<Integer>("member") {}, ParName.of("direct"), () -> 1, memberOptions("member"));
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -590,7 +604,8 @@ class TaskGroupTest {
     @Test
     void emptyGroupCompletesImmediatelyAndSubmitAfterCloseIsRejected() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroup empty = TaskGroup.submit(
                     global, TaskGroupDefinition.builder(groupOptions("empty")).build());
@@ -610,12 +625,13 @@ class TaskGroupTest {
     @Test
     void memberWithInheritedTimeoutResolvesToTheGroupDeadline() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inherit-member"));
             TaskRef<Long> member = definition.task(
                     new TaskRef<>("member") {},
-                    "direct",
+                    ParName.of("direct"),
                     () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member").inheritTimeout().build());
 
@@ -632,12 +648,13 @@ class TaskGroupTest {
     @Test
     void memberWithTighterExplicitTimeoutKeepsItsOwnDeadline() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
-        GlobalPar global = GlobalPar.builder().register("direct", direct).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("tight-member"));
             TaskRef<Long> member = definition.task(
                     new TaskRef<>("member") {},
-                    "direct",
+                    ParName.of("direct"),
                     () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member")
                             .timeout(Duration.ofMillis(100))
@@ -658,19 +675,19 @@ class TaskGroupTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParName.of("outer"), outer)
+                .register(ParName.of("inner"), inner)
                 .build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("nested-batch"));
             TaskRef<long[]> member = definition.task(
                     new TaskRef<>("member") {},
-                    "outer",
+                    ParName.of("outer"),
                     () -> {
                         long memberDeadline = TaskExecutionContext.current()
                                 .multiTaskContext()
                                 .deadlineNanos();
-                        TaskBatchResult<Long> nested = global.par("inner")
+                        TaskBatchResult<Long> nested = global.par(ParName.of("inner"))
                                 .map(
                                         Arrays.asList(1),
                                         ignored -> TaskExecutionContext.current()
@@ -707,8 +724,8 @@ class TaskGroupTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParName.of("outer"), outer)
+                .register(ParName.of("inner"), inner)
                 .build();
         try {
             assertThatThrownBy(() -> TaskGroup.submit(
@@ -720,7 +737,7 @@ class TaskGroupTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("no enclosing deadline to inherit");
 
-            TaskBatchResult<Long> batch = global.par("outer")
+            TaskBatchResult<Long> batch = global.par(ParName.of("outer"))
                     .map(
                             Arrays.asList(1),
                             ignored -> {
@@ -733,7 +750,7 @@ class TaskGroupTest {
                                                 .build());
                                 definition.task(
                                         new TaskRef<>("child") {},
-                                        "inner",
+                                        ParName.of("inner"),
                                         () -> 1,
                                         MultiTaskOptions.of("child")
                                                 .inheritTimeout()
@@ -763,11 +780,11 @@ class TaskGroupTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParName.of("outer"), outer)
+                .register(ParName.of("inner"), inner)
                 .build();
         try {
-            TaskBatchResult<MultiTaskContext> result = global.par("outer")
+            TaskBatchResult<MultiTaskContext> result = global.par(ParName.of("outer"))
                     .map(
                             Arrays.asList(1),
                             ignored -> {
@@ -777,7 +794,7 @@ class TaskGroupTest {
                                         TaskGroupDefinition.builder(groupOptions("nested"));
                                 TaskRef<MultiTaskContext> child = definition.task(
                                         new TaskRef<>("child") {},
-                                        "inner",
+                                        ParName.of("inner"),
                                         () -> TaskExecutionContext.current()
                                                 .multiTaskContext()
                                                 .structuralParent(),
@@ -805,12 +822,12 @@ class TaskGroupTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParName.of("outer"), outer)
+                .register(ParName.of("inner"), inner)
                 .build();
         AtomicReference<TaskGroup> nestedGroup = new AtomicReference<>();
         try {
-            TaskBatchResult<Object> result = global.par("outer")
+            TaskBatchResult<Object> result = global.par(ParName.of("outer"))
                     .map(
                             Arrays.asList(1),
                             ignored -> {
@@ -818,7 +835,7 @@ class TaskGroupTest {
                                         TaskGroupDefinition.builder(groupOptions("nested"));
                                 definition.task(
                                         new TaskRef<>("child") {},
-                                        "inner",
+                                        ParName.of("inner"),
                                         () -> {
                                             Thread.sleep(10_000);
                                             return 1;
@@ -854,7 +871,8 @@ class TaskGroupTest {
     @Test
     void groupIdentifiersExposeConfiguredAndGeneratedValues() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroup group = TaskGroup.submit(
                     global, TaskGroupDefinition.builder(groupOptions("named")).build());
@@ -873,7 +891,8 @@ class TaskGroupTest {
     @Test
     void closeAfterCompletionIsNoopAndCloseCancelsUnfinishedMembers() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(1);
         try {
             TaskGroup completed = TaskGroup.submit(
@@ -885,7 +904,7 @@ class TaskGroupTest {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("close-cancel"));
             definition.task(
                     new TaskRef<>("slow") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         started.countDown();
                         Thread.sleep(10_000);
@@ -909,15 +928,15 @@ class TaskGroupTest {
         ExecutorService outer = Executors.newSingleThreadExecutor();
         ExecutorService inner = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outer)
-                .register("inner", inner)
+                .register(ParName.of("outer"), outer)
+                .register(ParName.of("inner"), inner)
                 .build();
         try {
             AtomicReference<CancellationToken> outerToken = new AtomicReference<>();
             AtomicReference<TaskGroup> publishedGroup = new AtomicReference<>();
             AtomicReference<String> observedReason = new AtomicReference<>();
             CountDownLatch groupBuilt = new CountDownLatch(1);
-            TaskBatchResult<String> outerBatch = global.par("outer")
+            TaskBatchResult<String> outerBatch = global.par(ParName.of("outer"))
                     .map(
                             Arrays.asList("x"),
                             ignored -> {
@@ -928,7 +947,7 @@ class TaskGroupTest {
                                         TaskGroupDefinition.builder(groupOptions("outer-cancel"));
                                 definition.task(
                                         new TaskRef<>("slow") {},
-                                        "inner",
+                                        ParName.of("inner"),
                                         () -> {
                                             Thread.sleep(10_000);
                                             return 1;

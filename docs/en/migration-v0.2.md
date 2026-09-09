@@ -6,8 +6,8 @@ The publishing identity also moves because the GitHub account was renamed `huata
 
 | `0.1.x` | `0.2.0` |
 |---|---|
-| `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(name, executor)` |
-| `new Par(config)` | `global.par(name)` |
+| `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(ParName.of(name), executor)` |
+| `new Par(config)` | `global.par(ParName.of(name))` |
 | `ParOptions` | `MultiTaskOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` timeout/listener defaults | `GlobalPar.Builder.taskListener(...)` (timeouts stay per-call) |
@@ -17,6 +17,8 @@ The publishing identity also moves because the GitHub account was renamed `huata
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` scope |
 
 The new split is intentional: `MultiTaskOptions` is caller input, while `MultiTaskContext` is per-batch runtime state. Cancellation, deadline, and executor identity flow through parent-child batch contexts, including nested calls across named `Par` entries.
+
+Executor lookup keys are now the value type `ParName` instead of bare `String`. Every place that named a `Par` takes a `ParName`: `GlobalPar.Builder.register` / `defaultPar` / `parTaskListener`, `GlobalPar.par` / `find` / `taskListenersFor`, `GlobalPar.pars()`, and `TaskGroupDefinition.Builder.task` / `combine`. Construction validates once (never null, never blank) and the value is used verbatim — no trimming or lower-casing — so existing keys keep their exact meaning. `ParName` is a logical lookup key, not a resource identity: it must never replace `ExecutorIdentity`, which stays the reference-equality key for deadlock detection and purge. A well-formed `ParName` still says nothing about whether the name is registered; unknown names are rejected at `GlobalPar.Builder.build()` and `TaskGroup.submit` exactly as before.
 
 Earlier `0.2.x` snapshots named this type `ExecutionOptions` and then `BatchExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `MultiTaskOptions`; no compatibility alias is retained during the `0.x` phase.
 
@@ -82,7 +84,7 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | Earlier snapshot | `0.2.0` |
 |---|---|
 | `Par.getGlobalPar()` | `Par.globalPar()` |
-| `Par.getDisplayName()` | `Par.displayName()` |
+| `Par.getDisplayName()` | `Par.name()` (now returns `ParName`; call `name().value()` for the string) |
 | `AsyncBatchResult.getSubmitCanceller()` | `TaskBatchResult.submitCanceller()` |
 | `AsyncBatchResult.getResults()` | `TaskBatchResult.results()` |
 | `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
@@ -166,10 +168,10 @@ removed (the integer encoding was an implementation detail with no consumers); t
 `GlobalExecutionPolicy` is removed: its only content was the `TaskListener` list, so listeners are
 now registered directly on `GlobalPar.Builder`. `GlobalExecutionPolicy.builder().taskListener(l).build()`
 passed to `executionPolicy(policy)` becomes `taskListener(l)` on the `GlobalPar` builder, and a
-per-Par override `parPolicyOverride(name, policy)` becomes one `parTaskListener(name, l)` call per
+per-Par override `parPolicyOverride(name, policy)` becomes one `parTaskListener(ParName.of(name), l)` call per
 listener — repeated calls for the same name append instead of failing, and the override still
 replaces the default list for that entry. The `GlobalPar.executionPolicy()` /
-`executionPolicyFor(name)` accessors are replaced by `taskListeners()` / `taskListenersFor(name)`.
+`executionPolicyFor(name)` accessors are replaced by `taskListeners()` / `taskListenersFor(ParName)`.
 
 `AsyncBatchResult` is renamed to `TaskBatchResult` (its nested `BatchReport` keeps its name): the
 result of a batch of tasks, not an async-specific construct. The internal

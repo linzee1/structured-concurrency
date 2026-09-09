@@ -6,8 +6,8 @@
 
 | `0.1.x` | `0.2.0` |
 |---|---|
-| `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(name, executor)` |
-| `new Par(config)` | `global.par(name)` |
+| `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(ParName.of(name), executor)` |
+| `new Par(config)` | `global.par(ParName.of(name))` |
 | `ParOptions` | `MultiTaskOptions` |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` 的 timeout/listener 默认值 | `GlobalPar.Builder.taskListener(...)`（timeout 仍按调用声明） |
@@ -17,6 +17,8 @@
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` 作用域 |
 
 新的类型边界是刻意设计：`MultiTaskOptions` 是调用方输入，`MultiTaskContext` 是单批运行时状态。取消、deadline 和执行器 identity 通过父子批次上下文传播，也支持跨具名 `Par` 的嵌套调用。
+
+执行器查找键由裸 `String` 改为值类型 `ParName`。所有表示 `Par` 名称的位置都接收 `ParName`：`GlobalPar.Builder.register`/`defaultPar`/`parTaskListener`、`GlobalPar.par`/`find`/`taskListenersFor`、`GlobalPar.pars()`，以及 `TaskGroupDefinition.Builder.task`/`combine`。构造时一次性校验（非 null、非空白），值按原样使用——不做 trim 或小写规范化——因此既有键的语义不变。`ParName` 是逻辑查找键，不是资源身份：它不能替代 `ExecutorIdentity`，后者仍是 deadlock 检测和 purge 所依据的引用相等键。格式合法的 `ParName` 也不代表名称已注册；未注册名称仍分别在 `GlobalPar.Builder.build()` 和 `TaskGroup.submit` 被拒绝。
 
 早期 `0.2.x` 快照曾将该类型命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`。请将 import、变量声明和 `Par.map` 参数统一改为 `MultiTaskOptions`；在 `0.x` 阶段不保留兼容别名。
 
@@ -104,10 +106,10 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 `GlobalExecutionPolicy` 已删除：它的唯一内容是 `TaskListener` 列表，监听器现在直接注册在
 `GlobalPar.Builder` 上。原先 `GlobalExecutionPolicy.builder().taskListener(l).build()` 传给
 `executionPolicy(policy)` 的写法改为 builder 上的 `taskListener(l)`；按 Par 覆盖的
-`parPolicyOverride(name, policy)` 改为每个监听器一次 `parTaskListener(name, l)`——同一 name
+`parPolicyOverride(name, policy)` 改为每个监听器一次 `parTaskListener(ParName.of(name), l)`——同一 name
 重复调用是追加而不是报错，覆盖列表对该 Par 仍然整体替换默认列表。`GlobalPar` 的
 `executionPolicy()`/`executionPolicyFor(name)` 访问器相应改为
-`taskListeners()`/`taskListenersFor(name)`。
+`taskListeners()`/`taskListenersFor(ParName)`。
 
 `AsyncBatchResult` 改名为 `TaskBatchResult`（嵌套类型 `BatchReport` 名称不变）：它是"一批任务
 的结果"，并非 async 专属概念。内部的 `ConcurrentLimitExecutor` 改名为

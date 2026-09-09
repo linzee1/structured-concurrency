@@ -5,6 +5,7 @@ import io.github.monadrome.parallelinscope.cancel.Checkpoints;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -33,10 +34,10 @@ public class CancellationDemo {
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
         GlobalPar global = GlobalPar.builder()
-                .register("cancel-demo", pool)
-                .defaultPar("cancel-demo")
+                .register(ParName.of("cancel-demo"), pool)
+                .defaultPar(ParName.of("cancel-demo"))
                 .build();
-        Par par = global.par("cancel-demo");
+        Par par = global.par(ParName.of("cancel-demo"));
 
         try {
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);

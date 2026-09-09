@@ -40,16 +40,16 @@ public final class Par {
 
     private final GlobalPar globalPar;
     private final ExecutorRuntime runtime;
-    private final String displayName;
+    private final ParName name;
 
-    private Par(GlobalPar globalPar, String displayName, ExecutorRuntime runtime) {
+    private Par(GlobalPar globalPar, ParName name, ExecutorRuntime runtime) {
         this.globalPar = Objects.requireNonNull(globalPar, "globalPar cannot be null");
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
-        this.displayName = Objects.requireNonNull(displayName, "displayName cannot be null");
+        this.name = Objects.requireNonNull(name, "name cannot be null");
     }
 
-    static Par forGlobal(GlobalPar globalPar, String displayName, ExecutorRuntime runtime) {
-        return new Par(globalPar, displayName, runtime);
+    static Par forGlobal(GlobalPar globalPar, ParName name, ExecutorRuntime runtime) {
+        return new Par(globalPar, name, runtime);
     }
 
     /** Returns the owning immutable GlobalPar. */
@@ -57,9 +57,9 @@ public final class Par {
         return globalPar;
     }
 
-    /** Returns this Par's diagnostic label. */
-    public String displayName() {
-        return displayName;
+    /** Returns the logical name this entry is registered under. */
+    public ParName name() {
+        return name;
     }
 
     ExecutorRuntime runtime() {
@@ -69,7 +69,7 @@ public final class Par {
     ExecutionPhaseHintFuture<Object> prepareGroupTask(
             Callable<Object> callable, MultiTaskContext unit, TaskExecutionContext taskContext) {
         return TaskSubmissions.prepare(
-                taskContext, callable, globalPar.taskListenersFor(displayName), runtime.phaseObserver());
+                taskContext, callable, globalPar.taskListenersFor(name), runtime.phaseObserver());
     }
 
     ExecutorIdentity executorIdentity() {
@@ -120,7 +120,7 @@ public final class Par {
                         ? currentObservation
                         : null;
         MultiTaskContext unit =
-                MultiTaskContext.resolve(options, taskCount, parent, observation, runtime.identity(), displayName);
+                MultiTaskContext.resolve(options, taskCount, parent, observation, runtime.identity(), name.value());
         return executeGlobal(list, item -> () -> function.apply(item), unit);
     }
 
@@ -143,7 +143,7 @@ public final class Par {
                 .mapToObj(index -> TaskSubmissions.prepare(
                         new TaskExecutionContext(unit, index, ticker.read()),
                         callableMapper.apply(list.get(index)),
-                        globalPar.taskListenersFor(displayName),
+                        globalPar.taskListenersFor(name),
                         runtime.phaseObserver()))
                 .collect(toImmutableList());
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(

@@ -59,7 +59,7 @@ import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 // 配置 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
 GlobalPar config = GlobalPar.builder()
-        .register("my-pool", pool)
+        .register(ParName.of("my-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

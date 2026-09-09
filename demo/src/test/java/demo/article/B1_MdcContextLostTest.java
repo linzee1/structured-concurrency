@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -34,8 +35,8 @@ public class B1_MdcContextLostTest {
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
         GlobalPar config = GlobalPar.builder()
-                .register("test-pool", pool)
-                .defaultPar("test-pool")
+                .register(ParName.of("test-pool"), pool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
         par = config.defaultPar();
     }

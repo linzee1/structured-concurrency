@@ -50,13 +50,13 @@ public final class TaskGroupDefinition {
     /** Immutable description of one group member. */
     public static final class TaskDefinition<T> {
         private final TaskRef<T> ref;
-        private final String executorName;
+        private final ParName parName;
         private final Callable<T> callable;
         private final MultiTaskOptions options;
 
-        private TaskDefinition(TaskRef<T> ref, String executorName, Callable<T> callable, MultiTaskOptions options) {
+        private TaskDefinition(TaskRef<T> ref, ParName parName, Callable<T> callable, MultiTaskOptions options) {
             this.ref = ref;
-            this.executorName = executorName;
+            this.parName = parName;
             this.callable = callable;
             this.options = options;
         }
@@ -70,9 +70,14 @@ public final class TaskGroupDefinition {
             return ref;
         }
 
-        /** Name of the {@code Par} registered on the submitting {@code GlobalPar}. */
-        public String executorName() {
-            return executorName;
+        /**
+         * Logical {@code Par} name resolved against the submitting {@code GlobalPar} at submit time.
+         *
+         * <p>The name is intentionally unresolved here: a definition is pure data that binds no
+         * executor and can be submitted to any topology.
+         */
+        public ParName parName() {
+            return parName;
         }
 
         public Callable<T> callable() {
@@ -91,14 +96,14 @@ public final class TaskGroupDefinition {
      */
     public static final class CombineDefinition<R> {
         private final TaskRef<R> ref;
-        private final String executorName;
+        private final ParName parName;
         private final CombineFunction<R> function;
         private final MultiTaskOptions options;
 
         private CombineDefinition(
-                TaskRef<R> ref, String executorName, CombineFunction<R> function, MultiTaskOptions options) {
+                TaskRef<R> ref, ParName parName, CombineFunction<R> function, MultiTaskOptions options) {
             this.ref = ref;
-            this.executorName = executorName;
+            this.parName = parName;
             this.function = function;
             this.options = options;
         }
@@ -112,9 +117,9 @@ public final class TaskGroupDefinition {
             return ref;
         }
 
-        /** Name of the {@code Par} registered on the submitting {@code GlobalPar}. */
-        public String executorName() {
-            return executorName;
+        /** Logical {@code Par} name resolved against the submitting {@code GlobalPar} at submit time. */
+        public ParName parName() {
+            return parName;
         }
 
         public CombineFunction<R> function() {
@@ -139,18 +144,18 @@ public final class TaskGroupDefinition {
         /**
          * Registers one member. The token carries the member name and captures its result type;
          * name nullness and blankness are rejected by the {@link TaskRef} constructor, while a
-         * duplicate name is rejected here.
+         * duplicate name is rejected here. The {@code parName} is validated by {@link
+         * ParName#of(String)} and resolved against the submitting {@link GlobalPar} at submit time.
          */
-        public <T> TaskRef<T> task(
-                TaskRef<T> ref, String executorName, Callable<T> callable, MultiTaskOptions options) {
+        public <T> TaskRef<T> task(TaskRef<T> ref, ParName parName, Callable<T> callable, MultiTaskOptions options) {
             Objects.requireNonNull(ref, "ref cannot be null");
-            Objects.requireNonNull(executorName, "executorName cannot be null");
+            Objects.requireNonNull(parName, "parName cannot be null");
             Objects.requireNonNull(callable, "callable cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
             if (tasks.containsKey(ref.memberName())) {
                 throw new IllegalArgumentException("Duplicate memberName '" + ref.memberName() + "'");
             }
-            tasks.put(ref.memberName(), new TaskDefinition<>(ref, executorName, callable, options));
+            tasks.put(ref.memberName(), new TaskDefinition<>(ref, parName, callable, options));
             return ref;
         }
 
@@ -161,9 +166,9 @@ public final class TaskGroupDefinition {
          * accepts at most one combine; its name must not collide with any member name.
          */
         public <R> TaskRef<R> combine(
-                TaskRef<R> ref, String executorName, CombineFunction<R> function, MultiTaskOptions options) {
+                TaskRef<R> ref, ParName parName, CombineFunction<R> function, MultiTaskOptions options) {
             Objects.requireNonNull(ref, "ref cannot be null");
-            Objects.requireNonNull(executorName, "executorName cannot be null");
+            Objects.requireNonNull(parName, "parName cannot be null");
             Objects.requireNonNull(function, "function cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
             if (combine != null) {
@@ -172,7 +177,7 @@ public final class TaskGroupDefinition {
             if (tasks.containsKey(ref.memberName())) {
                 throw new IllegalArgumentException("Duplicate memberName '" + ref.memberName() + "'");
             }
-            combine = new CombineDefinition<>(ref, executorName, function, options);
+            combine = new CombineDefinition<>(ref, parName, function, options);
             return ref;
         }
 

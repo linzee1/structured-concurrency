@@ -43,7 +43,7 @@ for (int i = 0; i < taskCount; i++) {
 ```java
 ExecutorService pool = Executors.newFixedThreadPool(4);
 GlobalPar config = GlobalPar.builder()
-        .register("my-pool", pool)
+        .register(ParName.of("my-pool"), pool)
         .build();
 
 MultiTaskOptions options = MultiTaskOptions.of("data-task")
@@ -52,7 +52,7 @@ MultiTaskOptions options = MultiTaskOptions.of("data-task")
         .taskType(TaskType.IO_BOUND)
         .build();
 
-TaskBatchResult<Result> result = config.par("my-pool").map(
+TaskBatchResult<Result> result = config.par(ParName.of("my-pool")).map(
         loadLargeDataset(),
         this::process,
         options);

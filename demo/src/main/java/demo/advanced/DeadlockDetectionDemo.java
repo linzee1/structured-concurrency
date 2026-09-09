@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.scope.TaskType;
 import java.util.Arrays;
@@ -43,10 +44,10 @@ public class DeadlockDetectionDemo {
         ExecutorService pool = Executors.newFixedThreadPool(4);
 
         GlobalPar global = GlobalPar.builder()
-                .register("shared-pool", pool)
-                .defaultPar("shared-pool")
+                .register(ParName.of("shared-pool"), pool)
+                .defaultPar(ParName.of("shared-pool"))
                 .build();
-        Par par = global.par("shared-pool");
+        Par par = global.par(ParName.of("shared-pool"));
 
         try {
             System.out.println("线程池大小: 4（固定）");

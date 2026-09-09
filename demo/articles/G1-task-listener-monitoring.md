@@ -54,7 +54,7 @@ import io.github.monadrome.parallelinscope.spi.TaskListener;
 // 注册监控监听器
 ConcurrentHashMap<String, Long> taskTimings = new ConcurrentHashMap<>();
 GlobalPar config = GlobalPar.builder()
-        .register("my-pool", pool)
+        .register(ParName.of("my-pool"), pool)
         .taskListener(event -> {
             // 每个任务完成时自动回调，零侵入
             taskTimings.put(event.taskName(), event.executionTime().toMillis());

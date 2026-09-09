@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
@@ -32,8 +33,8 @@ class QuickStartTest {
         // 步骤 1 的准备工作：创建线程池和 Par 实例
         pool = Executors.newFixedThreadPool(4);
         GlobalPar config = GlobalPar.builder()
-                .register("my-pool", pool)
-                .defaultPar("my-pool")
+                .register(ParName.of("my-pool"), pool)
+                .defaultPar(ParName.of("my-pool"))
                 .build();
         par = config.defaultPar();
     }

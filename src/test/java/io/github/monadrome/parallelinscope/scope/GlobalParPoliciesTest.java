@@ -15,25 +15,27 @@ class GlobalParPoliciesTest {
         TaskListener first = event -> {};
         TaskListener second = event -> {};
 
-        assertThat(builder.parTaskListener("orders", first)).isSameAs(builder);
+        assertThat(builder.parTaskListener(ParName.of("orders"), first)).isSameAs(builder);
 
-        assertThatThrownBy(() -> builder.parTaskListener(null, first)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> builder.parTaskListener("", first)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> GlobalPar.builder().parTaskListener("fresh", null))
+        assertThatThrownBy(() -> builder.parTaskListener(null, first)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> builder.parTaskListener(ParName.of(""), first))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> GlobalPar.builder().parTaskListener(ParName.of("fresh"), null))
                 .isInstanceOf(NullPointerException.class);
 
         java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("billing", executor)
+                .register(ParName.of("billing"), executor)
                 .taskListener(first)
-                .parTaskListener("billing", first)
-                .parTaskListener("billing", second)
+                .parTaskListener(ParName.of("billing"), first)
+                .parTaskListener(ParName.of("billing"), second)
                 .build();
         try {
             assertThat(global.closed()).isFalse();
             assertThat(global.taskListeners()).containsExactly(first);
-            assertThat(global.taskListenersFor("billing")).containsExactly(first, second);
-            assertThatThrownBy(() -> global.taskListenersFor("billing").clear())
+            assertThat(global.taskListenersFor(ParName.of("billing"))).containsExactly(first, second);
+            assertThatThrownBy(
+                            () -> global.taskListenersFor(ParName.of("billing")).clear())
                     .isInstanceOf(UnsupportedOperationException.class);
         } finally {
             global.close();
@@ -44,16 +46,17 @@ class GlobalParPoliciesTest {
     @Test
     void taskListenerOverridesWithoutRegisteredNameFailBuildAndRegisterRejectsDuplicates() {
         assertThatThrownBy(() -> GlobalPar.builder()
-                        .parTaskListener("ghost", event -> {})
+                        .parTaskListener(ParName.of("ghost"), event -> {})
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not registered");
         assertThatThrownBy(() -> GlobalPar.builder()
-                        .register("same", java.util.concurrent.Executors.newSingleThreadExecutor())
-                        .register("same", java.util.concurrent.Executors.newSingleThreadExecutor()))
+                        .register(ParName.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor())
+                        .register(ParName.of("same"), java.util.concurrent.Executors.newSingleThreadExecutor()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate Par name");
-        assertThatThrownBy(() -> GlobalPar.builder().defaultPar("absent").build())
+        assertThatThrownBy(() ->
+                        GlobalPar.builder().defaultPar(ParName.of("absent")).build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("default Par is not registered");
     }

@@ -14,7 +14,7 @@
 
 ```java
 GlobalPar config = GlobalPar.builder()
-        .register("http-pool", Executors.newFixedThreadPool(8))
+        .register(ParName.of("http-pool"), Executors.newFixedThreadPool(8))
         .build();
 Par par = config.defaultPar();
 

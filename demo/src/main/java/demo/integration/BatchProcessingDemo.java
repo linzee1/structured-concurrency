@@ -3,6 +3,7 @@ package demo.integration;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,10 +35,10 @@ public class BatchProcessingDemo {
 
         ExecutorService pool = Executors.newFixedThreadPool(4);
         GlobalPar global = GlobalPar.builder()
-                .register("batch-demo", pool)
-                .defaultPar("batch-demo")
+                .register(ParName.of("batch-demo"), pool)
+                .defaultPar(ParName.of("batch-demo"))
                 .build();
-        Par par = global.par("batch-demo");
+        Par par = global.par(ParName.of("batch-demo"));
 
         try {
             // 2. 配置批处理参数

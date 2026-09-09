@@ -204,7 +204,7 @@ class ScopedTaskContractTest {
         try {
             observePhases(global, phases);
             if (entry == Entry.BATCH) {
-                ListenableFuture<Object> queued = global.par("worker")
+                ListenableFuture<Object> queued = global.par(ParName.of("worker"))
                         .map(
                                 java.util.Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
@@ -221,14 +221,14 @@ class ScopedTaskContractTest {
                         .build());
                 definition.task(
                         new TaskRef<>("blocker") {},
-                        "worker",
+                        ParName.of("worker"),
                         () -> runUnlessQueued("blocker", release, queuedRuns),
                         MultiTaskOptions.of("blocker")
                                 .timeout(Duration.ofSeconds(30))
                                 .build());
                 TaskRef<Object> queued = definition.task(
                         new TaskRef<>("queued") {},
-                        "worker",
+                        ParName.of("worker"),
                         () -> runUnlessQueued("queued", release, queuedRuns),
                         MultiTaskOptions.of("queued")
                                 .timeout(Duration.ofSeconds(30))
@@ -254,7 +254,7 @@ class ScopedTaskContractTest {
         GlobalPar global = globalWithListener(executor, synchronizedEvents());
         try {
             try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-                Object value = global.par("worker")
+                Object value = global.par(ParName.of("worker"))
                         .map(
                                 Collections.singletonList("outer"),
                                 item -> {
@@ -308,14 +308,14 @@ class ScopedTaskContractTest {
     private static ListenableFuture<Object> submitSingle(
             GlobalPar global, Entry entry, String name, MultiTaskOptions options, Callable<Object> task) {
         if (entry == Entry.BATCH) {
-            return global.par("worker")
+            return global.par(ParName.of("worker"))
                     .map(Collections.singletonList("item"), item -> callUnchecked(task), options)
                     .results()
                     .get(0);
         }
         TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
                 MultiTaskOptions.of("contract").timeout(Duration.ofSeconds(30)).build());
-        TaskRef<Object> ref = definition.task(new TaskRef<>(name) {}, "worker", task, options);
+        TaskRef<Object> ref = definition.task(new TaskRef<>(name) {}, ParName.of("worker"), task, options);
         TaskGroup group = TaskGroup.submit(global, definition.build());
         LAST_GROUP.set(group);
         return group.future(ref);
@@ -352,14 +352,14 @@ class ScopedTaskContractTest {
     private static GlobalPar globalWithListener(ExecutorService executor, List<TaskCompletion<?>> events) {
         return GlobalPar.builder()
                 .taskListener(events::add)
-                .register("worker", executor)
+                .register(ParName.of("worker"), executor)
                 .build();
     }
 
     private static void observePhases(GlobalPar global, ConcurrentLinkedQueue<ExecutionPhase> phases) {
         // The test executors are never raw ThreadPoolExecutor instances, so no purge observer is
         // installed and the phase observer slot is free to claim.
-        global.par("worker").runtime().setPhaseObserver(phases::add);
+        global.par(ParName.of("worker")).runtime().setPhaseObserver(phases::add);
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
@@ -41,8 +42,8 @@ class G6_BatchDbQueryTest {
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
         GlobalPar config = GlobalPar.builder()
-                .register("db-pool", pool)
-                .defaultPar("db-pool")
+                .register(ParName.of("db-pool"), pool)
+                .defaultPar(ParName.of("db-pool"))
                 .build();
         par = config.defaultPar();
     }

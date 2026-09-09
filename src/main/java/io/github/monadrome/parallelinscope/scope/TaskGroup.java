@@ -488,7 +488,7 @@ public final class TaskGroup implements AutoCloseable {
             }
             List<Par> memberPars = new ArrayList<>();
             for (TaskGroupDefinition.TaskDefinition<?> member : definition.tasks()) {
-                Par par = env.par(member.executorName());
+                Par par = env.par(member.parName());
                 memberPars.add(par);
                 MultiTaskContext unit = MultiTaskContext.resolve(
                         member.options(),
@@ -499,7 +499,7 @@ public final class TaskGroup implements AutoCloseable {
                         start,
                         observation,
                         par.executorIdentity(),
-                        par.displayName());
+                        par.name().value());
                 TaskExecutionContext taskContext = new TaskExecutionContext(unit, 0, start);
                 ExecutionPhaseHintFuture<Object> future =
                         par.prepareGroupTask(castCallable(member.callable()), unit, taskContext);
@@ -528,7 +528,7 @@ public final class TaskGroup implements AutoCloseable {
                 // at join time there is no caller thread to borrow, so a rejected combine must
                 // fail as SUBMISSION_FAILURE instead of running inline on the convergence
                 // callback thread.
-                Par par = env.par(combineDefinition.executorName());
+                Par par = env.par(combineDefinition.parName());
                 MultiTaskContext unit = MultiTaskContext.resolve(
                         combineDefinition.options(),
                         1,
@@ -538,7 +538,7 @@ public final class TaskGroup implements AutoCloseable {
                         start,
                         observation,
                         par.executorIdentity(),
-                        par.displayName());
+                        par.name().value());
                 TaskExecutionContext taskContext = new TaskExecutionContext(unit, 0, start);
                 CompletedTaskValues values = new CompletedTaskValues(states, combineDefinition.memberName());
                 CombineFunction<?> function = combineDefinition.function();

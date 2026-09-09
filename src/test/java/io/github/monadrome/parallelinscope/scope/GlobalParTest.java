@@ -24,12 +24,13 @@ class GlobalParTest {
     void propagatesAndRestoresTransmittableThreadLocalForEveryTask() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TransmittableThreadLocal<String> context = new TransmittableThreadLocal<>();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             executor.submit(() -> {}).get(2, TimeUnit.SECONDS);
             context.set("request-42");
 
-            TaskBatchResult<String> result = global.par("worker")
+            TaskBatchResult<String> result = global.par(ParName.of("worker"))
                     .map(
                             java.util.Arrays.asList(1, 2),
                             ignored -> context.get(),
@@ -62,15 +63,16 @@ class GlobalParTest {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
             GlobalPar global = GlobalPar.builder()
-                    .register("one", executor)
-                    .register("same", executor)
-                    .defaultPar("one")
+                    .register(ParName.of("one"), executor)
+                    .register(ParName.of("same"), executor)
+                    .defaultPar(ParName.of("one"))
                     .build();
 
-            assertThat(global.defaultPar()).isSameAs(global.par("one"));
-            assertThat(global.par("one").displayName()).isEqualTo("one");
-            assertThat(global.par("one").globalPar()).isSameAs(global);
-            assertThat(global.par("one").runtime()).isSameAs(global.par("same").runtime());
+            assertThat(global.defaultPar()).isSameAs(global.par(ParName.of("one")));
+            assertThat(global.par(ParName.of("one")).name().value()).isEqualTo("one");
+            assertThat(global.par(ParName.of("one")).globalPar()).isSameAs(global);
+            assertThat(global.par(ParName.of("one")).runtime())
+                    .isSameAs(global.par(ParName.of("same")).runtime());
         } finally {
             executor.shutdownNow();
         }
@@ -80,9 +82,13 @@ class GlobalParTest {
     void rejectsUnknownDefaultAndDuplicateNames() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            assertThatThrownBy(() -> GlobalPar.builder().defaultPar("missing").build())
+            assertThatThrownBy(() -> GlobalPar.builder()
+                            .defaultPar(ParName.of("missing"))
+                            .build())
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> GlobalPar.builder().register("x", executor).register("x", executor))
+            assertThatThrownBy(() -> GlobalPar.builder()
+                            .register(ParName.of("x"), executor)
+                            .register(ParName.of("x"), executor))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
             executor.shutdownNow();
@@ -93,9 +99,10 @@ class GlobalParTest {
     void executesUsingTheExecutorBoundAtBuildTime() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            GlobalPar global = GlobalPar.builder().register("io", executor).build();
+            GlobalPar global =
+                    GlobalPar.builder().register(ParName.of("io"), executor).build();
 
-            TaskBatchResult<Integer> result = global.par("io")
+            TaskBatchResult<Integer> result = global.par(ParName.of("io"))
                     .map(
                             Collections.singletonList(2),
                             value -> value + 1,
@@ -113,9 +120,10 @@ class GlobalParTest {
     void topLevelBatchWithInheritedTimeoutIsRejectedWithoutAnEnclosingTask() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            GlobalPar global = GlobalPar.builder().register("io", executor).build();
+            GlobalPar global =
+                    GlobalPar.builder().register(ParName.of("io"), executor).build();
             try {
-                assertThatThrownBy(() -> global.par("io")
+                assertThatThrownBy(() -> global.par(ParName.of("io"))
                                 .map(
                                         Collections.singletonList(1),
                                         value -> value + 1,
@@ -136,9 +144,10 @@ class GlobalParTest {
     void nullAndEmptyInputsProduceUsableEmptyBatchResults() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            GlobalPar global = GlobalPar.builder().register("io", executor).build();
+            GlobalPar global =
+                    GlobalPar.builder().register(ParName.of("io"), executor).build();
 
-            assertThat(global.par("io")
+            assertThat(global.par(ParName.of("io"))
                             .map(
                                     null,
                                     value -> value,
@@ -147,7 +156,7 @@ class GlobalParTest {
                                             .build())
                             .results())
                     .isEmpty();
-            assertThat(global.par("io")
+            assertThat(global.par(ParName.of("io"))
                             .map(
                                     Collections.<Integer>emptyList(),
                                     value -> value,
@@ -167,16 +176,16 @@ class GlobalParTest {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParName.of("outer"), outerExecutor)
+                .register(ParName.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -209,19 +218,19 @@ class GlobalParTest {
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         outerExecutor.submit(() -> {}).get(2, TimeUnit.SECONDS);
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParName.of("outer"), outerExecutor)
+                .register(ParName.of("inner"), innerExecutor)
                 .build();
         try (TaskGraphObservationScope ignored = global.openTaskGraphObservation()) {
             TaskGraphData expectedGraph = TaskGraphObservationScope.data();
             java.util.concurrent.atomic.AtomicReference<TaskGraphData> graphOnOuterWorker =
                     new java.util.concurrent.atomic.AtomicReference<>();
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
                     .map(
                             Collections.singletonList(2),
                             value -> {
                                 graphOnOuterWorker.set(TaskGraphObservationScope.data());
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
@@ -253,15 +262,15 @@ class GlobalParTest {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
         GlobalPar global = GlobalPar.builder()
-                .register("outer", outerExecutor)
-                .register("inner", innerExecutor)
+                .register(ParName.of("outer"), outerExecutor)
+                .register(ParName.of("inner"), innerExecutor)
                 .build();
         try {
-            TaskBatchResult<Integer> outer = global.par("outer")
+            TaskBatchResult<Integer> outer = global.par(ParName.of("outer"))
                     .map(
                             java.util.Arrays.asList(1, 99),
                             ignored -> {
-                                TaskBatchResult<Integer> inner = global.par("inner")
+                                TaskBatchResult<Integer> inner = global.par(ParName.of("inner"))
                                         .map(
                                                 java.util.Arrays.asList(1, 2),
                                                 value -> value + 1,
@@ -292,9 +301,11 @@ class GlobalParTest {
     void closeFromCpuFallbackTaskDoesNotDeadlockBatchAdmission() throws Exception {
         ExecutorService rejectedExecutor = Executors.newSingleThreadExecutor();
         rejectedExecutor.shutdown();
-        GlobalPar global = GlobalPar.builder().register("cpu", rejectedExecutor).build();
+        GlobalPar global = GlobalPar.builder()
+                .register(ParName.of("cpu"), rejectedExecutor)
+                .build();
         try {
-            TaskBatchResult<Integer> result = global.par("cpu")
+            TaskBatchResult<Integer> result = global.par(ParName.of("cpu"))
                     .map(
                             Collections.singletonList(1),
                             value -> {
@@ -320,13 +331,13 @@ class GlobalParTest {
         try {
             TaskListener listener = event -> {};
             GlobalPar.Builder builder =
-                    GlobalPar.builder().taskListener(listener).register("io", executor);
-            assertThatThrownBy(
-                            () -> builder.parTaskListener("missing", listener).build())
+                    GlobalPar.builder().taskListener(listener).register(ParName.of("io"), executor);
+            assertThatThrownBy(() -> builder.parTaskListener(ParName.of("missing"), listener)
+                            .build())
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> GlobalPar.builder().register("", executor))
+            assertThatThrownBy(() -> GlobalPar.builder().register(ParName.of(""), executor))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> GlobalPar.builder().register("null", null))
+            assertThatThrownBy(() -> GlobalPar.builder().register(ParName.of("null"), null))
                     .isInstanceOf(NullPointerException.class);
         } finally {
             executor.shutdownNow();
@@ -350,7 +361,8 @@ class GlobalParTest {
     @Test
     void observationIsOwnedAndClosedExactlyOnce() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
         try {
             io.github.monadrome.parallelinscope.context.TaskGraphObservationScope observation =
                     global.openTaskGraphObservation();
@@ -370,14 +382,15 @@ class GlobalParTest {
     @Test
     void rejectsNewBatchesAndObservationsAfterCloseWithoutClosingBorrowedExecutor() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
         try {
             global.close();
 
             assertThat(global.closed()).isTrue();
             assertThat(executor.isShutdown()).isFalse();
             assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> global.par("io")
+            assertThatThrownBy(() -> global.par(ParName.of("io"))
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
@@ -396,7 +409,8 @@ class GlobalParTest {
     void closeRejectsNewWorkWhileAnAdmittedBatchCompletesSetup() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService callers = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
         CountDownLatch setupEntered = new CountDownLatch(1);
         CountDownLatch releaseSetup = new CountDownLatch(1);
         CountDownLatch closeStarted = new CountDownLatch(1);
@@ -419,7 +433,7 @@ class GlobalParTest {
             setup.get(5, TimeUnit.SECONDS);
             close.get(5, TimeUnit.SECONDS);
             assertThat(global.closed()).isTrue();
-            assertThatThrownBy(() -> global.par("io")
+            assertThatThrownBy(() -> global.par(ParName.of("io"))
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
@@ -438,11 +452,12 @@ class GlobalParTest {
     @Test
     void closeLetsAnAdmittedBatchDrainWithoutClosingItsBorrowedExecutor() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
         CountDownLatch firstTaskStarted = new CountDownLatch(1);
         CountDownLatch releaseFirstTask = new CountDownLatch(1);
         try {
-            TaskBatchResult<Integer> result = global.par("io")
+            TaskBatchResult<Integer> result = global.par(ParName.of("io"))
                     .map(
                             java.util.Arrays.asList(1, 2, 3),
                             value -> {
@@ -519,17 +534,17 @@ class GlobalParTest {
                     .taskListener(listener)
                     .deadlockPolicy(deadlock)
                     .purgePolicy(purge)
-                    .register("one", executor)
+                    .register(ParName.of("one"), executor)
                     .build();
 
             assertThat(global.taskListeners()).containsExactly(listener);
-            assertThat(global.taskListenersFor("one")).containsExactly(listener);
+            assertThat(global.taskListenersFor(ParName.of("one"))).containsExactly(listener);
             assertThat(global.deadlockPolicy()).isSameAs(deadlock);
             assertThat(global.purgePolicy()).isSameAs(purge);
-            assertThat(global.find("one")).contains(global.par("one"));
-            assertThat(global.find("missing")).isEmpty();
-            assertThat(global.pars()).containsOnlyKeys("one");
-            assertThat(global.runtimes()).containsOnlyKeys("one");
+            assertThat(global.find(ParName.of("one"))).contains(global.par(ParName.of("one")));
+            assertThat(global.find(ParName.of("missing"))).isEmpty();
+            assertThat(global.pars()).containsOnlyKeys(ParName.of("one"));
+            assertThat(global.runtimes()).containsOnlyKeys(ParName.of("one"));
             assertThat(global.runtimesByIdentity()).hasSize(1);
             assertThat(global.purger()).isNotNull();
             assertThatThrownBy(() -> global.pars().clear()).isInstanceOf(UnsupportedOperationException.class);
@@ -567,9 +582,10 @@ class GlobalParTest {
     @Test
     void batchReportAttributesDeadlineCancellationAsTimeout() {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("io", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
         try {
-            TaskBatchResult<Integer> result = global.par("io")
+            TaskBatchResult<Integer> result = global.par(ParName.of("io"))
                     .map(
                             java.util.Arrays.asList(1, 2),
                             ignored -> {

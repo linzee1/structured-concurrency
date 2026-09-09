@@ -24,18 +24,20 @@
 在应用启动阶段构建一次执行拓扑。具名 `Par` 在构建期绑定执行器；先选择 `Par`，再调用 `map`，而不是每次调用时按名称选池。
 
 ```java
+ParName IO = ParName.of("io");
+
 GlobalPar global = GlobalPar.builder()
-        .register("io", Executors.newFixedThreadPool(8))
-        .defaultPar("io")
+        .register(IO, Executors.newFixedThreadPool(8))
+        .defaultPar(IO)
         .build();
 
-BatchExecutionOptions options = BatchExecutionOptions.of("fetch-user")
+MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
         .taskType(TaskType.IO_BOUND)
         .parallelism(4)
         .timeout(Duration.ofSeconds(3))
         .build();
 
-TaskBatchResult<User> result = global.par("io")
+TaskBatchResult<User> result = global.par(IO)
         .map(userIds, userService::findById, options);
 ```
 

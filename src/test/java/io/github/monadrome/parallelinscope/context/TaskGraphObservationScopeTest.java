@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.alibaba.ttl.TtlRunnable;
 import io.github.monadrome.parallelinscope.context.graph.TaskGraphData;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +50,7 @@ class TaskGraphObservationScopeTest {
     @Test
     void nestedObservationsRestoreTheOuterGraphData() throws Exception {
         global = GlobalPar.builder()
-                .register("io", Executors.newSingleThreadExecutor())
+                .register(ParName.of("io"), Executors.newSingleThreadExecutor())
                 .build();
         try (TaskGraphObservationScope outer = global.openTaskGraphObservation()) {
             TaskGraphData outerData = TaskGraphObservationScope.data();

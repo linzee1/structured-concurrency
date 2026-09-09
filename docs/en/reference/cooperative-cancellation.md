@@ -31,7 +31,7 @@ MultiTaskOptions options = MultiTaskOptions.of("my-task")
         .timeout(Duration.ofSeconds(5))
         .build();
 
-global.par("myExecutor").map(dataList, item -> {
+global.par(ParName.of("myExecutor")).map(dataList, item -> {
     for (int i = 0; i < 1_000_000; i++) {
         if (i % 1000 == 0) {
             Checkpoints.checkpoint("my-task", true);
@@ -58,7 +58,7 @@ Add checkpoints at a reasonable granularity: every N iterations of a long loop, 
 ## Do not swallow cancellation
 
 ```java
-global.par("myExecutor").map(items, item -> {
+global.par(ParName.of("myExecutor")).map(items, item -> {
     try {
         riskyOperation(item);
     } catch (Exception ex) {

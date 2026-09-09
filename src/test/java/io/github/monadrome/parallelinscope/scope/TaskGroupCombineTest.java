@@ -27,22 +27,25 @@ class TaskGroupCombineTest {
     void combineRunsOnceOnItsOwnExecutorAfterAllMembersSucceed() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(2);
         ExecutorService cpu = Executors.newSingleThreadExecutor();
-        GlobalPar global =
-                GlobalPar.builder().register("io", io).register("cpu", cpu).build();
+        GlobalPar global = GlobalPar.builder()
+                .register(ParName.of("io"), io)
+                .register(ParName.of("cpu"), cpu)
+                .build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             AtomicReference<String> combineThread = new AtomicReference<>();
             AtomicReference<String> combineTask = new AtomicReference<>();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            TaskRef<String> user = definition.task(new TaskRef<>("user") {}, "io", () -> "alice", options("user"));
+            TaskRef<String> user =
+                    definition.task(new TaskRef<>("user") {}, ParName.of("io"), () -> "alice", options("user"));
             TaskRef<List<String>> orders = definition.task(
                     new TaskRef<List<String>>("orders") {},
-                    "io",
+                    ParName.of("io"),
                     () -> java.util.Collections.singletonList("order-1"),
                     options("orders"));
             TaskRef<String> page = definition.combine(
                     new TaskRef<>("assemble") {},
-                    "cpu",
+                    ParName.of("cpu"),
                     values -> {
                         combineRuns.incrementAndGet();
                         combineThread.set(Thread.currentThread().getName());
@@ -76,20 +79,21 @@ class TaskGroupCombineTest {
     @Test
     void memberFailureSkipsCombineAndTerminatesTerminalFuture() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
             definition.task(
                     new TaskRef<>("failure") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         throw new IllegalStateException("boom");
                     },
                     options("failure"));
             TaskRef<String> page = definition.combine(
                     new TaskRef<>("assemble") {},
-                    "worker",
+                    ParName.of("worker"),
                     values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
@@ -114,13 +118,14 @@ class TaskGroupCombineTest {
     @Test
     void combineFailureIsAttributedToTheCombineNotAMember() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            definition.task(new TaskRef<>("user") {}, "worker", () -> "alice", options("user"));
+            definition.task(new TaskRef<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
             TaskRef<String> page = definition.combine(
                     new TaskRef<>("assemble") {},
-                    "worker",
+                    ParName.of("worker"),
                     values -> {
                         throw new java.io.IOException("assemble failed");
                     },
@@ -182,16 +187,16 @@ class TaskGroupCombineTest {
             }
         };
         GlobalPar global = GlobalPar.builder()
-                .register("worker", executor)
-                .register("rejecting", rejecting)
+                .register(ParName.of("worker"), executor)
+                .register(ParName.of("rejecting"), rejecting)
                 .build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            definition.task(new TaskRef<>("user") {}, "worker", () -> "alice", options("user"));
+            definition.task(new TaskRef<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
             definition.combine(
                     new TaskRef<>("assemble") {},
-                    "rejecting",
+                    ParName.of("rejecting"),
                     values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
@@ -216,14 +221,15 @@ class TaskGroupCombineTest {
     @Test
     void groupCancelSkipsUnstartedCombine() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         CountDownLatch running = new CountDownLatch(1);
         try {
             AtomicInteger combineRuns = new AtomicInteger();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
             definition.task(
                     new TaskRef<>("slow") {},
-                    "worker",
+                    ParName.of("worker"),
                     () -> {
                         running.countDown();
                         Thread.sleep(10_000);
@@ -232,7 +238,7 @@ class TaskGroupCombineTest {
                     options("slow"));
             TaskRef<String> page = definition.combine(
                     new TaskRef<>("assemble") {},
-                    "worker",
+                    ParName.of("worker"),
                     values -> {
                         combineRuns.incrementAndGet();
                         return "unreachable";
@@ -257,13 +263,14 @@ class TaskGroupCombineTest {
     @Test
     void combineOwnDeadlineEscalatesToGroupTimeout() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            definition.task(new TaskRef<>("user") {}, "worker", () -> "alice", options("user"));
+            definition.task(new TaskRef<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
             definition.combine(
                     new TaskRef<>("assemble") {},
-                    "worker",
+                    ParName.of("worker"),
                     values -> {
                         Thread.sleep(10_000);
                         return "unreachable";
@@ -288,11 +295,12 @@ class TaskGroupCombineTest {
     @Test
     void emptyGroupSubmitsCombineInsideTheSubmitFlow() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("empty"));
             TaskRef<String> page = definition.combine(
-                    new TaskRef<>("assemble") {}, "worker", values -> "assembled", options("assemble"));
+                    new TaskRef<>("assemble") {}, ParName.of("worker"), values -> "assembled", options("assemble"));
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -310,17 +318,19 @@ class TaskGroupCombineTest {
     @Test
     void completedTaskValuesEnforcesRefContract() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             AtomicReference<Throwable> unknownRef = new AtomicReference<>();
             AtomicReference<Throwable> selfRef = new AtomicReference<>();
             AtomicReference<Throwable> wrongType = new AtomicReference<>();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            TaskRef<String> user = definition.task(new TaskRef<>("user") {}, "worker", () -> null, options("user"));
-            definition.task(new TaskRef<>("count") {}, "worker", () -> 41, options("count"));
+            TaskRef<String> user =
+                    definition.task(new TaskRef<>("user") {}, ParName.of("worker"), () -> null, options("user"));
+            definition.task(new TaskRef<>("count") {}, ParName.of("worker"), () -> 41, options("count"));
             TaskRef<String> page = definition.combine(
                     new TaskRef<>("assemble") {},
-                    "worker",
+                    ParName.of("worker"),
                     values -> {
                         assertThat(values.value(user)).isNull();
                         assertThat(values.<Integer>value(new TaskRef<>("count") {}))
@@ -347,23 +357,26 @@ class TaskGroupCombineTest {
     @Test
     void combineConfigurationIsValidatedEarly() {
         TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-        definition.task(new TaskRef<>("user") {}, "worker", () -> "alice", options("user"));
+        definition.task(new TaskRef<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
         TaskRef<String> page = new TaskRef<>("assemble") {};
 
-        assertThatThrownBy(() -> definition.combine(new TaskRef<>("user") {}, "worker", values -> "x", options("dup")))
+        assertThatThrownBy(() -> definition.combine(
+                        new TaskRef<>("user") {}, ParName.of("worker"), values -> "x", options("dup")))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> definition.combine(null, "worker", values -> "x", options("null")))
+        assertThatThrownBy(() -> definition.combine(null, ParName.of("worker"), values -> "x", options("null")))
                 .isInstanceOf(NullPointerException.class);
-        definition.combine(page, "worker", values -> "x", options("assemble"));
-        assertThatThrownBy(() ->
-                        definition.combine(new TaskRef<>("second") {}, "worker", values -> "y", options("second")))
+        definition.combine(page, ParName.of("worker"), values -> "x", options("assemble"));
+        assertThatThrownBy(() -> definition.combine(
+                        new TaskRef<>("second") {}, ParName.of("worker"), values -> "y", options("second")))
                 .isInstanceOf(IllegalArgumentException.class);
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        GlobalPar global = GlobalPar.builder().register("worker", executor).build();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder unknownExecutor = TaskGroupDefinition.builder(options("page"));
-            unknownExecutor.combine(new TaskRef<>("assemble") {}, "missing", values -> "x", options("assemble"));
+            unknownExecutor.combine(
+                    new TaskRef<>("assemble") {}, ParName.of("missing"), values -> "x", options("assemble"));
             assertThatThrownBy(() -> TaskGroup.submit(global, unknownExecutor.build()))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {

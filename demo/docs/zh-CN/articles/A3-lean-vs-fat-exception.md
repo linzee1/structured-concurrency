@@ -39,7 +39,7 @@ System.out.println("10000 exceptions: " + elapsed / 1_000_000 + " ms");
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
 GlobalPar config = GlobalPar.builder()
-        .register("my-pool", pool)
+        .register(ParName.of("my-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

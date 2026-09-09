@@ -41,7 +41,7 @@ for (int i = 0; i < 3; i++) {
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
 GlobalPar config = GlobalPar.builder()
-        .register("biz-pool", pool)
+        .register(ParName.of("biz-pool"), pool)
         .build();
 Par par = config.defaultPar();
 

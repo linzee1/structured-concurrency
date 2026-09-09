@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
+import io.github.monadrome.parallelinscope.scope.ParName;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.scope.TaskType;
 import java.util.ArrayList;
@@ -144,8 +145,8 @@ class D2_LateBindRaceConditionTest {
 
         ExecutorService rawPool = Executors.newFixedThreadPool(PARALLELISM + 1);
         GlobalPar config = GlobalPar.builder()
-                .register("test-pool", rawPool)
-                .defaultPar("test-pool")
+                .register(ParName.of("test-pool"), rawPool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
         Par par = config.defaultPar();
 

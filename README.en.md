@@ -24,9 +24,11 @@ A structured-concurrency toolkit for Java 8+ with bounded batch submission, coop
 Create the application execution topology once. A named `Par` is bound to its executor at build time; choose it before calling `map`, not per invocation.
 
 ```java
+ParName IO = ParName.of("io");
+
 GlobalPar global = GlobalPar.builder()
-        .register("io", Executors.newFixedThreadPool(8))
-        .defaultPar("io")
+        .register(IO, Executors.newFixedThreadPool(8))
+        .defaultPar(IO)
         .build();
 
 MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
@@ -35,7 +37,7 @@ MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
         .timeout(Duration.ofSeconds(3))
         .build();
 
-TaskBatchResult<User> result = global.par("io")
+TaskBatchResult<User> result = global.par(IO)
         .map(userIds, userService::findById, options);
 ```
 

@@ -15,8 +15,10 @@
 <body>
   <h1>v0.2 使用入口</h1>
   <p>旧交互式页面使用了已移除的 <code>ParConfig</code> 和 <code>ParOptions</code>。当前 API 先构建 <code>GlobalPar</code>，再从其中取得已绑定执行器的 <code>Par</code>。</p>
-  <pre>GlobalPar global = GlobalPar.builder()
-    .register("io", executor)
+  <pre>ParName IO = ParName.of("io");
+
+GlobalPar global = GlobalPar.builder()
+    .register(IO, executor)
     .build();
 
 MultiTaskOptions options = MultiTaskOptions.of("fetch")
@@ -24,7 +26,7 @@ MultiTaskOptions options = MultiTaskOptions.of("fetch")
     .timeout(Duration.ofSeconds(3))
     .build();
 
-global.par("io").map(items, client::fetch, options);</pre>
+global.par(IO).map(items, client::fetch, options);</pre>
   <p>请以 <a href="../user-guide.md">完整使用指南</a> 为准；从 `0.1.x` 升级请先查看 <a href="../migration-v0.2.md">v0.2 迁移指南</a>。</p>
 </body>
 </html>
