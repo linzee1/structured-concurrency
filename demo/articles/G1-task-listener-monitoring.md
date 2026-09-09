@@ -29,16 +29,16 @@ Future<String> future = pool.submit(() -> {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `TaskListener` SPI 扩展点。通过 `GlobalPar.builder().taskListener(listener)` 注册监听器，框架会在每个任务完成时自动回调 `onTaskComplete(TaskEvent)`，无需侵入业务代码。
+`parallel-in-scope` 提供了 `TaskListener` SPI 扩展点。通过 `GlobalPar.builder().taskListener(listener)` 注册监听器，框架会在每个任务完成时自动回调 `onTaskComplete(TaskCompletion)`，无需侵入业务代码。
 
-`TaskEvent` 包含完整的任务生命周期信息：
+`TaskCompletion` 包含完整的任务生命周期信息：
 - `taskContext()` — 当前 task 的只读上下文，包含 batch、taskIndex 和计时
 - `taskName()` — 任务名称（来自 `MultiTaskOptions.of("taskName")`）
 - `successful()` / `result()` — 成功状态和任务返回值
 - `executionTime()` — 实际执行耗时，返回 `Duration`
 - `waitTime()` — 等待耗时（从提交到开始执行的间隔），返回 `Duration`
 - `totalTime()` — 总耗时（等待 + 执行），返回 `Duration`
-- `exception()` — 任务异常（成功时为 null）
+- `failure()` — 任务异常（成功时为 null）
 
 这些数据足以对接任何监控系统：用 `executionTime().toMillis()` 计算延迟直方图，用 `successful()` 统计成功率，用 `waitTime().toMillis()` 监控线程池水位，并可通过 `taskContext().taskIndex()` 定位批次中的具体输入位置。
 
@@ -58,9 +58,9 @@ GlobalPar config = GlobalPar.builder()
         .taskListener(event -> {
             // 每个任务完成时自动回调，零侵入
             taskTimings.put(event.taskName(), event.executionTime().toMillis());
-            if (event.exception() != null) {
+            if (event.failure() != null) {
                 log.error("Task {} failed: {}", event.taskName(),
-                        event.exception().getMessage());
+                        event.failure().getMessage());
             }
             // 推送到 Prometheus / Micrometer
             Timer.builder("task.duration")

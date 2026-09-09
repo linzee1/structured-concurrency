@@ -6,6 +6,7 @@ import io.github.monadrome.parallelinscope.scope.GlobalPar;
 import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
 import io.github.monadrome.parallelinscope.scope.Par;
 import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.scope.TaskCompletion;
 import io.github.monadrome.parallelinscope.scope.TaskType;
 import io.github.monadrome.parallelinscope.spi.TaskListener;
 import java.util.ArrayList;
@@ -89,13 +90,13 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * 解决方法：Par.map() 配合 TaskListener，零侵入监控。
      *
-     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskEvent)， 包含
-     * taskName、executionTime()、totalTime()、exception 等完整信息。 业务 lambda 无需任何监控代码。
+     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskCompletion)， 包含
+     * taskName、executionTime()、totalTime()、failure 等完整信息。 业务 lambda 无需任何监控代码。
      */
     @Test
     void parMap_withTaskListener_capturesSuccessfulTaskEvents() throws Exception {
         // 注册 TaskListener，收集所有事件
-        CopyOnWriteArrayList<TaskListener.TaskEvent> events = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
         GlobalPar config = GlobalPar.builder()
                 .register("test-pool", pool)
@@ -132,27 +133,27 @@ public class G1_TaskListenerMonitoringTest {
         assertThat(events).hasSize(5);
 
         // 验证：每个事件都有正确的 taskName
-        for (TaskListener.TaskEvent event : events) {
+        for (TaskCompletion<?> event : events) {
             assertThat(event.taskName()).isEqualTo("monitor-demo");
         }
 
         // 验证：执行耗时 >= 40ms（因为我们忙等了 50ms）
-        for (TaskListener.TaskEvent event : events) {
+        for (TaskCompletion<?> event : events) {
             assertThat(event.executionTime().toMillis())
                     .as("Task %s execution time", event.taskName())
                     .isGreaterThanOrEqualTo(40);
         }
 
         // 验证：总耗时 >= 执行耗时（total = wait + execution）
-        for (TaskListener.TaskEvent event : events) {
+        for (TaskCompletion<?> event : events) {
             assertThat(event.totalTime().toNanos())
                     .as("Task %s total time >= execution time", event.taskName())
                     .isGreaterThanOrEqualTo(event.executionTime().toNanos());
         }
 
         // 验证：所有任务成功，没有异常
-        for (TaskListener.TaskEvent event : events) {
-            assertThat(event.exception())
+        for (TaskCompletion<?> event : events) {
+            assertThat(event.failure())
                     .as("Task %s should not have exception", event.taskName())
                     .isNull();
         }
@@ -165,11 +166,11 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * TaskListener 同样能捕获失败任务的异常信息。
      *
-     * <p>当任务抛出异常时，TaskEvent.exception() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
+     * <p>当任务抛出异常时，TaskEvent.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
      */
     @Test
     void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
-        CopyOnWriteArrayList<TaskListener.TaskEvent> events = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
         GlobalPar config = GlobalPar.builder()
                 .register("test-pool", pool)
@@ -206,17 +207,17 @@ public class G1_TaskListenerMonitoringTest {
         assertThat(events).hasSize(2);
 
         // 验证：捕获到了失败任务的异常
-        TaskListener.TaskEvent failedEvent = events.stream()
-                .filter(e -> e.exception() != null)
+        TaskCompletion<?> failedEvent = events.stream()
+                .filter(e -> e.failure() != null)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));
-        assertThat(failedEvent.exception().getMessage()).contains("item 2 failed");
+        assertThat(failedEvent.failure().getMessage()).contains("item 2 failed");
 
         // 验证：失败事件也有 taskName
         assertThat(failedEvent.taskName()).isEqualTo("fail-demo");
 
         // 验证：成功任务没有异常
-        long successCount = events.stream().filter(e -> e.exception() == null).count();
+        long successCount = events.stream().filter(e -> e.failure() == null).count();
         assertThat(successCount).isEqualTo(1);
 
         // 验证：report 确认结果
