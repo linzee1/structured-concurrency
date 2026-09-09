@@ -86,12 +86,12 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-TaskRef<User> user = definition.task(
-        new TaskRef<User>("user") {},
+TaskKey<User> user = definition.task(
+        new TaskKey<User>("user") {},
         DATABASE, userRepository::load,
         MultiTaskOptions.of("load-user").inheritTimeout().build());
-TaskRef<List<Order>> orders = definition.task(
-        new TaskRef<List<Order>>("orders") {},
+TaskKey<List<Order>> orders = definition.task(
+        new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,
         MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
@@ -102,10 +102,11 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 }
 ```
 
-A `TaskRef` is a type-safe token created as an anonymous subclass so the member's result type is
+A `TaskKey` is a type-safe key created as an anonymous subclass so the member's result type is
 captured at runtime; it is registered while configuring the definition, and after submission
-`group.future(ref)` resolves the member's future, rejecting a ref whose raw result type does not
-cover the registered one. Group completion always returns a
+`group.future(key)` resolves the member's future, rejecting a key whose raw result type does not
+cover the registered one. Keys compare equal by member name alone, so a key claiming a supertype of
+the registered type is equal to the registered key. Group completion always returns a
 `TaskGroupResult`; the group outcome (`result.outcome()`, a `TaskOutcome`) is result data rather
 than a failure of the completion future. Individual member futures retain normal Guava success,
 failure, and cancellation behavior.
@@ -131,8 +132,8 @@ scoped task — prepared at submit like a member, but submitted to its own `Par`
 member succeeds — so it inherits the group's structured cancellation, deadline, and observability:
 
 ```java
-TaskRef<AccountPage> page = definition.combine(
-        new TaskRef<AccountPage>("assemble-page") {},
+TaskKey<AccountPage> page = definition.combine(
+        new TaskKey<AccountPage>("assemble-page") {},
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
         MultiTaskOptions.of("assemble-page").inheritTimeout().build());
@@ -143,13 +144,13 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 ```
 
 The `CompletedTaskValues` view is non-blocking and exposes only successful member values through
-the registered `TaskRef` tokens — no futures, no name-keyed map. The combine function runs exactly
+the registered `TaskKey` keys — no futures, no name-keyed map. The combine function runs exactly
 once on a worker of the named `Par` (never on a member's completion thread; a rejected combine
 fails as `SUBMISSION_FAILURE` instead of running inline), and it must be a pure function of member
 values and configuration-time captures: it is scheduled the moment the last member succeeds, so
 state created by the submitting thread after `submit` returns is not visible to it — read the
 member futures directly for that. A group accepts at most one combine, declared with its own
-`TaskRef`; `group.future(combineRef)` resolves the typed terminal future with normal Guava
+`TaskKey`; `group.future(combineKey)` resolves the typed terminal future with normal Guava
 semantics. If any member fails, the combine never runs and the terminal future is cancelled with
 the group's attributed outcome. The combine's snapshot appears as `TaskGroupResult.terminal()`
 (`members()` stays member-only), and when the combine itself fails or is rejected,

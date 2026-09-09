@@ -39,12 +39,12 @@ import javax.annotation.Nullable;
  * <p>A group is described by a reusable {@link TaskGroupDefinition} and submitted via {@link
  * #submit(GlobalPar, TaskGroupDefinition)}, which builds, starts, and submits all members in one call.
  * Member futures are looked up by name ({@link #members()}, {@link #findMember(String)}) or through
- * the typed {@link TaskRef} tokens registered while configuring the definition ({@link #future(TaskRef)}).
+ * the typed {@link TaskKey} keys registered while configuring the definition ({@link #future(TaskKey)}).
  *
  * <p>A definition may declare one terminal combine: a real scoped task that depends on every member.
- * Its token, execution context, and TTL snapshot are prepared at submit like a member's, but it is
+ * Its key, execution context, and TTL snapshot are prepared at submit like a member's, but it is
  * submitted to its own {@code Par} only after all members succeed, and the group completes only when
- * its future is terminal. Its future resolves through {@link #future(TaskRef)} like a member's, yet
+ * its future is terminal. Its future resolves through {@link #future(TaskKey)} like a member's, yet
  * it is not part of {@link #members()}.
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
@@ -116,26 +116,26 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Resolves the future of the member — or the terminal combine — the token was created for in
-     * this group.
+     * Resolves the future of the member — or the terminal combine — the key was created for in this
+     * group.
      *
-     * @throws IllegalArgumentException if no member or combine carries the token's name, or if the
-     *     token's raw result type is not assignable from the type it was registered with (a token
+     * @throws IllegalArgumentException if no member or combine carries the key's name, or if the
+     *     key's raw result type is not assignable from the type it was registered with (a key
      *     claiming a supertype of the registered type is accepted)
      */
     @SuppressWarnings("unchecked")
-    public <T> ListenableFuture<T> future(TaskRef<T> ref) {
-        Objects.requireNonNull(ref, "ref cannot be null");
-        MemberState member = memberStates.get(ref.memberName());
-        if (member == null && terminal != null && terminal.name.equals(ref.memberName())) {
+    public <T> ListenableFuture<T> future(TaskKey<T> key) {
+        Objects.requireNonNull(key, "key cannot be null");
+        MemberState member = memberStates.get(key.memberName());
+        if (member == null && terminal != null && terminal.name.equals(key.memberName())) {
             member = terminal;
         }
         if (member == null) {
-            throw new IllegalArgumentException("No member named '" + ref.memberName() + "'");
+            throw new IllegalArgumentException("No member named '" + key.memberName() + "'");
         }
-        if (!ref.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
-            throw new IllegalArgumentException("Member '" + ref.memberName() + "' was registered with result type "
-                    + member.resultType + " but the ref claims " + ref.resultType());
+        if (!key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
+            throw new IllegalArgumentException("Member '" + key.memberName() + "' was registered with result type "
+                    + member.resultType + " but the key claims " + key.resultType());
         }
         return (ListenableFuture<T>) member.future;
     }
@@ -511,7 +511,7 @@ public final class TaskGroup implements AutoCloseable {
                                 future,
                                 par.submissionExecutor(),
                                 unit.taskType() == TaskType.CPU_BOUND,
-                                member.ref().resultType()));
+                                member.key().resultType()));
             }
             int index = 0;
             for (MemberState state : states.values()) {
@@ -550,7 +550,7 @@ public final class TaskGroup implements AutoCloseable {
                         future,
                         par.submissionExecutor(),
                         false,
-                        combineDefinition.ref().resultType());
+                        combineDefinition.key().resultType());
                 logForking(unit, par.runtime().blockingRisk());
             }
         } catch (Throwable failure) {

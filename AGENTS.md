@@ -67,7 +67,9 @@ Two invariants to respect:
 - Logging goes through JUL (`java.util.logging.Logger`).
 - The `Scope` suffix marks a closeable lifecycle scope (`SubmissionScope`,
   `TaskGraphObservationScope`); the `Context` suffix marks a data carrier
-  (a view or resolved parameters).
+  (a view or resolved parameters); the `Key` suffix marks a configuration-time
+  typed key whose equality is its member name (`TaskKey`); the `Name` suffix
+  marks a value object naming a logical entry (`ParName`).
 - Pre-stable API: public APIs and SPI may change between `0.x` releases without
   compatibility shims. During the `0.x` phase, a breaking change is acceptable
   when it provides a meaningful improvement and has a sufficiently documented

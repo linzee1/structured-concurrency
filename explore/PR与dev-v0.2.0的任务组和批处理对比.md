@@ -24,7 +24,7 @@
 | `TaskOutcome` | 删除的 `internal.FutureState` | 实质统一：区分用户失败、提交失败、直接取消、组取消、fail-fast、超时的共同词汇。batch 的 `AsyncBatchResult.report()` 已使用它。 |
 | `TaskGroupListener` | `TaskListener` | 都是观测扩展点，但粒度不同：后者每个 callable 执行完回调，前者在全组收敛后回调一次。保留两个 SPI。 |
 | `SubmissionException` | batch 的提交失败 future | 给"用户代码尚未执行就提交失败"一个可识别类型，供 group 写入 `SUBMISSION_FAILURE`，同时被 `FutureInspector` 识别。 |
-| `TaskRef` | — | 具名成员的句柄，group 特有。 |
+| `TaskKey` | — | 具名成员的键，group 特有。 |
 
 `MultiTaskOptions`（组与批次共用的选项类，字段取并集：批次读 name/parallelism/timeout/
 taskType/rejectEnqueue，组读 name/timeout/listeners，成员按批次子集读取并忽略
@@ -54,7 +54,7 @@ taskType/rejectEnqueue，组读 name/timeout/listeners，成员按批次子集�
 
 ### 必须保留的差异
 
-1. **提交边界不同。** group 必须先完成全部定义、future 和 `TaskRef` 的绑定，再设置成员
+1. **提交边界不同。** group 必须先完成全部定义、future 和 `TaskKey` 的绑定，再设置成员
    监听和取消绑定，最后提交；这保证成员失败不会让尚未暴露的成员逃逸。batch 的滑动窗口
    故意允许一部分 placeholder 尚未真正提交。
 2. **取消拓扑不同。** batch 只绑定一个 batch token 到 futures 和 submit canceller。group

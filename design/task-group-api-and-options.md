@@ -66,16 +66,16 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-TaskRef<User> user = definition.task(
-            new TaskRef<User>("get-user") {},
+TaskKey<User> user = definition.task(
+            new TaskKey<User>("get-user") {},
             "user", userService::getUser,
             MultiTaskOptions.of("get-user").inheritTimeout().build());
-TaskRef<List<Order>> orders = definition.task(
-            new TaskRef<List<Order>>("get-orders") {},
+TaskKey<List<Order>> orders = definition.task(
+            new TaskKey<List<Order>>("get-orders") {},
             "order", orderService::getOrders,
             MultiTaskOptions.of("get-orders").inheritTimeout().build());
-TaskRef<Inventory> inventory = definition.task(
-            new TaskRef<Inventory>("get-inventory") {},
+TaskKey<Inventory> inventory = definition.task(
+            new TaskKey<Inventory>("get-inventory") {},
             "inventory", inventoryService::getInventory,
             MultiTaskOptions.of("get-inventory").inheritTimeout().build());
 
@@ -94,8 +94,8 @@ public final class TaskGroupDefinition {
     public List<TaskDefinition<?>> tasks();
 
     public static final class Builder {
-        public <T> TaskRef<T> task(
-                TaskRef<T> ref,
+        public <T> TaskKey<T> task(
+                TaskKey<T> key,
                 String executorName,
                 Callable<T> callable,
                 MultiTaskOptions options);
@@ -103,8 +103,8 @@ public final class TaskGroupDefinition {
     }
 }
 
-public abstract class TaskRef<T> {
-    protected TaskRef(String memberName);
+public abstract class TaskKey<T> {
+    protected TaskKey(String memberName);
     public final String memberName();
     public final TypeToken<T> resultType();
 }
@@ -119,7 +119,7 @@ public final class TaskGroup implements AutoCloseable {
 
     public Optional<ListenableFuture<?>> findMember(String memberName);
     public Map<String, ListenableFuture<?>> members();
-    public <T> ListenableFuture<T> future(TaskRef<T> ref);
+    public <T> ListenableFuture<T> future(TaskKey<T> key);
 
     @Override
     public void close();
@@ -128,14 +128,14 @@ public final class TaskGroup implements AutoCloseable {
 
 语义：
 
-- `TaskGroupDefinition.Builder.task()` 只校验并保存不可变任务定义（ref 为 null、memberName 重复、参数为
-  null 立即拒绝；memberName 的 null/空白校验由 `TaskRef` 构造器完成）；不得提交 executor、启动
+- `TaskGroupDefinition.Builder.task()` 只校验并保存不可变任务定义（key 为 null、memberName 重复、参数为
+  null 立即拒绝；memberName 的 null/空白校验由 `TaskKey` 构造器完成）；不得提交 executor、启动
   timer、创建 `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；
 - `TaskGroup.submit()` 是唯一的冻结与提交入口；它按提交线程解析结构父任务与
   observation、创建并注册全部成员后才允许任何成员进入 executor；definition 本身可重复提交；
-- `TaskRef<T>` 由调用方以匿名子类创建（`new TaskRef<List<Order>>("orders") {}`），在运行时
-  捕获结果类型，不携带执行状态；`group.future(ref)` 在组内解析成员
-  future，引用不属于该组的 memberName、或 ref 的 raw 结果类型不能覆盖注册类型时抛
+- `TaskKey<T>` 由调用方以匿名子类创建（`new TaskKey<List<Order>>("orders") {}`），在运行时
+  捕获结果类型，不携带执行状态；`group.future(key)` 在组内解析成员
+  future，引用不属于该组的 memberName、或 key 的 raw 结果类型不能覆盖注册类型时抛
   `IllegalArgumentException`；
 - `cancel()` 幂等、非阻塞，固定 `CANCELED`（若尚未固定）并取消未完成成员；
 - `close()` 是异常安全清理：若仍有未完成成员，语义等同 `cancel()`；若所有成员已经终态或空组则无副作用；
@@ -143,9 +143,10 @@ public final class TaskGroup implements AutoCloseable {
 - `members()` 返回按定义顺序排列、不可修改的完整集合；
 - `findMember()`/`members()` 在 Group 返回给调用方时即可看见全部冻结成员。
 
-`TaskRef<T>` 是调用方创建的类型化令牌，通过匿名子类在运行时捕获结果类型，不携带执行状态：
-异构任务的 future 在统一 submit 时创建，调用方用配置期注册的令牌在提交后取回类型安全的
-future。definition 不捕获线程上下文，因此结构归属始终由提交现场决定。
+`TaskKey<T>` 是调用方创建的类型化键，通过匿名子类在运行时捕获结果类型，不携带执行状态；
+键按 memberName 值相等，因此声明父类型的键与注册键是同一个键。异构任务的 future 在统一
+submit 时创建，调用方用配置期注册的键在提交后取回类型安全的 future。definition 不捕获线程
+上下文，因此结构归属始终由提交现场决定。
 
 ### 3.2 组级与成员级选项
 

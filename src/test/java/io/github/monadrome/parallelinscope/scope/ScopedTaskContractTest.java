@@ -220,14 +220,14 @@ class ScopedTaskContractTest {
                         .timeout(Duration.ofSeconds(30))
                         .build());
                 definition.task(
-                        new TaskRef<>("blocker") {},
+                        new TaskKey<>("blocker") {},
                         ParName.of("worker"),
                         () -> runUnlessQueued("blocker", release, queuedRuns),
                         MultiTaskOptions.of("blocker")
                                 .timeout(Duration.ofSeconds(30))
                                 .build());
-                TaskRef<Object> queued = definition.task(
-                        new TaskRef<>("queued") {},
+                TaskKey<Object> queued = definition.task(
+                        new TaskKey<>("queued") {},
                         ParName.of("worker"),
                         () -> runUnlessQueued("queued", release, queuedRuns),
                         MultiTaskOptions.of("queued")
@@ -315,10 +315,10 @@ class ScopedTaskContractTest {
         }
         TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
                 MultiTaskOptions.of("contract").timeout(Duration.ofSeconds(30)).build());
-        TaskRef<Object> ref = definition.task(new TaskRef<>(name) {}, ParName.of("worker"), task, options);
+        TaskKey<Object> key = definition.task(new TaskKey<>(name) {}, ParName.of("worker"), task, options);
         TaskGroup group = TaskGroup.submit(global, definition.build());
         LAST_GROUP.set(group);
-        return group.future(ref);
+        return group.future(key);
     }
 
     private static Object callUnchecked(Callable<Object> task) {

@@ -44,13 +44,13 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 ## 4. 建议 API
 
-combine 注册在 definition 上，与 member 一样经 `TaskGroup.submit(global, definition)` 冻结并统一提交；definition 保持不可变、可重复提交。`TaskRef<T>` 继续是名称和类型的单一事实来源，combine 同样持有自己的 ref：
+combine 注册在 definition 上，与 member 一样经 `TaskGroup.submit(global, definition)` 冻结并统一提交；definition 保持不可变、可重复提交。`TaskKey<T>` 继续是名称和类型的单一事实来源，combine 同样持有自己的 key：
 
 ```java
-TaskRef<User> user = new TaskRef<User>("user") {};
-TaskRef<List<Order>> orders = new TaskRef<List<Order>>("orders") {};
-TaskRef<Inventory> inventory = new TaskRef<Inventory>("inventory") {};
-TaskRef<AccountPage> page = new TaskRef<AccountPage>("assemble-page") {};
+TaskKey<User> user = new TaskKey<User>("user") {};
+TaskKey<List<Order>> orders = new TaskKey<List<Order>>("orders") {};
+TaskKey<Inventory> inventory = new TaskKey<Inventory>("inventory") {};
+TaskKey<AccountPage> page = new TaskKey<AccountPage>("assemble-page") {};
 
 TaskGroupDefinition definition = TaskGroupDefinition.builder(groupOptions)
         .task(user, "database", () -> users.load(request.userId()), userOptions)
@@ -83,23 +83,23 @@ public interface CombineFunction<R> {
 public final class CompletedTaskValues {
     CompletedTaskValues(...) { ... } // 包私有构造，框架独占实例化
 
-    public <T> T value(TaskRef<T> ref) { ... }
+    public <T> T value(TaskKey<T> key) { ... }
 }
 ```
 
 要点：
 
-- `CompletedTaskValues` 是 final class 而非 interface：用户从不实现它，只在 lambda 中调用 `value(ref)`；实例化由框架独占，"视图仅在 `apply` 期间有效、回调返回后可释放引用"的语义不受第三方实现干扰；
+- `CompletedTaskValues` 是 final class 而非 interface：用户从不实现它，只在 lambda 中调用 `value(key)`；实例化由框架独占，"视图仅在 `apply` 期间有效、回调返回后可释放引用"的语义不受第三方实现干扰；
 - `CombineFunction` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为 `USER_FAILURE`），combine 与 member 并列在同一定义 API 上，受检异常处理必须对称；JDK 函数式接口中没有"单参且抛受检异常"的类型，这是新增此接口的唯一理由。注意 Batch（`Par.map`）的用户函数是不抛受检异常的 JDK `Function`——这是既有分叉（batch 元素仿 `Stream.map`，group member 仿 `ExecutorService.submit(Callable)`），combine 跟随 member 一侧。备选方案 `Function<CompletedTaskValues, R>`（零新增函数式接口、用户自行包装受检异常）被拒绝：运行时异常虽仍能收敛 `USER_FAILURE`，但同一 Builder 内 member/combine 不对称，且包装污染 `TaskCompletion.failure()` 的 cause 链；
-- `combine(ref, executorName, function, options)` 在配置期校验：参数为 null、ref 名称与任一 member 或 combine 重复，立即拒绝；一个 definition 至多一个 combine。executor 只接受注册名（submit 时经 `GlobalPar.par(executorName)` 解析，未知名称抛 `IllegalArgumentException`），不提供 `Par` 实例重载，与 member 对称；
-- `TaskGroup` 不新增泛型参数，也不新增 `resultFuture()`：terminal future 通过既有的 `group.future(combineRef)` 取回，类型安全、未知 ref 校验和 Guava 终态语义全部复用成员路径；
+- `combine(key, executorName, function, options)` 在配置期校验：参数为 null、key 名称与任一 member 或 combine 重复，立即拒绝；一个 definition 至多一个 combine。executor 只接受注册名（submit 时经 `GlobalPar.par(executorName)` 解析，未知名称抛 `IllegalArgumentException`），不提供 `Par` 实例重载，与 member 对称；
+- `TaskGroup` 不新增泛型参数，也不新增 `resultFuture()`：terminal future 通过既有的 `group.future(combineKey)` 取回，类型安全、未知 key 校验和 Guava 终态语义全部复用成员路径；
 - `combineOptions` 即 `MultiTaskOptions`，读取 name/timeout/taskType/rejectEnqueue，与 member 一致；不能覆盖 Group 的取消策略，listeners 仍只有组级读取；
 - 没有 combine 的 Group 不创建任何虚假终端任务，也不存在 `Void` 特殊路径。
 
 ## 5. CompletedTaskValues 契约
 
-- `value(ref)` 不阻塞；combine 运行时所有 member 已成功；
-- ref 必须属于该 Group 的 member，且其 raw 结果类型必须覆盖注册类型，否则抛 `IllegalArgumentException`（与 `group.future(ref)` 同一套校验）；combine 自己的 ref 不可读；
+- `value(key)` 不阻塞；combine 运行时所有 member 已成功；
+- `key` 必须属于该 Group 的 member，且其 raw 结果类型必须覆盖注册类型，否则抛 `IllegalArgumentException`（与 `group.future(key)` 同一套校验）；combine 自己的 key 不可读；
 - 成功 member 的返回值可以为 null；
 - 成员结果本就保存在成员 future 中；视图只在 `apply` 调用期间有效，实现可以在回调返回后释放结果引用；
 - 不提供 `Map<String, Object>`，避免强转和名称重构风险；
@@ -182,12 +182,12 @@ member C ──┘
 
 ## 12. 优点与缺点
 
-优点：它直接表达并行获取后的组装；调用方不再编写多 future 等待和执行器切换；终端计算可取消、可观测、受 deadline 约束；`TaskRef<T>` 保留类型安全且无需改动 `TaskGroup` 的泛型形态；combine 复用 member 机制，新增表面集中在"提交时机"一点；单一全量 join 控制了 API 的扩张。
+优点：它直接表达并行获取后的组装；调用方不再编写多 future 等待和执行器切换；终端计算可取消、可观测、受 deadline 约束；`TaskKey<T>` 保留类型安全且无需改动 `TaskGroup` 的泛型形态；combine 复用 member 机制，新增表面集中在"提交时机"一点；单一全量 join 控制了 API 的扩张。
 
 缺点：
 
 1. **概念增多。** 用户要区分 member、listener 和 combine；仅做观测或分别消费结果时，combine 没有价值。
-2. **Java 8 泛型不够自然。** `values.value(ref)` 比二元或三元函数冗长，但比 `Map<String, Object>` 更安全；语言本身无法自动从异构 refs 推导 lambda 参数列表。
+2. **Java 8 泛型不够自然。** `values.value(key)` 比二元或三元函数冗长，但比 `Map<String, Object>` 更安全；语言本身无法自动从异构 keys 推导 lambda 参数列表。
 3. **失败面扩大。** 组装成为可失败、拒绝、取消、超时的任务，结果、指标、测试和文档都要扩展。
 4. **额外一次调度。** 显式 executor 避免污染最后完成 member 的线程（禁用 inline fallback 后这一点是保证而非选择），但对纯字段拼装带来排队和上下文切换开销。
 5. **端到端预算更紧。** member 用掉大部分 deadline 后，combine 可能尚未开始即超时；这是正确的端到端语义，但需清晰告知用户。
@@ -202,9 +202,9 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 
 1. 所有 members 成功时 combine 恰好执行一次，callable 在指定 executor 线程运行，即使被拒绝也不 inline 到收敛回调线程（拒绝记 `SUBMISSION_FAILURE`）；
 2. 任一 member 非成功时 combine callable 不执行，terminal future 按 token 归因终态，不留下 pending public future；
-3. combine 的 token、`TaskExecutionContext`、TTL 快照和结构 parent 都在 submit 准备阶段创建：TTL 捕获时点与 member 一致，结构 parent 是提交现场的外层任务而非最后完成的 member；
+3. combine 的 key、`TaskExecutionContext`、TTL 快照和结构 parent 都在 submit 准备阶段创建：TTL 捕获时点与 member 一致，结构 parent 是提交现场的外层任务而非最后完成的 member；
 4. combine 在 submit 时完成 admission/retain：submit 返回后 `GlobalPar.close()` 与 join 竞争时，combine 仍正常提交并终态；
-5. combine 能通过 `TaskRef` 无阻塞取得正确值；unknown ref、raw 类型不覆盖、ref 名称冲突和 null 成功结果符合契约；
+5. combine 能通过 `TaskKey` 无阻塞取得正确值；unknown key、raw 类型不覆盖、key 名称冲突和 null 成功结果符合契约；
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
 7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedMemberName()` 取 combine 注册名，combine failure 不伪装成 member failure；
 8. `terminalCount` 目标含 terminal future；completion future 等 terminal future 终态后才完成；Group listener 只调用一次；

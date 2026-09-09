@@ -52,12 +52,12 @@ Earlier snapshots also exposed this detector as `GlobalParLivelockPolicy` and `L
 The task-group API now centers on an immutable, reusable spec. Replace the earlier builder
 ceremony — `GlobalPar.taskGroupBuilder(options)`, `ParallelTaskGroup.Builder.addTask(name, par,
 callable, options)`, the one-shot `buildAndSubmitAll()`, and `ParallelTaskGroup.TaskHandle<T>` —
-with `TaskGroupSpec.builder(groupOptions)`, `TaskGroupSpec.Builder.task(ref, executorName,
-callable, options)`, the one-shot `TaskGroup.submit(global, spec)`, and `TaskRef<T>`.
-Members reference their executor by registered name instead of a `Par` object. A `TaskRef<T>` is
-created by the caller as an anonymous subclass — `new TaskRef<List<Order>>("orders") {}` — so the
-token carries the member name and captures the result type at runtime; pass it to `task()`, and
-after submission resolve the member's future with `group.future(ref)`, which rejects a token whose
+with `TaskGroupSpec.builder(groupOptions)`, `TaskGroupSpec.Builder.task(key, executorName,
+callable, options)`, the one-shot `TaskGroup.submit(global, spec)`, and `TaskKey<T>`.
+Members reference their executor by registered name instead of a `Par` object. A `TaskKey<T>` is
+created by the caller as an anonymous subclass — `new TaskKey<List<Order>>("orders") {}` — so the
+key carries the member name and captures the result type at runtime; pass it to `task()`, and
+after submission resolve the member's future with `group.future(key)`, which rejects a key whose
 raw result type does not cover the registered one. A spec captures no thread context, so the
 structural parent and
 observation scope are resolved from the submitting thread at each `submit` call, and one spec may

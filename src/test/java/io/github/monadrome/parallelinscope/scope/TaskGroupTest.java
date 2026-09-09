@@ -42,13 +42,13 @@ class TaskGroupTest {
         try {
             AtomicInteger executions = new AtomicInteger();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
-            TaskRef<String> text = definition.task(
-                    new TaskRef<>("text") {},
+            TaskKey<String> text = definition.task(
+                    new TaskKey<>("text") {},
                     ParName.of("first"),
                     () -> "value-" + executions.incrementAndGet(),
                     memberOptions("text"));
-            TaskRef<Integer> number = definition.task(
-                    new TaskRef<>("number") {},
+            TaskKey<Integer> number = definition.task(
+                    new TaskKey<>("number") {},
                     ParName.of("second"),
                     () -> 40 + executions.incrementAndGet(),
                     memberOptions("number"));
@@ -63,7 +63,7 @@ class TaskGroupTest {
             assertThat(result.members().keySet()).containsExactly("text", "number");
             assertThat(group.members().keySet()).containsExactly("text", "number");
             assertThat(group.findMember("text")).contains(group.future(text));
-            assertThatThrownBy(() -> group.future(new TaskRef<>("missing") {}))
+            assertThatThrownBy(() -> group.future(new TaskKey<>("missing") {}))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
             global.close();
@@ -82,8 +82,8 @@ class TaskGroupTest {
             AtomicInteger calls = new AtomicInteger();
             ttl.set("configure");
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("ttl"));
-            TaskRef<String> member = definition.task(
-                    new TaskRef<>("member") {},
+            TaskKey<String> member = definition.task(
+                    new TaskKey<>("member") {},
                     ParName.of("worker"),
                     () -> {
                         calls.incrementAndGet();
@@ -113,7 +113,7 @@ class TaskGroupTest {
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("fail-fast"));
             definition.task(
-                    new TaskRef<>("slow") {},
+                    new TaskKey<>("slow") {},
                     ParName.of("worker"),
                     () -> {
                         running.countDown();
@@ -122,7 +122,7 @@ class TaskGroupTest {
                     },
                     memberOptions("slow"));
             definition.task(
-                    new TaskRef<>("failure") {},
+                    new TaskKey<>("failure") {},
                     ParName.of("worker"),
                     () -> {
                         running.await(2, TimeUnit.SECONDS);
@@ -154,7 +154,7 @@ class TaskGroupTest {
                     .timeout(Duration.ofMillis(30))
                     .build());
             groupDeadline.task(
-                    new TaskRef<>("slow") {},
+                    new TaskKey<>("slow") {},
                     ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
@@ -172,7 +172,7 @@ class TaskGroupTest {
                             .timeout(Duration.ofSeconds(2))
                             .build());
             memberDeadline.task(
-                    new TaskRef<>("slow") {},
+                    new TaskKey<>("slow") {},
                     ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
@@ -198,8 +198,8 @@ class TaskGroupTest {
         CountDownLatch release = new CountDownLatch(1);
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("member-cancel"));
-            TaskRef<Integer> canceled = definition.task(
-                    new TaskRef<>("canceled") {},
+            TaskKey<Integer> canceled = definition.task(
+                    new TaskKey<>("canceled") {},
                     ParName.of("worker"),
                     () -> {
                         release.await();
@@ -207,7 +207,7 @@ class TaskGroupTest {
                     },
                     memberOptions("canceled"));
             definition.task(
-                    new TaskRef<>("sibling") {},
+                    new TaskKey<>("sibling") {},
                     ParName.of("worker"),
                     () -> {
                         release.await(10, TimeUnit.SECONDS);
@@ -238,7 +238,7 @@ class TaskGroupTest {
                     .timeout(Duration.ofSeconds(2))
                     .build());
             definition.task(
-                    new TaskRef<>("slow") {},
+                    new TaskKey<>("slow") {},
                     ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
@@ -246,7 +246,7 @@ class TaskGroupTest {
                     },
                     MultiTaskOptions.of("slow").timeout(Duration.ofMillis(50)).build());
             definition.task(
-                    new TaskRef<>("sibling") {},
+                    new TaskKey<>("sibling") {},
                     ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
@@ -279,7 +279,7 @@ class TaskGroupTest {
                     .timeout(Duration.ofSeconds(2))
                     .build());
             definition.task(
-                    new TaskRef<>("tight") {},
+                    new TaskKey<>("tight") {},
                     ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
@@ -287,7 +287,7 @@ class TaskGroupTest {
                     },
                     MultiTaskOptions.of("tight").timeout(Duration.ofMillis(50)).build());
             definition.task(
-                    new TaskRef<>("shared") {},
+                    new TaskKey<>("shared") {},
                     ParName.of("worker"),
                     () -> {
                         Thread.sleep(10_000);
@@ -328,7 +328,7 @@ class TaskGroupTest {
                             .timeout(Duration.ofMillis(50))
                             .build());
             definition.task(
-                    new TaskRef<>("member") {},
+                    new TaskKey<>("member") {},
                     ParName.of("outer"),
                     () -> {
                         memberToken.set(TaskExecutionContext.current()
@@ -399,7 +399,7 @@ class TaskGroupTest {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("cancel"));
             for (String name : Arrays.asList("one", "two")) {
                 definition.task(
-                        new TaskRef<>(name) {},
+                        new TaskKey<>(name) {},
                         ParName.of("worker"),
                         () -> {
                             started.countDown();
@@ -434,16 +434,16 @@ class TaskGroupTest {
             Thread submitThread = Thread.currentThread();
             AtomicReference<Thread> firstThread = new AtomicReference<>();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inline"));
-            TaskRef<Integer> first = definition.task(
-                    new TaskRef<>("first") {},
+            TaskKey<Integer> first = definition.task(
+                    new TaskKey<>("first") {},
                     ParName.of("direct"),
                     () -> {
                         firstThread.set(Thread.currentThread());
                         return 1;
                     },
                     memberOptions("first"));
-            TaskRef<Integer> second =
-                    definition.task(new TaskRef<>("second") {}, ParName.of("direct"), () -> 2, memberOptions("second"));
+            TaskKey<Integer> second =
+                    definition.task(new TaskKey<>("second") {}, ParName.of("direct"), () -> 2, memberOptions("second"));
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -470,7 +470,7 @@ class TaskGroupTest {
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("rejection"));
             definition.task(
-                    new TaskRef<>("rejected") {},
+                    new TaskKey<>("rejected") {},
                     ParName.of("reject"),
                     () -> 1,
                     MultiTaskOptions.of("rejected")
@@ -478,7 +478,7 @@ class TaskGroupTest {
                             .timeout(Duration.ofSeconds(30))
                             .build());
             definition.task(
-                    new TaskRef<>("later") {}, ParName.of("normal"), calls::incrementAndGet, memberOptions("later"));
+                    new TaskKey<>("later") {}, ParName.of("normal"), calls::incrementAndGet, memberOptions("later"));
 
             TaskGroupResult result = TaskGroup.submit(global, definition.build())
                     .completionFuture()
@@ -513,7 +513,7 @@ class TaskGroupTest {
                     .timeout(Duration.ofSeconds(30))
                     .build();
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options);
-            definition.task(new TaskRef<>("one") {}, ParName.of("direct"), () -> 1, memberOptions("one"));
+            definition.task(new TaskKey<>("one") {}, ParName.of("direct"), () -> 1, memberOptions("one"));
 
             TaskGroupResult result = TaskGroup.submit(global, definition.build())
                     .completionFuture()
@@ -534,18 +534,18 @@ class TaskGroupTest {
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("definition"));
-            definition.task(new TaskRef<>("one") {}, ParName.of("worker"), () -> 1, memberOptions("one"));
+            definition.task(new TaskKey<>("one") {}, ParName.of("worker"), () -> 1, memberOptions("one"));
             assertThatThrownBy(() -> definition.task(
-                            new TaskRef<>("one") {}, ParName.of("worker"), () -> 2, memberOptions("two")))
+                            new TaskKey<>("one") {}, ParName.of("worker"), () -> 2, memberOptions("two")))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> definition.task(
-                            new TaskRef<>(" ") {}, ParName.of("worker"), () -> 2, memberOptions("blank")))
+                            new TaskKey<>(" ") {}, ParName.of("worker"), () -> 2, memberOptions("blank")))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> definition.task(null, ParName.of("worker"), () -> 2, memberOptions("null")))
                     .isInstanceOf(NullPointerException.class);
 
             TaskGroupDefinition.Builder unknownExecutor = TaskGroupDefinition.builder(groupOptions("unknown"));
-            unknownExecutor.task(new TaskRef<>("member") {}, ParName.of("missing"), () -> 1, memberOptions("member"));
+            unknownExecutor.task(new TaskKey<>("member") {}, ParName.of("missing"), () -> 1, memberOptions("member"));
             assertThatThrownBy(() -> TaskGroup.submit(global, unknownExecutor.build()))
                     .isInstanceOf(IllegalArgumentException.class);
 
@@ -567,32 +567,32 @@ class TaskGroupTest {
     }
 
     @Test
-    void refCapturesTheParameterizedResultType() {
-        TaskRef<java.util.List<String>> ref = new TaskRef<java.util.List<String>>("orders") {};
-        assertThat(ref.memberName()).isEqualTo("orders");
-        assertThat(ref.resultType().getType().getTypeName()).isEqualTo("java.util.List<java.lang.String>");
-        assertThat(ref.resultType().getRawType()).isEqualTo(java.util.List.class);
-        assertThatThrownBy(() -> new TaskRef<Object>(" ") {}).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new TaskRef<Object>(null) {}).isInstanceOf(NullPointerException.class);
+    void keyCapturesTheParameterizedResultType() {
+        TaskKey<java.util.List<String>> key = new TaskKey<java.util.List<String>>("orders") {};
+        assertThat(key.memberName()).isEqualTo("orders");
+        assertThat(key.resultType().getType().getTypeName()).isEqualTo("java.util.List<java.lang.String>");
+        assertThat(key.resultType().getRawType()).isEqualTo(java.util.List.class);
+        assertThatThrownBy(() -> new TaskKey<Object>(" ") {}).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new TaskKey<Object>(null) {}).isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    void futureRejectsRefWhoseRawTypeDoesNotCoverTheRegisteredType() throws Exception {
+    void futureRejectsKeyWhoseRawTypeDoesNotCoverTheRegisteredType() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("typed"));
-            TaskRef<Integer> member = definition.task(
-                    new TaskRef<Integer>("member") {}, ParName.of("direct"), () -> 1, memberOptions("member"));
+            TaskKey<Integer> member = definition.task(
+                    new TaskKey<Integer>("member") {}, ParName.of("direct"), () -> 1, memberOptions("member"));
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
             assertThat(group.future(member).get(2, TimeUnit.SECONDS)).isEqualTo(1);
-            // A supertype ref is sound: the member result is assignable to it.
-            assertThat(group.future(new TaskRef<Number>("member") {}).get(2, TimeUnit.SECONDS))
+            // A supertype key is sound: the member result is assignable to it.
+            assertThat(group.future(new TaskKey<Number>("member") {}).get(2, TimeUnit.SECONDS))
                     .isEqualTo(1);
-            assertThatThrownBy(() -> group.future(new TaskRef<String>("member") {}))
+            assertThatThrownBy(() -> group.future(new TaskKey<String>("member") {}))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("member");
         } finally {
@@ -629,8 +629,8 @@ class TaskGroupTest {
                 GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("inherit-member"));
-            TaskRef<Long> member = definition.task(
-                    new TaskRef<>("member") {},
+            TaskKey<Long> member = definition.task(
+                    new TaskKey<>("member") {},
                     ParName.of("direct"),
                     () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member").inheritTimeout().build());
@@ -652,8 +652,8 @@ class TaskGroupTest {
                 GlobalPar.builder().register(ParName.of("direct"), direct).build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("tight-member"));
-            TaskRef<Long> member = definition.task(
-                    new TaskRef<>("member") {},
+            TaskKey<Long> member = definition.task(
+                    new TaskKey<>("member") {},
                     ParName.of("direct"),
                     () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos(),
                     MultiTaskOptions.of("member")
@@ -680,8 +680,8 @@ class TaskGroupTest {
                 .build();
         try {
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("nested-batch"));
-            TaskRef<long[]> member = definition.task(
-                    new TaskRef<>("member") {},
+            TaskKey<long[]> member = definition.task(
+                    new TaskKey<>("member") {},
                     ParName.of("outer"),
                     () -> {
                         long memberDeadline = TaskExecutionContext.current()
@@ -749,7 +749,7 @@ class TaskGroupTest {
                                                 .inheritTimeout()
                                                 .build());
                                 definition.task(
-                                        new TaskRef<>("child") {},
+                                        new TaskKey<>("child") {},
                                         ParName.of("inner"),
                                         () -> 1,
                                         MultiTaskOptions.of("child")
@@ -792,8 +792,8 @@ class TaskGroupTest {
                                         TaskExecutionContext.current().multiTaskContext();
                                 TaskGroupDefinition.Builder definition =
                                         TaskGroupDefinition.builder(groupOptions("nested"));
-                                TaskRef<MultiTaskContext> child = definition.task(
-                                        new TaskRef<>("child") {},
+                                TaskKey<MultiTaskContext> child = definition.task(
+                                        new TaskKey<>("child") {},
                                         ParName.of("inner"),
                                         () -> TaskExecutionContext.current()
                                                 .multiTaskContext()
@@ -834,7 +834,7 @@ class TaskGroupTest {
                                 TaskGroupDefinition.Builder definition =
                                         TaskGroupDefinition.builder(groupOptions("nested"));
                                 definition.task(
-                                        new TaskRef<>("child") {},
+                                        new TaskKey<>("child") {},
                                         ParName.of("inner"),
                                         () -> {
                                             Thread.sleep(10_000);
@@ -903,7 +903,7 @@ class TaskGroupTest {
 
             TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("close-cancel"));
             definition.task(
-                    new TaskRef<>("slow") {},
+                    new TaskKey<>("slow") {},
                     ParName.of("worker"),
                     () -> {
                         started.countDown();
@@ -946,7 +946,7 @@ class TaskGroupTest {
                                 TaskGroupDefinition.Builder definition =
                                         TaskGroupDefinition.builder(groupOptions("outer-cancel"));
                                 definition.task(
-                                        new TaskRef<>("slow") {},
+                                        new TaskKey<>("slow") {},
                                         ParName.of("inner"),
                                         () -> {
                                             Thread.sleep(10_000);

@@ -39,7 +39,7 @@ executor rejection 只有实际提交时才能知道，因此属于 submit 后�
 
 不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致 close/cancel 长时间无法取得锁。
 
-`TaskGroup.submit()` 正常返回时必须保证完整 members registry 已发布（`future(TaskRef)`
+`TaskGroup.submit()` 正常返回时必须保证完整 members registry 已发布（`future(TaskKey)`
 可立即解析），并且每个仍未因 fail-fast/timeout/cancel 终结的成员都已经尝试过一次目标 executor 提交。由于 direct executor 可以 inline 执行，返回时部分甚至全部成员已经终态属于合法行为。
 
 成功跨过全量注册后，单个 executor rejection、inline 用户异常或 fail-fast 均通过成员 future 和 `TaskGroupResult` 表达，`submit()` SHOULD 仍返回 Group，而不是因任务运行结果抛异常。只有定义校验、GlobalPar 已关闭，或无法建立完整运行对象的框架级准备错误才允许 submit 直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，并且不得执行任何用户 callable。
@@ -107,7 +107,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor, cpuBound); // executor.ex
 scope/
   TaskGroup.java
   TaskGroupDefinition.java
-  TaskRef.java
+  TaskKey.java
   TaskGroupResult.java
   TaskCompletion.java
   TaskOutcome.java

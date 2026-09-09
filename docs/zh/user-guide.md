@@ -71,12 +71,12 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
                 .timeout(Duration.ofSeconds(3))
                 .build());
 
-TaskRef<User> user = definition.task(
-        new TaskRef<User>("user") {},
+TaskKey<User> user = definition.task(
+        new TaskKey<User>("user") {},
         DATABASE, userRepository::load,
         MultiTaskOptions.of("load-user").inheritTimeout().build());
-TaskRef<List<Order>> orders = definition.task(
-        new TaskRef<List<Order>>("orders") {},
+TaskKey<List<Order>> orders = definition.task(
+        new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,
         MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
@@ -87,7 +87,7 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 }
 ```
 
-`TaskRef` 是以匿名子类创建的类型安全令牌，在运行时捕获成员的结果类型；它在配置定义时注册，提交后 `group.future(ref)` 解析成员的 future，并拒绝 raw 结果类型不能覆盖注册类型的 ref。组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。
+`TaskKey` 是以匿名子类创建的类型安全的键，在运行时捕获成员的结果类型；它在配置定义时注册，提交后 `group.future(key)` 解析成员的 future，并拒绝 raw 结果类型不能覆盖注册类型的 key。键仅按 memberName 值相等，因此声明父类型的 key 与注册 key 是同一个键。组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。
 
 组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 和 `close()` 取消未完成成员且不阻塞。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。
 
@@ -96,8 +96,8 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 当请求最终要把各成员的值组装成一个结果时，可以在定义中声明一个终端 combine，而不必自己编排 `Futures` 回调。combine 是真实的 scoped 任务——submit 时与成员一样完成准备，但只在所有成员成功后才提交到它自己的 `Par`——因此它继承组的结构化取消、deadline 和可观测性：
 
 ```java
-TaskRef<AccountPage> page = definition.combine(
-        new TaskRef<AccountPage>("assemble-page") {},
+TaskKey<AccountPage> page = definition.combine(
+        new TaskKey<AccountPage>("assemble-page") {},
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
         MultiTaskOptions.of("assemble-page").inheritTimeout().build());
@@ -107,7 +107,7 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 }
 ```
 
-`CompletedTaskValues` 视图不阻塞，只通过注册的 `TaskRef` 令牌暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine 函数恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`，不会 inline 执行），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，submit 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine，使用自己的 `TaskRef`；`group.future(combineRef)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedMemberName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
+`CompletedTaskValues` 视图不阻塞，只通过注册的 `TaskKey` 键暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine 函数恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`，不会 inline 执行），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，submit 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine，使用自己的 `TaskKey`；`group.future(combineKey)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedMemberName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
 
 ## 取消与嵌套批次
 

@@ -11,7 +11,7 @@ import java.util.concurrent.ExecutionException;
  *
  * <p>The view never blocks: the framework invokes the combine only after every member succeeded,
  * so each value is read from an already-completed member future. It exposes neither futures nor a
- * name-keyed map — values are looked up through the same typed {@link TaskRef} tokens used at
+ * name-keyed map — values are looked up through the same typed {@link TaskKey} keys used at
  * registration, keeping lookups type-safe and refactor-safe.
  *
  * <p>The view is valid only for the duration of the {@link CombineFunction#apply} call; the
@@ -30,23 +30,23 @@ public final class CompletedTaskValues {
     /**
      * Returns the successful value of the given member without blocking; the value may be null.
      *
-     * @throws IllegalArgumentException if the token names the combine itself or no member of this
-     *     group, or if the token's raw result type is not assignable from the type the member was
-     *     registered with (a token claiming a supertype of the registered type is accepted)
+     * @throws IllegalArgumentException if the key names the combine itself or no member of this
+     *     group, or if the key's raw result type is not assignable from the type the member was
+     *     registered with (a key claiming a supertype of the registered type is accepted)
      */
     @SuppressWarnings("unchecked")
-    public <T> T value(TaskRef<T> ref) {
-        Objects.requireNonNull(ref, "ref cannot be null");
-        if (ref.memberName().equals(combineName)) {
-            throw new IllegalArgumentException("The combine cannot read its own ref '" + combineName + "'");
+    public <T> T value(TaskKey<T> key) {
+        Objects.requireNonNull(key, "key cannot be null");
+        if (key.memberName().equals(combineName)) {
+            throw new IllegalArgumentException("The combine cannot read its own key '" + combineName + "'");
         }
-        TaskGroup.MemberState member = members.get(ref.memberName());
+        TaskGroup.MemberState member = members.get(key.memberName());
         if (member == null) {
-            throw new IllegalArgumentException("No member named '" + ref.memberName() + "'");
+            throw new IllegalArgumentException("No member named '" + key.memberName() + "'");
         }
-        if (!ref.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
-            throw new IllegalArgumentException("Member '" + ref.memberName() + "' was registered with result type "
-                    + member.resultType + " but the ref claims " + ref.resultType());
+        if (!key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
+            throw new IllegalArgumentException("Member '" + key.memberName() + "' was registered with result type "
+                    + member.resultType + " but the key claims " + key.resultType());
         }
         try {
             return (T) Futures.getDone(member.future);
@@ -55,7 +55,7 @@ public final class CompletedTaskValues {
             // signals a framework invariant violation, not user input. CancellationException is an
             // IllegalStateException and lands here too.
             throw new IllegalStateException(
-                    "Member '" + ref.memberName() + "' has not completed successfully", failure);
+                    "Member '" + key.memberName() + "' has not completed successfully", failure);
         }
     }
 }
