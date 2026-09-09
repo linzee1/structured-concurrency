@@ -2,12 +2,12 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.ParName;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -103,10 +103,10 @@ public class BatchBestPracticesTest {
         // 验证：不是所有任务都完成了（fail-fast 取消了部分）
         assertThat(completedCount.get()).as("fail-fast 应取消部分任务，不是全部完成").isLessThan(services.size());
 
-        // 验证：report 包含 FAILED（payment）和 CANCELLED（被取消的兄弟任务）
+        // 验证：report 区分根失败和由 fail-fast 级联取消的兄弟任务
         String report = result.reportString();
         assertThat(report).as("report 应包含 payment 的 FAILED 状态").contains("USER_FAILURE");
-        assertThat(report).as("report 应包含被 fail-fast 取消的任务").contains("MEMBER_CANCELED");
+        assertThat(report).as("report 应包含被 fail-fast 取消的任务").contains("FAIL_FAST");
     }
 
     // ==================== 场景二：数据库分片查询 ====================
@@ -221,9 +221,9 @@ public class BatchBestPracticesTest {
         // 验证：不是全部完成
         assertThat(completedCount.get()).as("fail-fast 应取消部分任务").isLessThan(tasks.size());
 
-        // 验证 report 包含 FAILED 和 CANCELLED
+        // 验证 report 区分根失败和 fail-fast 级联取消
         String report = result.reportString();
         assertThat(report).as("report 应包含 HTTP 调用的 FAILED 状态").contains("USER_FAILURE");
-        assertThat(report).as("report 应包含被取消的任务").contains("MEMBER_CANCELED");
+        assertThat(report).as("report 应包含被取消的任务").contains("FAIL_FAST");
     }
 }

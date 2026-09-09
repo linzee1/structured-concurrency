@@ -2,12 +2,12 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.cancel.Checkpoints;
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.ParName;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.Checkpoints;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -166,9 +166,9 @@ public class G3_CheckpointsCooperativeCancelTest {
         }
         assertThat(anyFailedOrCancelled).as("至少有一个任务因超时取消而失败").isTrue();
 
-        // reportString() 包含 FAILED 或 CANCELLED 状态
+        // reportString() 将 deadline 取消精确归因为 TIMEOUT
         String report = result.reportString();
-        assertThat(report).as("报告中应包含失败或取消状态").containsAnyOf("USER_FAILURE", "MEMBER_CANCELED");
+        assertThat(report).as("报告中应包含超时状态").contains("TIMEOUT");
     }
 
     /**
@@ -208,10 +208,12 @@ public class G3_CheckpointsCooperativeCancelTest {
         long elapsed = System.currentTimeMillis() - start;
 
         // 核心验证：总耗时远小于 4 * 10s = 40s
-        assertThat(elapsed).as("Checkpoints.checkpoint(...) 在 500ms 超时后立即停止 CPU 循环").isLessThan(5000);
+        assertThat(elapsed)
+                .as("Checkpoints.checkpoint(...) 在 500ms 超时后立即停止 CPU 循环")
+                .isLessThan(5000);
 
-        // 验证有任务被取消或失败
+        // 验证 deadline 取消被精确归因为 TIMEOUT
         String report = result.reportString();
-        assertThat(report).as("报告中应包含失败或取消状态").containsAnyOf("USER_FAILURE", "MEMBER_CANCELED");
+        assertThat(report).as("报告中应包含超时状态").contains("TIMEOUT");
     }
 }

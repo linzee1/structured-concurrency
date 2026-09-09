@@ -4,6 +4,16 @@
 
 ### Breaking changes
 
+- Consolidate the public API and callback types into the root `io.github.monadrome.parallelinscope`
+  package. Cancellation, context, graph, scheduling, and maintenance implementation types now share
+  that package as package-private kernel code; only the independent `DrainingBlockingQueue` and
+  `VariableLinkedBlockingQueue` remain in `.queue`. `SmartBlockingQueue` moves to the root package.
+  The former `.scope`, `.cancel`, `.context`, `.internal`, `.spi`, and `.control` packages are
+  removed without compatibility shims.
+- Hide implementation-only API that was public solely for cross-package access, including runtime
+  contexts, task graph data, execution-phase futures, submission helpers, purge machinery, and
+  internal `CancellationToken` transitions. `ActionGate` is retained as package-private pending a
+  separate removal decision.
 - Rename `TaskGroupSpec` to `TaskGroupDefinition`, its nested `MemberSpec` to `TaskDefinition`, and `members()` to `tasks()`. These objects record reusable task definitions rather than specifications for execution.
 - Move the Maven coordinates and the root Java package from the account's former name to its current one after the GitHub account rename `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` → `io.github.monadrome:parallel-in-scope`, and `io.github.huatalk.parallelinscope` → `io.github.monadrome.parallelinscope` for imports, `package` declarations, and service loading. `0.1.0` remains published under the old coordinates on Maven Central; the `0.1.0` section above keeps the historical coordinate.
 - Rename `GlobalParLivelockPolicy` to `GlobalParDeadlockPolicy` and `LivelockListener` to `DeadlockDetectionListener`; the graph reports potential deadlock structures, not runtime livelock.

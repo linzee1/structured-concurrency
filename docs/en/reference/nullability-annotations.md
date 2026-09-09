@@ -13,12 +13,15 @@ Every package declares `@ParametersAreNonnullByDefault` in `package-info.java`. 
 | Area | Annotation source | Examples |
 |---|---|---|
 | Public API | JSR-305 | `GlobalPar`, `Par`, `MultiTaskOptions`, `TaskBatchResult`, `Checkpoints` |
-| SPI | JSR-305 | `TaskListener`, `DeadlockDetectionListener` |
+| Callbacks | JSR-305 | `TaskListener`, `TaskGroupListener`, `DeadlockDetectionListener` |
 | Internal implementation | Checker Framework | Executor, queue, context, and graph internals |
 
 ## When to use `@Nullable`
 
-Use it when a return value can be absent, when a constructor explicitly accepts `null`, or when a parameter has an optional value. Examples include a nullable parent `MultiTaskContext`, a nullable parent `CancellationToken`, and an optional `submitCanceller` in `TaskBatchResult`.
+Use it when a return value can be absent, when a public constructor explicitly accepts `null`, or
+when a parameter has an optional value. Public examples include a nullable parent
+`CancellationToken` and `TaskBatchResult.BatchReport.firstException()`. Package-private runtime
+types use the same rule for their implementation state.
 
 Do not add redundant annotations to non-null parameters covered by the package default or to non-null return values guaranteed by the implementation.
 
@@ -27,14 +30,16 @@ Do not add redundant annotations to non-null parameters covered by the package d
 Checker Framework `TYPE_USE` style:
 
 ```java
-public static @Nullable ScopedCallable<?> current() { ... }
+static @Nullable TaskExecutionContext current() { ... }
 ```
+
+This illustrates internal source style; `TaskExecutionContext` is not public API.
 
 JSR-305 method style:
 
 ```java
 @Nullable
-public ListeningExecutorService getExecutor(String name) { ... }
+public Throwable firstException() { ... }
 ```
 
 ## Dependencies

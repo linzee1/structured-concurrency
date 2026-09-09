@@ -25,13 +25,12 @@ Base package: `io.github.monadrome.parallelinscope`.
 
 | Package | Responsibility |
 |---|---|
-| `scope` | API facade |
-| `cancel` | Cancellation subsystem |
-| `context` | TTL/TL context propagation and the observation scope lifecycle |
-| `context.graph` | Task graph data (`TaskGraphData`) and edge metadata |
-| `internal` | Execution engine |
-| `queue` | Scheduling queues |
-| `spi` | Extension points (listeners, phases) |
+| root package | Public API and callbacks plus the package-private execution kernel |
+| `queue` | Independent general-purpose queue implementations |
+
+The root package deliberately co-locates the public API with package-private cancellation,
+context, graph, and scheduling implementation. This is the Java 8 encapsulation boundary: do not
+reintroduce public bridge types or conceptual subpackages merely to categorize files.
 
 Two invariants to respect:
 
@@ -65,8 +64,9 @@ Two invariants to respect:
   public API/SPI, `org.checkerframework.checker.nullness.qual.Nullable` for
   internal code (both provided scope).
 - Logging goes through JUL (`java.util.logging.Logger`).
-- The `Scope` suffix marks a closeable lifecycle scope (`SubmissionScope`,
-  `TaskGraphObservationScope`); the `Context` suffix marks a data carrier
+- The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
+  `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
+  stack-installed implementation details. The `Context` suffix marks a data carrier
   (a view or resolved parameters); the `Key` suffix marks a configuration-time
   typed key whose equality is its member name (`TaskKey`); the `Name` suffix
   marks a value object naming a logical entry (`ParName`).

@@ -157,7 +157,7 @@ executor.execute(future)                    ← 提交线程；SubmissionScope �
 ### 5.1 接口形态：泛型方法接口，不是 lambda 目标
 
 ```java
-package io.github.monadrome.parallelinscope.spi;
+package io.github.monadrome.parallelinscope;
 
 /**
  * 任务体装饰器：库在 {@code ScopedCallable} 之内、上下文层之外应用。
@@ -176,12 +176,13 @@ public interface TaskDecorator {
 
 **为什么不是 `TaskDecorator<T>`**：注册面异构（同一 `Par` 下 batch 元素、group 成员、combine 结果类型各不相同），只能存 `List<TaskDecorator<?>>`，应用时需一次 unchecked cast。用户可注册 `TaskDecorator<String>` 到 `Callable<Integer>` 的成员上 → 堆污染、运行期 `ClassCastException`。泛型方法没有这个洞（公理 3：安全优先于表达力）。
 
-**为什么是接口不是抽象类**：`spi` 包的既有 SPI（`TaskListener`/`TaskGroupListener`/`DeadlockDetectionListener`）都是接口；`TaskKey` 用抽象类是因为需要匿名子类捕获类型参数，这里没有该需求。
+**为什么是接口不是抽象类**：既有回调（`TaskListener`/`TaskGroupListener`/`DeadlockDetectionListener`）
+都是接口；`TaskKey` 用抽象类是因为需要匿名子类捕获类型参数，这里没有该需求。
 
 ### 5.2 唯一构造点
 
 ```java
-// internal/TaskSubmissions.wrapScoped —— 全库唯一调用 TtlCallable.get 的地方
+// package-private TaskSubmissions.wrapScoped —— 全库唯一调用 TtlCallable.get 的地方
 public static <V> Callable<V> wrapScoped(
         TaskExecutionContext taskContext,
         Callable<V> userCallable,
@@ -230,7 +231,7 @@ GlobalPar.taskDecoratorsFor(ParName)           // 与 taskListenersFor 对称
 |---|---|---|
 | L0 | 文档约定"用户必须最后包上下文" | **否决**——用户会忘 |
 | **L1 结构** | 库是唯一最后包装者；用户接缝在最内层 | 主保证（I1） |
-| **L2 类型** | 公开 API 只收 `Callable`/`Function`，不收"已准备对象"；已准备对象的构造入口（工厂方法）不得出现在公开包中；`internal` 非 API，用架构测试禁止外部引用 | 防绕过（P9） |
+| **L2 类型** | 公开 API 只收 `Callable`/`Function`，不收"已准备对象"；已准备对象的类型和构造入口必须 package-private，用公开 API 白名单测试禁止内核类泄漏 | 防绕过（P9） |
 | **L3 运行时** | 检测 TTL 包装器 + WARNING；不提供关闭/替换上下文包装的开关 | 防配错（P11/P19） |
 | **L4 测试** | §8 验证矩阵 | 防回归 |
 
@@ -292,7 +293,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 |---|---|
 | U1 | MUST NOT 通过 executor 包装把 `run()` 之外的 Runnable 再包一层（尤其 `TtlExecutors`） |
 | U2 | 注册的 executor MUST 遵守 `Executor` 契约：恰好一次调用 `run()`，不丢弃、不重复、不换线程 |
-| U3 | MUST NOT 依赖 `internal` 包类型自建执行管道 |
+| U3 | MUST NOT 通过反射等方式依赖 package-private 内核类自建执行管道 |
 | U4 | MUST NOT 期望上下文传播普通 `ThreadLocal` 或 MDC——传播集合封闭（A3） |
 
 ## 7. 不变量

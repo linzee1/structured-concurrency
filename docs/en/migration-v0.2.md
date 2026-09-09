@@ -4,6 +4,14 @@ Version `0.2.0` replaces the mutable configuration-and-resolver API with an immu
 
 The publishing identity also moves because the GitHub account was renamed `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` becomes `io.github.monadrome:parallel-in-scope`, and the root Java package `io.github.huatalk.parallelinscope` becomes `io.github.monadrome.parallelinscope`. Update dependency coordinates, imports, `package` declarations, and service-loading names. `0.1.0` stays published under the old coordinates on Maven Central.
 
+The final `0.2.0` package layout also consolidates all public API and callback types into
+`io.github.monadrome.parallelinscope`. Replace imports from the earlier `.scope`, `.cancel`,
+`.context`, and `.spi` packages with the root package. `SmartBlockingQueue` likewise moves from
+`.queue` to the root package. Only `DrainingBlockingQueue` and `VariableLinkedBlockingQueue` remain
+in `io.github.monadrome.parallelinscope.queue`. The former `.internal` and `.control` packages and
+all implementation-only context, graph, submission, purge, and execution-phase types are no longer
+public; no compatibility shims are retained during the `0.x` phase.
+
 | `0.1.x` | `0.2.0` |
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(ParName.of(name), executor)` |
@@ -16,19 +24,27 @@ The publishing identity also moves because the GitHub account was renamed `huata
 | executor-name resolution at call time | executor binding at `GlobalPar` build time |
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` scope |
 
-The new split is intentional: `MultiTaskOptions` is caller input, while `MultiTaskContext` is per-batch runtime state. Cancellation, deadline, and executor identity flow through parent-child batch contexts, including nested calls across named `Par` entries.
+The public/runtime split is intentional: `MultiTaskOptions` is caller input, while the package-private
+`MultiTaskContext` is per-invocation runtime state. Cancellation, deadline, and executor identity flow
+through parent-child contexts, including nested calls across named `Par` entries. Applications should
+configure these semantics through `MultiTaskOptions` and must not construct or cache runtime contexts.
 
 Executor lookup keys are now the value type `ParName` instead of bare `String`. Every place that named a `Par` takes a `ParName`: `GlobalPar.Builder.register` / `defaultPar` / `parTaskListener`, `GlobalPar.par` / `find` / `taskListenersFor`, `GlobalPar.pars()`, and `TaskGroupDefinition.Builder.task` / `combine`. Construction validates once (never null, never blank) and the value is used verbatim — no trimming or lower-casing — so existing keys keep their exact meaning. `ParName` is a logical lookup key, not a resource identity: it must never replace `ExecutorIdentity`, which stays the reference-equality key for deadlock detection and purge. A well-formed `ParName` still says nothing about whether the name is registered; unknown names are rejected at `GlobalPar.Builder.build()` and `TaskGroup.submit` exactly as before.
 
 Earlier `0.2.x` snapshots named this type `ExecutionOptions` and then `BatchExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `MultiTaskOptions`; no compatibility alias is retained during the `0.x` phase.
 
-The per-invocation runtime context was renamed for the same reason: the former `BatchExecutionContext` is now `MultiTaskContext`, because it backs both `Par.map` batches and task-group members. Update imports and `resolve(...)` call sites. Its batch-biased accessors were then neutralized for the same dual role: `batchId()` → `unitId()`, `taskName()` → `name()`, `parLabel()` → `executorLabel()`, and `parent()` → `structuralParent()` (a group member's cancellation parent is the group token carried inside `cancellationToken()`, not this field). `SubmissionScope.currentBatch()` becomes `current()`. `TaskContext` (whose `batchContext()` was briefly renamed `multiTaskContext()` during the 0.2 cycle) was ultimately removed rather than renamed: its read-only content is flattened into the unified `TaskCompletion` record, as described below.
+Earlier `0.2.x` snapshots renamed the internal `BatchExecutionContext` to `MultiTaskContext` because it
+backs both `Par.map` batches and task-group members. The final API hides that runtime context and its
+`resolve(...)` methods completely. Remove any imports or direct construction of `MultiTaskContext`,
+`SubmissionScope`, and `TaskExecutionContext`; configure calls with `MultiTaskOptions` and observe
+completed work through `TaskCompletion`. The former read-only `TaskContext` view was removed, with its
+publicly useful identity and timing fields flattened into `TaskCompletion` as described below.
 
 Batch and task-group option types are unified into the single `MultiTaskOptions`; the earlier
 `BatchExecutionOptions` and `TaskGroupOptions` types are removed. The `taskName()`/`groupName()`
 accessors and the matching builder methods converge on `name()`; every other builder method keeps
 its name. A batch reads name/parallelism/timeout/taskType/rejectEnqueue; a group reads
-name/timeout/listeners, with member execution strategy supplied per `TaskGroupSpec.Builder.task`
+name/timeout/listeners, with member execution strategy supplied per `TaskGroupDefinition.Builder.task`
 call.
 
 `MultiTaskOptions.timeout` is a forced explicit choice between two mutually exclusive builder
@@ -37,8 +53,7 @@ declares that the enclosing scope's deadline is inherited. `build()` rejects a b
 declares neither (`IllegalArgumentException`: call `timeout(Duration)` or `inheritTimeout()`) or
 both. The accessor changed from `Duration timeout()` to `Optional<Duration> timeout()`; an empty
 value means inherit. The former global default timeout is removed so no silent global
-default remains. `MultiTaskContext.resolve` consequently no longer takes the policy; drop
-that argument.
+default remains. Deadline resolution is now entirely owned by the execution kernel.
 
 Deadline resolution follows one uniform rule. An explicit timeout resolves to the earlier of its
 own bound and the enclosing hard deadline. An inherited timeout resolves to the enclosing deadline:
@@ -49,27 +64,38 @@ entry point: a top-level `Par.map` and a top-level `TaskGroup.submit` both throw
 
 Earlier snapshots also exposed this detector as `GlobalParLivelockPolicy` and `LivelockListener`. Rename them to `GlobalParDeadlockPolicy` and `DeadlockDetectionListener`; the detector reports potential dependency-graph deadlocks and does not prove a runtime deadlock or detect livelock.
 
-The task-group API now centers on an immutable, reusable spec. Replace the earlier builder
+The task-group API now centers on an immutable, reusable definition. Replace the earlier builder
 ceremony — `GlobalPar.taskGroupBuilder(options)`, `ParallelTaskGroup.Builder.addTask(name, par,
 callable, options)`, the one-shot `buildAndSubmitAll()`, and `ParallelTaskGroup.TaskHandle<T>` —
-with `TaskGroupSpec.builder(groupOptions)`, `TaskGroupSpec.Builder.task(key, executorName,
-callable, options)`, the one-shot `TaskGroup.submit(global, spec)`, and `TaskKey<T>`.
+with `TaskGroupDefinition.builder(groupOptions)`,
+`TaskGroupDefinition.Builder.task(key, executorName, callable, options)`, the one-shot
+`TaskGroup.submit(global, definition)`, and `TaskKey<T>`.
 Members reference their executor by registered name instead of a `Par` object. A `TaskKey<T>` is
 created by the caller as an anonymous subclass — `new TaskKey<List<Order>>("orders") {}` — so the
 key carries the member name and captures the result type at runtime; pass it to `task()`, and
 after submission resolve the member's future with `group.future(key)`, which rejects a key whose
 raw result type does not cover the registered one. A spec captures no thread context, so the
 structural parent and
-observation scope are resolved from the submitting thread at each `submit` call, and one spec may
+observation scope are resolved from the submitting thread at each `submit` call, and one definition may
 be submitted repeatedly. The group entry class itself was renamed from `ParallelTaskGroup` to
-`TaskGroup`, joining its `TaskGroupSpec`/`TaskGroupResult`/`TaskGroupListener` family. There is no
+`TaskGroup`, joining its `TaskGroupDefinition`/`TaskGroupResult`/`TaskGroupListener` family. There is no
 compatibility shim because the earlier builder API was not released as a stable contract.
 
-The completed-task record is unified into a single class, `io.github.monadrome.parallelinscope.scope.TaskCompletion`: a `TaskListener` receives it at task completion, and `TaskGroupResult.members()` embeds one per member as its terminal snapshot. It replaces both the old `TaskListener.TaskEvent` and `TaskGroupMemberResult`, and exposes the task's identity and timing as flat fields — `taskName()`, `unitId()`, `taskIndex()`, `submitTimeNanos()`, `startTimeNanos()`, `endTimeNanos()` — plus `outcome()`, `successful()`, `result()`, `failure()`, and `enqueued()` (now derived from the queue wait). The read-only `TaskContext` view was removed; the engine plumbing previously reachable through `TaskContext.multiTaskContext()` (cancellation token, deadline, structural parent) is no longer part of the listener/result surface. `result()` is only non-null on listener delivery of a successful task — a group member's result stays in its future — and `taskIndex()` is always zero for group members. A successful task may return null, so use `successful()` rather than testing the result for null. Listener callbacks run outside the completed task's dynamic execution scope; use the event instead of `TaskExecutionContext.current()`.
+The completed-task record is unified into a single class,
+`io.github.monadrome.parallelinscope.TaskCompletion`: a `TaskListener` receives it at task completion,
+and `TaskGroupResult.members()` embeds one per member as its terminal snapshot. It replaces both the
+old `TaskListener.TaskEvent` and `TaskGroupMemberResult`, and exposes the task's identity and timing as
+flat fields — `taskName()`, `unitId()`, `taskIndex()`, `submitTimeNanos()`, `startTimeNanos()`,
+`endTimeNanos()` — plus `outcome()`, `successful()`, `result()`, `failure()`, and `enqueued()` (now
+derived from the queue wait). The read-only `TaskContext` view was removed; engine plumbing such as
+the cancellation token, deadline, and structural parent is no longer part of the listener/result
+surface. `result()` is only non-null on listener delivery of a successful task — a group member's
+result stays in its future — and `taskIndex()` is always zero for group members. A successful task may
+return null, so use `successful()` rather than testing the result for null. Listener callbacks run
+outside the completed task's dynamic execution scope; use the event as the observation boundary.
 
 Task outcome classification is unified into a single enum, `TaskOutcome`, replacing both
-`io.github.monadrome.parallelinscope.internal.FutureState` and
-`io.github.monadrome.parallelinscope.scope.TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
+the earlier internal `FutureState` and `TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
 former member-reason values so it serves both batch reports and group member results. Mapping from
 the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
 `TaskOutcome.MEMBER_CANCELED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
@@ -96,21 +122,10 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `TaskEvent.getTaskContext()/getTaskName()` | `TaskListener` now delivers `TaskCompletion`; `taskContext()` removed (flattened to `taskName()` / `unitId()` / `taskIndex()` + timing nanos) |
 | `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
 | `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `TaskCompletion.successful()` / `result()` / `enqueued()` / `failure()` |
-| `ScopedCallable.getTaskExecutionContext()/getCancellationToken()/getExecutorName()` | `taskExecutionContext()` / `cancellationToken()` / `executorName()` |
-| `TaskGraphData.getGraph()/getExecutorGraph()` | `graph()` / `executorGraph()` |
-| `TaskGraphData.isTaskCycle()/isSelfLoop()/isExecutorCycle()/isExecutorSelfLoop()` | `taskCycle()` / `selfLoop()` / `executorCycle()` / `executorSelfLoop()` |
-| `TaskEdge.getParallelism()/getTaskType()/getTaskCount()/getTimeoutMillis()` | `parallelism()` / `taskType()` / `taskCount()` / `timeout()` (now returns `Duration`; call `toMillis()` yourself if needed) |
-| `TaskEdge.getExecutorName()/getSourceExecutorName()` | `executorName()` / `sourceExecutorName()` |
-| `TaskEdge.getExecutorIdentity()/getSourceExecutorIdentity()` | `executorIdentity()` / `sourceExecutorIdentity()` |
-| `TaskEdge.isExecutorDeadlockProne()` | `executorDeadlockProne()` |
 | `DeadlockDetectionListener.getTaskEdges()/getExecutorEdges()` | `taskEdges()` / `executorEdges()` |
 | `TaskGraphObservationScope.isClosed()` | `closed()` |
-| `MultiTaskContext.taskGraphObservationContext()` | `MultiTaskContext.taskGraphObservationScope()` |
-| `MultiTaskContext.batchId()/taskName()/parLabel()/parent()` | `unitId()` / `name()` / `executorLabel()` / `structuralParent()` |
-| `TaskContext.batchContext()` / `SubmissionScope.currentBatch()` | `TaskContext` removed (content flattened into `TaskCompletion`) / `SubmissionScope.current()` |
 | `DrainingBlockingQueue.isShutdown()/isDraining()/isDrained()` | `shutdown()` / `draining()` / `drained()` |
 | `SmartBlockingQueue.getCapacity()` / `VariableLinkedBlockingQueue.getCapacity()` | `capacity()` |
-| `ActionGate.isDue()` | `due()` |
 
 Methods implementing JDK or third-party contracts keep their mandated names
 (`Monitor.Guard.isSatisfied()`, `ExecutorService.isShutdown()/isTerminated()`,
@@ -126,9 +141,9 @@ token itself: construct it with `new CancellationToken(parent, deadlineNanos)` (
 deadline is the minimum of the requested one and the parent's) and use `deadlineNanos()` /
 `remaining()` to read it. Batches and task groups compute and pass the deadline at construction;
 self-service callers of `bind` should do the same. A deadline that has already expired when
-`bind` runs simply schedules the timeout for immediate execution. `State.NO_OP` was deleted, and
-`addCompletionListener` was replaced by `addStateListener(Consumer<State>)`, which fires
-synchronously after a state transition commits and before the associated cancellation actions run.
+`bind` runs simply schedules the timeout for immediate execution. `State.NO_OP` was deleted.
+`addCompletionListener` has no public replacement; state-transition listeners are now execution-kernel
+machinery.
 
 Batch-level element cancellation no longer surfaces as a bare cancellation: the token still
 classifies a directly cancelled element through the same fail-fast trigger that a failed element
@@ -137,9 +152,8 @@ uses, and batch reports now attribute cancelled elements from the batch token's 
 after a sibling failure, `GROUP_CANCELED` for batch-level or propagated cancellation, and
 `MEMBER_CANCELED` when no framework path committed. Because the batch shares one token across
 elements, the element whose direct cancellation triggered the cascade also reads `FAIL_FAST`;
-per-element initiator attribution requires a task group. Results constructed via
-`TaskBatchResult.of(...)` without a token keep the coarse view: every cancellation reads
-`MEMBER_CANCELED`.
+per-element initiator attribution requires a task group. `TaskBatchResult` instances are constructed
+by the execution API; its former public `of(...)` factories are now package-private.
 
 Task groups changed semantics accordingly: cancelling one member (its future or its token) now
 cascades to the whole group, matching batch fail-fast behavior. The directly cancelled member

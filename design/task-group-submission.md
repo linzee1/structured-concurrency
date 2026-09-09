@@ -111,18 +111,13 @@ scope/
   TaskGroupResult.java
   TaskCompletion.java
   TaskOutcome.java
-
-spi/
   TaskGroupListener.java
-
-internal/
-  TaskSubmissions.java            // prepare / submitScoped 两阶段内核
+  TaskSubmissions.java            // package-private prepare / submitScoped 两阶段内核
 ```
 
-`ExecutorRuntime` 是 `scope` 包私有类型，`internal.TaskSubmissions` MUST NOT 直接依赖或公开它。
-`Par` 提供包可见的单任务准备入口 `prepareGroupTask(...)`，在 `scope` 包内完成 owner、policy、
-runtime identity、executor 和 phase observer 的解析，再把普通参数传给 internal kernel。
-`TaskGroup` 与 `Par` 同包，可调用该入口；公共 API 不暴露 runtime。
+`ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 提供包可见的单任务准备入口
+`prepareGroupTask(...)`，完成 owner、policy、runtime identity、executor 和 phase observer 的解析后
+调用同包内核。`TaskGroup` 可调用该入口；公共 API 不暴露 runtime。
 
 共享内核至少分离以下阶段：
 

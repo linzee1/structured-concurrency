@@ -35,11 +35,11 @@ for (int i = 0; i < 2; i++) {
 ## 代码
 
 ```java
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 
 // 方案：内层使用独立的 CachedThreadPool，避免嵌套死锁
 ExecutorService outerPool = Executors.newFixedThreadPool(2);

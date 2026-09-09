@@ -2,11 +2,11 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.ParName;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -94,8 +94,7 @@ class QuickStartTest {
 
         // report() 结构化报告
         TaskBatchResult.BatchReport batchReport = result3.report();
-        assertThat(batchReport.stateCounts())
-                .containsEntry(io.github.monadrome.parallelinscope.scope.TaskOutcome.SUCCESS, 8);
+        assertThat(batchReport.stateCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS, 8);
         assertThat(batchReport.firstException()).isNull();
     }
 }

@@ -55,11 +55,11 @@ for (int i = 0; i < taskCount; i++) {
 ## 代码
 
 ```java
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);

@@ -2,12 +2,12 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.ParName;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -176,11 +176,9 @@ public class G5_BatchHttpCallsTest {
                 .as("Par.map() fail-fast: not all tasks completed")
                 .isLessThan(services.size());
 
-        // 验证：report 包含 CANCELLED（fail-fast 取消了兄弟任务）和 FAILED
+        // 验证：report 区分根失败和由 fail-fast 级联取消的兄弟任务
         String report = result.reportString();
         assertThat(report).as("Report should show USER_FAILURE task (payment)").contains("USER_FAILURE");
-        assertThat(report)
-                .as("Report should show MEMBER_CANCELED tasks from fail-fast")
-                .contains("MEMBER_CANCELED");
+        assertThat(report).as("Report should show tasks canceled by fail-fast").contains("FAIL_FAST");
     }
 }

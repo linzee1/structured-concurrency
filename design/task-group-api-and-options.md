@@ -53,7 +53,8 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 ## 3. 公共 API
 
-公共类型放在 `io.github.monadrome.parallelinscope.scope`；监听 SPI 放在 `io.github.monadrome.parallelinscope.spi`。
+公共类型与监听回调统一放在 `io.github.monadrome.parallelinscope`。执行内核与它们同包，
+但必须保持 package-private，不得为跨包调用扩大可见性。
 
 ### 3.1 创建与使用
 

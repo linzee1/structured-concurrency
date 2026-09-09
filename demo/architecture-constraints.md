@@ -22,24 +22,11 @@ demo (消费者) → parallel-in-scope (发布版本)
 
 | 包名 | 说明 |
 |------|------|
-| `io.github.monadrome.parallelinscope.scope` | 核心 API（Par, BatchExecutionOptions, TaskBatchResult, GlobalPar） |
-| `io.github.monadrome.parallelinscope.spi` | 扩展点（TaskListener, DeadlockDetectionListener） |
+| `io.github.monadrome.parallelinscope` | 核心 API、协作取消和监听回调 |
+| `io.github.monadrome.parallelinscope.queue` | 独立的通用队列实现 |
 
-#### 允许访问的类（例外）
-
-| 类名 | 说明 |
-|------|------|
-| `io.github.monadrome.parallelinscope.cancel.Checkpoints` | 协作式取消的用户 API — `Checkpoints.sleep()` 是取消检查点 |
-
-#### 禁止访问的包（内部实现）
-
-| 包名 | 说明 |
-|------|------|
-| `io.github.monadrome.parallelinscope.internal` | 内部实现细节 |
-| `io.github.monadrome.parallelinscope.cancel` | 取消机制内部实现（**Checkpoints 除外**） |
-| `io.github.monadrome.parallelinscope.context` | 上下文传播内部实现 |
-| `io.github.monadrome.parallelinscope.context.graph` | 死锁检测内部实现 |
-| `io.github.monadrome.parallelinscope.queue` | 调度队列内部实现 |
+执行内核与公开 API 同在根包，但内核类是 package-private，外部消费者无法编译依赖。
+旧的 `.scope` / `.cancel` / `.context` / `.internal` / `.spi` / `.control` 包已移除。
 
 ### 3. 包命名约定
 
@@ -67,7 +54,9 @@ src/
 
 ### 自动验证
 
-`ArchitectureConstraintsTest` 已检查主源码不访问禁止的内部包，并确保使用 `demo.*` 包命名空间。Maven 依赖边界仍需通过 POM 审查和 `dependency:tree` 验证。
+`ArchitectureConstraintsTest` 已检查主源码不引用已移除的旧包，并确保使用
+`demo.*` 包命名空间。内核可见性由 Java 编译器强制；Maven 依赖边界仍需通过 POM 审查和
+`dependency:tree` 验证。
 
 ### 手动验证
 
@@ -103,22 +92,19 @@ mvn test
 │              parallel-in-scope (发布版本)                │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │                scope (公共 API)                   │   │
-│  │  ┌─────┐ ┌──────────┐ ┌──────────────┐         │   │
-│  │  │ Par │ │ BatchExecutionOptions│ │TaskBatchResult│         │   │
-│  │  └─────┘ └──────────┘ └──────────────┘         │   │
+│  │          根包：公共 API + callbacks             │   │
+│  │  GlobalPar, Par, MultiTaskOptions, TaskGroup,        │   │
+│  │  TaskBatchResult, CancellationToken, listeners...   │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │              spi (扩展点)                         │   │
-│  │  ┌─────────────┐ ┌─────────────────┐           │   │
-│  │  │TaskListener │ │DeadlockDetectionListener │           │   │
-│  │  └─────────────┘ └─────────────────┘           │   │
+│  │       根包：package-private 执行内核          │   │
+│  │  context, graph, submission, purge, phase state     │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │              internal (禁止访问)                  │   │
-│  │  cancel, context, queue, graph...               │   │
+│  │       queue：独立通用队列（公共 API）          │   │
+│  │  DrainingBlockingQueue, VariableLinkedBlockingQueue│   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
@@ -129,8 +115,8 @@ mvn test
 ### ❌ 错误示例
 
 ```java
-// 错误 1: 访问内部包
-import io.github.monadrome.parallelinscope.internal.SlidingWindowSubmitter;
+// 错误 1: 内核类是 package-private，该 import 无法编译
+import io.github.monadrome.parallelinscope.SlidingWindowSubmitter;
 
 // 错误 2: 使用主项目包名
 package io.github.monadrome.parallelinscope.demo;  // 应该是 demo.basic
@@ -143,8 +129,8 @@ package io.github.monadrome.parallelinscope.demo;  // 应该是 demo.basic
 
 ```java
 // 正确 1: 只访问公共 API
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.BatchExecutionOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
 
 // 正确 2: 使用独立包名
 package demo.basic;

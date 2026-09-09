@@ -2,12 +2,12 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.scope.GlobalPar;
-import io.github.monadrome.parallelinscope.scope.MultiTaskOptions;
-import io.github.monadrome.parallelinscope.scope.Par;
-import io.github.monadrome.parallelinscope.scope.ParName;
-import io.github.monadrome.parallelinscope.scope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -162,7 +162,9 @@ class F1_CpuTaskQueuingTest {
                     .isLessThanOrEqualTo(parallelism + 1);
 
             // 验证任务类型为 CPU_BOUND
-            assertThat(options.taskType()).as("taskType(TaskType.CPU_BOUND) 标记任务为 CPU_BOUND").isEqualTo(TaskType.CPU_BOUND);
+            assertThat(options.taskType())
+                    .as("taskType(TaskType.CPU_BOUND) 标记任务为 CPU_BOUND")
+                    .isEqualTo(TaskType.CPU_BOUND);
         } finally {
             pool.shutdownNow();
         }

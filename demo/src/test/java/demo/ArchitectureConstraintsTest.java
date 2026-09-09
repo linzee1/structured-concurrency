@@ -18,26 +18,23 @@ import org.junit.jupiter.api.Test;
  * <p>验证 demo 子项目符合架构约束：
  *
  * <ul>
- *   <li>不访问禁止的内部包
+ *   <li>不使用已移除的旧包
  *   <li>使用正确的包命名空间
  * </ul>
  */
 class ArchitectureConstraintsTest {
 
-    /** 禁止访问的内部包列表 */
-    private static final List<String> FORBIDDEN_PACKAGES = Arrays.asList(
+    /** 0.2.0 在发布前收敛掉的历史包。 */
+    private static final List<String> REMOVED_PACKAGES = Arrays.asList(
+            "io.github.monadrome.parallelinscope.scope",
             "io.github.monadrome.parallelinscope.internal",
             "io.github.monadrome.parallelinscope.cancel",
             "io.github.monadrome.parallelinscope.context",
-            "io.github.monadrome.parallelinscope.context.graph",
-            "io.github.monadrome.parallelinscope.queue");
-
-    /** 允许的例外类（来自禁止包的白名单） */
-    private static final List<String> ALLOWED_EXCEPTIONS =
-            Arrays.asList("io.github.monadrome.parallelinscope.cancel.Checkpoints");
+            "io.github.monadrome.parallelinscope.spi",
+            "io.github.monadrome.parallelinscope.control");
 
     @Test
-    void testNoForbiddenPackageImports() throws IOException {
+    void testNoRemovedPackageImports() throws IOException {
         Path sourceRoot = Paths.get("src/main/java");
 
         if (!Files.exists(sourceRoot)) {
@@ -49,9 +46,9 @@ class ArchitectureConstraintsTest {
                 Files.walk(sourceRoot).filter(path -> path.toString().endsWith(".java"))) {
 
             List<String> violations =
-                    javaFiles.flatMap(this::checkFileForForbiddenImports).collect(Collectors.toList());
+                    javaFiles.flatMap(this::checkFileForRemovedImports).collect(Collectors.toList());
 
-            assertThat(violations).as("Should not import forbidden packages").isEmpty();
+            assertThat(violations).as("Should not import removed packages").isEmpty();
         }
     }
 
@@ -75,16 +72,15 @@ class ArchitectureConstraintsTest {
         }
     }
 
-    private Stream<String> checkFileForForbiddenImports(Path javaFile) {
+    private Stream<String> checkFileForRemovedImports(Path javaFile) {
         try {
             List<String> lines = Files.readAllLines(javaFile);
             String fileName = javaFile.getFileName().toString();
 
             return lines.stream()
                     .filter(line -> line.trim().startsWith("import "))
-                    .filter(line -> FORBIDDEN_PACKAGES.stream().anyMatch(pkg -> line.contains(pkg)))
-                    .filter(line -> ALLOWED_EXCEPTIONS.stream().noneMatch(ex -> line.contains(ex)))
-                    .map(line -> String.format("%s: forbidden import: %s", fileName, line.trim()));
+                    .filter(line -> REMOVED_PACKAGES.stream().anyMatch(pkg -> line.contains(pkg + ".")))
+                    .map(line -> String.format("%s: removed package import: %s", fileName, line.trim()));
         } catch (IOException e) {
             return Stream.of("Error reading " + javaFile + ": " + e.getMessage());
         }
