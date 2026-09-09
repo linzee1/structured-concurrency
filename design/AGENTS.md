@@ -21,6 +21,12 @@
 | [cancellation-propagation.md](cancellation-propagation.md) | Guava `ListenableFuture` 取消传播机制（transform/catching/addCallback/组合 future 的方向差异），`CancellationToken.bind` 依赖的语义与源码索引 |
 | [draining-queue-contract.md](draining-queue-contract.md) | `DrainingBlockingQueue` 逐渐关闭契约：OPEN→DRAINING→DRAINED 状态机、规则优先级瀑布、poison/mutations 配置 |
 
+## 扩展与包装
+
+| 文档 | 摘要 |
+|---|---|
+| [extension-and-wrapping.md](extension-and-wrapping.md) | 用户扩展接缝的唯一位置（任务体 `Callable` 层、`TtlCallable` 之内）、三个包装轴（线程池/Callable/FutureTask）、必须避免的 12 类问题、契约与不变量 |
+
 ## 设计哲学与决策记录
 
 | 文档 | 摘要 |
