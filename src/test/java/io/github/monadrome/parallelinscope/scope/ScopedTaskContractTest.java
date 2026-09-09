@@ -97,7 +97,7 @@ class ScopedTaskContractTest {
                 // converges while its token is still RUNNING: a lone member failure reads as
                 // MEMBER_CANCELED, with the failure attributed to the member.
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
-                assertThat(result.failedMemberName()).isEqualTo("task");
+                assertThat(result.failedTaskName()).isEqualTo("task");
                 assertThat(result.members().get("task").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
             }

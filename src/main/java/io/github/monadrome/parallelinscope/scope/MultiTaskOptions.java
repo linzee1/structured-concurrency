@@ -20,9 +20,10 @@ import javax.annotation.Nullable;
  *       #taskType()}, and {@link #rejectEnqueue()}
  *   <li>A group level uses {@link #name()}, {@link #timeout()}, and {@link #listeners()};
  *       member-level execution strategy (parallelism, task type, enqueue policy) is per member
- *   <li>A group member reads the same fields as a batch except {@link #parallelism()}: a member is
- *       a single task, so its requested parallelism is resolved but never read. Nested work the
- *       member submits reads the parallelism of that nested submission's own options instead.
+ *   <li>A group member or terminal combine uses {@link #timeout()}, {@link #taskType()}, and {@link
+ *       #rejectEnqueue()}. Its identity comes from its {@link TaskKey}, while {@link #name()} and
+ *       {@link #listeners()} are ignored. A member is a single task, so its requested {@link
+ *       #parallelism()} is resolved but has no execution effect; nested work uses its own options.
  * </ul>
  *
  * <p>The timeout is a forced explicit choice between two mutually exclusive builder declarations:
@@ -63,7 +64,7 @@ public final class MultiTaskOptions {
         return builder().name(name);
     }
 
-    /** The batch, group, or member name. */
+    /** The batch or group name; ignored for a task-group member or terminal combine. */
     public String name() {
         return name;
     }

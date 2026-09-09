@@ -69,15 +69,15 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 TaskKey<User> user = definition.task(
             new TaskKey<User>("get-user") {},
             "user", userService::getUser,
-            MultiTaskOptions.of("get-user").inheritTimeout().build());
+            MultiTaskOptions.builder().inheritTimeout().build());
 TaskKey<List<Order>> orders = definition.task(
             new TaskKey<List<Order>>("get-orders") {},
             "order", orderService::getOrders,
-            MultiTaskOptions.of("get-orders").inheritTimeout().build());
+            MultiTaskOptions.builder().inheritTimeout().build());
 TaskKey<Inventory> inventory = definition.task(
             new TaskKey<Inventory>("get-inventory") {},
             "inventory", inventoryService::getInventory,
-            MultiTaskOptions.of("get-inventory").inheritTimeout().build());
+            MultiTaskOptions.builder().inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -150,9 +150,10 @@ submit 时创建，调用方用配置期注册的键在提交后取回类型安�
 
 ### 3.2 组级与成员级选项
 
-组级与成员级选项统一为 `MultiTaskOptions`；组读取 name/timeout/listeners，成员读取
-name/timeout/taskType/rejectEnqueue（成员是单任务，`parallelism` 被解析但无人读取；成员内部
-嵌套提交读取的是嵌套提交自己 options 的 parallelism）：
+组级与成员级选项统一为 `MultiTaskOptions`；组读取 name/timeout/listeners，成员与 combine 的
+执行行为使用 timeout/taskType/rejectEnqueue。它们的身份来自 `TaskKey.name()`，不读取 options
+的 name/listeners；成员是单任务，`parallelism` 虽被解析但不影响执行，成员内部嵌套提交读取
+嵌套提交自己的 options：
 
 ```java
 public final class MultiTaskOptions {
@@ -208,7 +209,7 @@ public final class TaskGroupResult {
     public long endTimeNanos();
     public long deadlineNanos();
     public TaskOutcome outcome();
-    public @Nullable String failedMemberName();
+    public @Nullable String failedTaskName();
     public Map<String, TaskCompletion<?>> members();
     public int memberCount();
 }
@@ -218,7 +219,7 @@ public final class TaskGroupResult {
 group 成员共用），字段为 `taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/
 `result()`/`failure()`，派生 `successful()`/`enqueued()`/三个 Duration。其中 `result()`
 只在监听器投递成功任务时非 null（组成员结果留在其 future），`taskIndex()` 对组成员恒为 0；
-组快照的 `taskName()` 取注册成员名，监听器事件取所属 unit 的 name。
+组快照和监听器事件的 `taskName()` 均取注册 key 的 name。
 
 要求：
 

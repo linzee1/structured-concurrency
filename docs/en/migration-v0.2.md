@@ -151,10 +151,16 @@ on `GROUP_CANCELED`.
 `TaskGroupCompletionReason` is removed; the group-level result reuses `TaskOutcome`.
 `TaskGroupResult.completionReason()` is renamed to `outcome()` and now returns `TaskOutcome`.
 Mapping from the removed enum: `SUCCESS` → `TaskOutcome.SUCCESS`; `TIMEOUT` → `TaskOutcome.TIMEOUT`;
-`FAILED` → the failed member's own outcome (`USER_FAILURE` or `SUBMISSION_FAILURE`, see
-`failedMemberName()`); `CANCELED` → `GROUP_CANCELED` when the group was canceled as a whole or the
+`FAILED` → the failed task's own outcome (`USER_FAILURE` or `SUBMISSION_FAILURE`, see
+`failedTaskName()`); `CANCELED` → `GROUP_CANCELED` when the group was canceled as a whole or the
 cancellation propagated from an enclosing scope, and `MEMBER_CANCELED` when the cancellation
 originated from a member.
+
+A task-group member or terminal combine now takes its execution-time diagnostic name from its
+`TaskKey`, rather than from `MultiTaskOptions.name()`. This aligns checkpoints, task-listener events,
+and task-graph labels with the name used to retrieve the future and result snapshot. Member/combine
+option names are ignored. Because the failure source may also be the terminal combine,
+`TaskGroupResult.failedMemberName()` is renamed to `failedTaskName()`.
 
 `CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELED` →
 `FAIL_FAST`, `TIMEOUT_CANCELED` → `TIMEOUT`, `MUTUAL_CANCELED` → `CANCELED`, and

@@ -50,7 +50,7 @@ frozen members registry
 memberCount / terminalCount
 group CancellationToken（内部，不作为公共控制入口）
 completion SettableFuture
-failedMemberName
+failedTaskName
 TaskGraphObservationScope snapshot（可空）
 listener snapshot
 ```
@@ -79,14 +79,13 @@ failure（可空）
 ```text
 taskCount = 1
 effectiveParallelism = 1
-name = member MultiTaskOptions.name
+name = member TaskKey.name
 executorIdentity / executorLabel = member Par 的绑定
 ```
 
-`memberName` 与 `MultiTaskContext.name` 不重复承担同一职责：
-
-- `memberName`：Group 内唯一键和组级结果键；
-- `MultiTaskContext.name`：现有任务执行、checkpoint 和 TaskListener 的诊断名称。
+`TaskKey.name` 是成员身份的单一事实来源：它同时作为 Group 内唯一键、组级结果键，以及
+`MultiTaskContext.name` 所承载的任务执行、checkpoint、TaskListener 和 graph label 诊断名称。
+成员 options 的 name 不参与这些路径。
 
 成员 options 中的 `parallelism` 不产生多个执行实例：成员是单任务，解析时被截断为 1，且
 没有任何代码读取它。
@@ -154,6 +153,7 @@ Group member 证明这三者不总是同一个对象。`MultiTaskContext` 提供
 ```java
 static MultiTaskContext resolve(
         MultiTaskOptions options,
+        String name,
         int taskCount,
         @Nullable MultiTaskContext structuralParent,
         @Nullable CancellationToken cancellationParent,

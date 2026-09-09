@@ -63,7 +63,7 @@ List<ListenableFuture<Account>> futures = result.results();
 
 当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组由 `TaskGroupDefinition` 描述：一个不可变、可复用的纯数据描述。`TaskGroupDefinition.Builder.task` 只记录定义；它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务。`TaskGroup.submit(global, definition)` 在提交时解析调用线程的上下文，冻结完整成员集合，准备全部成员后再统一提交。
 
-组和批次共用同一个选项类型 `MultiTaskOptions`：组读取 name、timeout 和 listeners，每个成员读取执行子集（task type、enqueue 策略、timeout）。成员是单任务，因此它的 `parallelism` 会被解析但无人读取——成员内部提交的嵌套工作读取的是该嵌套提交自己 options 的 parallelism。成员通常声明 `inheritTimeout()` 以运行在组 deadline 之下；成员的显式 timeout 会被组 deadline 截断。声明 `inheritTimeout()` 的组必须在一个 scoped task 内提交，否则 `submit` 被拒绝。
+组和批次共用同一个选项类型 `MultiTaskOptions`：组读取 name、timeout 和 listeners，每个成员读取执行子集（task type、enqueue 策略、timeout）。成员是单任务，因此它的 `parallelism` 会被解析但无人读取——成员内部提交的嵌套工作读取的是该嵌套提交自己 options 的 parallelism。成员通常声明 `inheritTimeout()` 以运行在组 deadline 之下；成员的显式 timeout 会被组 deadline 截断。声明 `inheritTimeout()` 的组必须在一个 scoped task 内提交，否则 `submit` 被拒绝。成员的诊断名始终是它的 `TaskKey` 名；成员 options 中的 name 和 listeners 不读取。
 
 ```java
 TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
@@ -74,11 +74,11 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 TaskKey<User> user = definition.task(
         new TaskKey<User>("user") {},
         DATABASE, userRepository::load,
-        MultiTaskOptions.of("load-user").inheritTimeout().build());
+        MultiTaskOptions.builder().inheritTimeout().build());
 TaskKey<List<Order>> orders = definition.task(
         new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,
-        MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
+        MultiTaskOptions.builder().taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -100,14 +100,14 @@ TaskKey<AccountPage> page = definition.combine(
         new TaskKey<AccountPage>("assemble-page") {},
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
-        MultiTaskOptions.of("assemble-page").inheritTimeout().build());
+        MultiTaskOptions.builder().inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     AccountPage accountPage = group.future(page).get();
 }
 ```
 
-`CompletedTaskValues` 视图不阻塞，只通过注册的 `TaskKey` 键暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine 函数恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`，不会 inline 执行），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，submit 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine，使用自己的 `TaskKey`；`group.future(combineKey)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedMemberName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
+`CompletedTaskValues` 视图不阻塞，只通过注册的 `TaskKey` 键暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine 函数恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`，不会 inline 执行），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，submit 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine，使用自己的 `TaskKey`；`group.future(combineKey)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedTaskName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
 
 ## 取消与嵌套批次
 

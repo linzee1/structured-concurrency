@@ -95,6 +95,7 @@ public final class MultiTaskContext {
                 : parent == null ? null : parent.taskGraphObservationScope;
         return resolve(
                 options,
+                options.name(),
                 taskCount,
                 parent,
                 parent == null ? null : parent.cancellationToken,
@@ -112,6 +113,7 @@ public final class MultiTaskContext {
      */
     static MultiTaskContext resolve(
             MultiTaskOptions options,
+            String name,
             int taskCount,
             @Nullable MultiTaskContext structuralParent,
             @Nullable CancellationToken cancellationParent,
@@ -121,12 +123,13 @@ public final class MultiTaskContext {
             @Nullable ExecutorIdentity executorIdentity,
             @Nullable String parLabel) {
         Objects.requireNonNull(options, "options cannot be null");
+        Objects.requireNonNull(name, "name cannot be null");
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
         int requested = options.parallelism();
         int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
         long deadline = resolveDeadlineNanos(options.timeout(), deadlineCeilingNanos, resolutionTimeNanos);
         return new MultiTaskContext(
-                options.name(),
+                name,
                 taskCount,
                 effective,
                 deadline,
@@ -158,7 +161,7 @@ public final class MultiTaskContext {
         return Math.min(requestedDeadline, ceilingNanos);
     }
 
-    /** The unit name, copied from the options: a batch name or a task-group member name. */
+    /** The logical unit name: batches use the options name; group members and combines use the key name. */
     public String name() {
         return name;
     }

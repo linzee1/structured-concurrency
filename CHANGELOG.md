@@ -19,6 +19,7 @@
 - Rename the internal `ConcurrentLimitExecutor` to `SlidingWindowSubmitter`.
 - Rename `TaskGraphObservationContext` to `TaskGraphObservationScope`: it is a closeable observation scope, and the naming rule is now that `Scope` marks lifecycle scopes (`SubmissionScope`, `TaskGraphObservationScope`) while `Context` marks data carriers. `MultiTaskContext.taskGraphObservationContext()` is renamed to `taskGraphObservationScope()` accordingly; `GlobalPar.openTaskGraphObservation()` keeps its name.
 - Neutralize the batch-biased `MultiTaskContext` vocabulary, since one context backs both `Par.map` batches and task-group members: `batchId()` → `unitId()`, `taskName()` → `name()`, `parLabel()` → `executorLabel()`, `parent()` → `structuralParent()` (a member's cancellation parent is the group token inside `cancellationToken()`, not this field). `TaskContext.batchContext()` becomes `multiTaskContext()` and `SubmissionScope.currentBatch()` becomes `current()`. Deadline resolution for batches, group members, and groups now shares a single `MultiTaskContext.resolveDeadlineNanos` path.
+- Make `TaskKey.name()` the single name of a task-group member or terminal combine. Its checkpoint name, task-listener `taskName()`, and nested task-graph label now use the key name rather than `MultiTaskOptions.name()`; batch and group names are unchanged. Member/combine option names and listeners are ignored. Rename `TaskGroupResult.failedMemberName()` to `failedTaskName()` because the first failed task may be the terminal combine.
 
 ## [0.2.0] - 2026-07-22
 

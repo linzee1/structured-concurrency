@@ -78,7 +78,8 @@ A member is a single task, so its `parallelism` is resolved but never read — n
 inside a member reads the parallelism of that nested submission's own options. Members typically
 declare `inheritTimeout()` so they run under the group deadline; an explicit member timeout is
 capped by it. A group that declares `inheritTimeout()` must be submitted from inside a scoped
-task, otherwise `submit` is rejected.
+task, otherwise `submit` is rejected. A member's diagnostic name is always its `TaskKey` name;
+the name and listeners in its options are ignored.
 
 ```java
 TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
@@ -89,11 +90,11 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 TaskKey<User> user = definition.task(
         new TaskKey<User>("user") {},
         DATABASE, userRepository::load,
-        MultiTaskOptions.of("load-user").inheritTimeout().build());
+        MultiTaskOptions.builder().inheritTimeout().build());
 TaskKey<List<Order>> orders = definition.task(
         new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,
-        MultiTaskOptions.of("load-orders").taskType(TaskType.IO_BOUND).inheritTimeout().build());
+        MultiTaskOptions.builder().taskType(TaskType.IO_BOUND).inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -136,7 +137,7 @@ TaskKey<AccountPage> page = definition.combine(
         new TaskKey<AccountPage>("assemble-page") {},
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
-        MultiTaskOptions.of("assemble-page").inheritTimeout().build());
+        MultiTaskOptions.builder().inheritTimeout().build());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     AccountPage accountPage = group.future(page).get();
@@ -154,7 +155,7 @@ member futures directly for that. A group accepts at most one combine, declared 
 semantics. If any member fails, the combine never runs and the terminal future is cancelled with
 the group's attributed outcome. The combine's snapshot appears as `TaskGroupResult.terminal()`
 (`members()` stays member-only), and when the combine itself fails or is rejected,
-`failedMemberName()` carries the combine's registered name. The group deadline spans the fan-out
+`failedTaskName()` carries the combine's registered name. The group deadline spans the fan-out
 and the combine, so a combine whose members consumed most of the budget may time out before it
 starts — that is the intended end-to-end semantics.
 

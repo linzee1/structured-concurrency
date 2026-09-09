@@ -71,7 +71,7 @@ public final class TaskGroup implements AutoCloseable {
 
     private int terminalCount;
     private @Nullable TaskOutcome outcome;
-    private @Nullable String failedMemberName;
+    private @Nullable String failedTaskName;
     private boolean terminalSubmitted;
     private boolean closed;
 
@@ -273,8 +273,8 @@ public final class TaskGroup implements AutoCloseable {
             observedReason = member.reason;
             terminalCount++;
             if ((observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE)
-                    && failedMemberName == null) {
-                failedMemberName = member.name;
+                    && failedTaskName == null) {
+                failedTaskName = member.name;
             }
             // The combine is not part of memberStates, so this counts members only: the join
             // condition is every member counted and successful.
@@ -368,8 +368,8 @@ public final class TaskGroup implements AutoCloseable {
     private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
             case FAIL_FAST:
-                if (failedMemberName != null) {
-                    MemberState failed = memberStates.get(failedMemberName);
+                if (failedTaskName != null) {
+                    MemberState failed = memberStates.get(failedTaskName);
                     // The failed name may belong to the terminal combine, which is not a member.
                     return (failed != null ? failed : terminal).reason;
                 }
@@ -408,7 +408,7 @@ public final class TaskGroup implements AutoCloseable {
                 System.nanoTime(),
                 deadlineNanos,
                 outcome,
-                failedMemberName,
+                failedTaskName,
                 snapshots,
                 terminal == null ? null : memberSnapshot(terminal));
     }
@@ -492,6 +492,7 @@ public final class TaskGroup implements AutoCloseable {
                 memberPars.add(par);
                 MultiTaskContext unit = MultiTaskContext.resolve(
                         member.options(),
+                        member.name(),
                         1,
                         structuralParent,
                         groupToken,
@@ -531,6 +532,7 @@ public final class TaskGroup implements AutoCloseable {
                 Par par = env.par(combineDefinition.parName());
                 MultiTaskContext unit = MultiTaskContext.resolve(
                         combineDefinition.options(),
+                        combineDefinition.name(),
                         1,
                         structuralParent,
                         groupToken,

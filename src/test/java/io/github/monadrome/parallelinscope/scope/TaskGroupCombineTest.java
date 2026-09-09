@@ -54,7 +54,7 @@ class TaskGroupCombineTest {
                                 .name());
                         return values.value(user) + ":" + values.value(orders).get(0);
                     },
-                    options("assemble"));
+                    options("assemble-options"));
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -68,7 +68,7 @@ class TaskGroupCombineTest {
             assertThat(result.terminal()).isNotNull();
             assertThat(result.terminal().taskName()).isEqualTo("assemble");
             assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(result.failedMemberName()).isNull();
+            assertThat(result.failedTaskName()).isNull();
         } finally {
             global.close();
             io.shutdownNow();
@@ -106,7 +106,7 @@ class TaskGroupCombineTest {
             assertThat(combineRuns).hasValue(0);
             assertThat(group.future(page).isCancelled()).isTrue();
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.failedMemberName()).isEqualTo("failure");
+            assertThat(result.failedTaskName()).isEqualTo("failure");
             assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
             assertThat(result.terminal().startTimeNanos()).isZero();
         } finally {
@@ -135,7 +135,7 @@ class TaskGroupCombineTest {
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.failedMemberName()).isEqualTo("assemble");
+            assertThat(result.failedTaskName()).isEqualTo("assemble");
             assertThat(result.members().get("user").outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.terminal().failure()).isInstanceOf(java.io.IOException.class);
@@ -209,7 +209,7 @@ class TaskGroupCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(result.failedMemberName()).isEqualTo("assemble");
+            assertThat(result.failedTaskName()).isEqualTo("assemble");
             assertThat(result.terminal().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
         } finally {
             global.close();

@@ -14,7 +14,7 @@ public final class TaskGroupResult {
     private final long endTimeNanos;
     private final long deadlineNanos;
     private final TaskOutcome outcome;
-    private final @Nullable String failedMemberName;
+    private final @Nullable String failedTaskName;
     private final Map<String, TaskCompletion<?>> members;
     private final @Nullable TaskCompletion<?> terminal;
 
@@ -25,7 +25,7 @@ public final class TaskGroupResult {
             long endTimeNanos,
             long deadlineNanos,
             TaskOutcome outcome,
-            @Nullable String failedMemberName,
+            @Nullable String failedTaskName,
             Map<String, TaskCompletion<?>> members,
             @Nullable TaskCompletion<?> terminal) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
@@ -34,7 +34,7 @@ public final class TaskGroupResult {
         this.endTimeNanos = endTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
-        this.failedMemberName = failedMemberName;
+        this.failedTaskName = failedTaskName;
         this.members = Collections.unmodifiableMap(new LinkedHashMap<>(members));
         this.terminal = terminal;
     }
@@ -64,8 +64,9 @@ public final class TaskGroupResult {
         return outcome;
     }
 
-    public @Nullable String failedMemberName() {
-        return failedMemberName;
+    /** Returns the key name of the first failed member or terminal combine, or null if none failed. */
+    public @Nullable String failedTaskName() {
+        return failedTaskName;
     }
 
     /** Returns each member's terminal snapshot, keyed by registered member name. */

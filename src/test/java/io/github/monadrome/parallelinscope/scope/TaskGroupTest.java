@@ -7,11 +7,13 @@ import com.alibaba.ttl.TransmittableThreadLocal;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.monadrome.parallelinscope.cancel.CancellationToken;
+import io.github.monadrome.parallelinscope.cancel.Checkpoints;
 import io.github.monadrome.parallelinscope.context.SubmissionScope;
 import io.github.monadrome.parallelinscope.internal.TaskExecutionContext;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -69,6 +71,42 @@ class TaskGroupTest {
             global.close();
             first.shutdownNow();
             second.shutdownNow();
+        }
+    }
+
+    @Test
+    void memberKeyNameOwnsExecutionDiagnosticsWhenOptionsNameDiffers() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        AtomicReference<TaskCompletion<?>> listenerCompletion = new AtomicReference<>();
+        GlobalPar global = GlobalPar.builder()
+                .register(ParName.of("worker"), executor)
+                .taskListener(listenerCompletion::set)
+                .build();
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+            TaskKey<String> user = definition.task(
+                    new TaskKey<>("user") {},
+                    ParName.of("worker"),
+                    () -> {
+                        MultiTaskContext context =
+                                TaskExecutionContext.current().multiTaskContext();
+                        context.cancellationToken().cancel(false);
+                        Checkpoints.checkpoint("load-user", true);
+                        assertThatThrownBy(() -> Checkpoints.checkpoint("user", true))
+                                .isInstanceOf(CancellationException.class);
+                        return "alice";
+                    },
+                    MultiTaskOptions.of("load-user").inheritTimeout().build());
+
+            TaskGroup group = TaskGroup.submit(global, definition.build());
+            assertThat(group.future(user).get(2, TimeUnit.SECONDS)).isEqualTo("alice");
+            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(listenerCompletion.get().taskName()).isEqualTo("user");
+            assertThat(result.members().get("user").taskName()).isEqualTo("user");
+        } finally {
+            global.close();
+            executor.shutdownNow();
         }
     }
 
@@ -135,7 +173,7 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(result.failedMemberName()).isEqualTo("failure");
+            assertThat(result.failedTaskName()).isEqualTo("failure");
             assertThat(result.members().get("failure").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         } finally {

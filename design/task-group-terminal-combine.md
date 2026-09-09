@@ -93,7 +93,7 @@ public final class CompletedTaskValues {
 - `CombineFunction` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为 `USER_FAILURE`），combine 与 member 并列在同一定义 API 上，受检异常处理必须对称；JDK 函数式接口中没有"单参且抛受检异常"的类型，这是新增此接口的唯一理由。注意 Batch（`Par.map`）的用户函数是不抛受检异常的 JDK `Function`——这是既有分叉（batch 元素仿 `Stream.map`，group member 仿 `ExecutorService.submit(Callable)`），combine 跟随 member 一侧。备选方案 `Function<CompletedTaskValues, R>`（零新增函数式接口、用户自行包装受检异常）被拒绝：运行时异常虽仍能收敛 `USER_FAILURE`，但同一 Builder 内 member/combine 不对称，且包装污染 `TaskCompletion.failure()` 的 cause 链；
 - `combine(key, executorName, function, options)` 在配置期校验：参数为 null、key 名称与任一 member 或 combine 重复，立即拒绝；一个 definition 至多一个 combine。executor 只接受注册名（submit 时经 `GlobalPar.par(executorName)` 解析，未知名称抛 `IllegalArgumentException`），不提供 `Par` 实例重载，与 member 对称；
 - `TaskGroup` 不新增泛型参数，也不新增 `resultFuture()`：terminal future 通过既有的 `group.future(combineKey)` 取回，类型安全、未知 key 校验和 Guava 终态语义全部复用成员路径；
-- `combineOptions` 即 `MultiTaskOptions`，读取 name/timeout/taskType/rejectEnqueue，与 member 一致；不能覆盖 Group 的取消策略，listeners 仍只有组级读取；
+- `combineOptions` 即 `MultiTaskOptions`，执行行为使用 timeout/taskType/rejectEnqueue，与 member 一致；身份取 combine key 的 name，options 的 name/listeners 不读取，也不能覆盖 Group 的取消策略；
 - 没有 combine 的 Group 不创建任何虚假终端任务，也不存在 `Void` 特殊路径。
 
 ## 5. CompletedTaskValues 契约
@@ -146,7 +146,7 @@ terminal future 保持普通 Guava 语义，与 member future 一致：成功返
 | group deadline 先到 | 不执行或中断 | 取消 | `TIMEOUT` |
 | `group.cancel()` / close | 不执行或中断 | 取消 | `GROUP_CANCELED` |
 
-`TaskGroupResult` 增加 `@Nullable TaskCompletion<?> terminal()`：无 combine 时为 null；注册即携带快照，执行前取消时 start/end 为零，与执行前取消的 member 快照惯例一致（"不伪造事件"仅指监听器事件）。`members()`/`memberCount()` 保持只含 member。combine 失败或拒绝时 `failedMemberName()` 取 combine 的注册名：combine failure 不能伪装成 member failure，但对调用方呈现在同一个字段中。
+`TaskGroupResult` 增加 `@Nullable TaskCompletion<?> terminal()`：无 combine 时为 null；注册即携带快照，执行前取消时 start/end 为零，与执行前取消的 member 快照惯例一致（"不伪造事件"仅指监听器事件）。`members()`/`memberCount()` 保持只含 member。combine 失败或拒绝时 `failedTaskName()` 取 combine 的注册名；字段名使用 task 而非 member，避免把 combine failure 伪装成 member failure。
 
 ## 8. 取消、deadline 与归因
 
@@ -206,7 +206,7 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 4. combine 在 submit 时完成 admission/retain：submit 返回后 `GlobalPar.close()` 与 join 竞争时，combine 仍正常提交并终态；
 5. combine 能通过 `TaskKey` 无阻塞取得正确值；unknown key、raw 类型不覆盖、key 名称冲突和 null 成功结果符合契约；
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
-7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedMemberName()` 取 combine 注册名，combine failure 不伪装成 member failure；
+7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
 8. `terminalCount` 目标含 terminal future；completion future 等 terminal future 终态后才完成；Group listener 只调用一次；
 9. TaskGraph 不写 membership 边、不伪造 join 边；join 关系出现在 Group telemetry；
 10. 所有执行、拒绝和取消路径恢复 ThreadLocal/TTL。

@@ -36,7 +36,7 @@ outer task token（可空）
 
 ```text
 CAS group reason FAILED
-record failedMemberName（仅 first winner）
+record failedTaskName（仅 first winner，可为 member 或 terminal combine）
 cancel every other unfinished member
 wait every frozen public future terminal
 publish CLOSED/result/event

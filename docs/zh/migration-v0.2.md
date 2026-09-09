@@ -83,10 +83,15 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 
 `TaskGroupCompletionReason` 已删除，组级结果复用 `TaskOutcome`：
 `TaskGroupResult.completionReason()` 改名为 `outcome()`，返回 `TaskOutcome`。映射关系：
-`SUCCESS` → `TaskOutcome.SUCCESS`；`TIMEOUT` → `TaskOutcome.TIMEOUT`；`FAILED` → 失败组员
-自己的 outcome（`USER_FAILURE` 或 `SUBMISSION_FAILURE`，见 `failedMemberName()`）；
+`SUCCESS` → `TaskOutcome.SUCCESS`；`TIMEOUT` → `TaskOutcome.TIMEOUT`；`FAILED` → 失败任务
+自己的 outcome（`USER_FAILURE` 或 `SUBMISSION_FAILURE`，见 `failedTaskName()`）；
 `CANCELED` → 组被整体取消或取消自上传播时为 `GROUP_CANCELED`，取消源自组员时为
 `MEMBER_CANCELED`。
+
+任务组成员或终端 combine 的执行期诊断名现在取自其 `TaskKey`，不再取自
+`MultiTaskOptions.name()`。checkpoint、任务监听器事件和任务图 label 因此与取 future 和结果快照
+时使用的名称一致；成员/combine options 中的 name 被忽略。由于失败源也可能是终端 combine，
+`TaskGroupResult.failedMemberName()` 同步改名为 `failedTaskName()`。
 
 `CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELED` → `FAIL_FAST`，
 `TIMEOUT_CANCELED` → `TIMEOUT`，`MUTUAL_CANCELED` → `CANCELED`，`PROPAGATING_CANCELED` →
