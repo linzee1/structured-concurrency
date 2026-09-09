@@ -25,7 +25,7 @@
 
 | 文档 | 摘要 |
 |---|---|
-| [extension-and-wrapping.md](extension-and-wrapping.md) | 用户扩展接缝的唯一位置（任务体 `Callable` 层、`TtlCallable` 之内）、三个包装轴（线程池/Callable/FutureTask）、必须避免的 12 类问题、契约与不变量 |
+| [extension-and-wrapping.md](extension-and-wrapping.md) | 用户扩展接缝的唯一位置（任务体 `Callable` 层、上下文层之内）、三个前提与三个不变量（I1 结构 / I2 同步动态范围 / I3 只能检测）、三个包装轴（线程池/Callable/FutureTask）、必须避免的 19 类问题、契约与验证矩阵 |
 
 ## 设计哲学与决策记录
 
