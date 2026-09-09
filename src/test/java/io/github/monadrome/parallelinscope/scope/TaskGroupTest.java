@@ -551,7 +551,7 @@ class TaskGroupTest {
 
             TaskGroupDefinition reusable = definition.build();
             assertThat(reusable.tasks())
-                    .extracting(TaskGroupDefinition.TaskDefinition::memberName)
+                    .extracting(TaskGroupDefinition.TaskDefinition::name)
                     .containsExactly("one");
             TaskGroup first = TaskGroup.submit(global, reusable);
             TaskGroup second = TaskGroup.submit(global, reusable);
@@ -569,7 +569,7 @@ class TaskGroupTest {
     @Test
     void keyCapturesTheParameterizedResultType() {
         TaskKey<java.util.List<String>> key = new TaskKey<java.util.List<String>>("orders") {};
-        assertThat(key.memberName()).isEqualTo("orders");
+        assertThat(key.name()).isEqualTo("orders");
         assertThat(key.resultType().getType().getTypeName()).isEqualTo("java.util.List<java.lang.String>");
         assertThat(key.resultType().getRawType()).isEqualTo(java.util.List.class);
         assertThatThrownBy(() -> new TaskKey<Object>(" ") {}).isInstanceOf(IllegalArgumentException.class);

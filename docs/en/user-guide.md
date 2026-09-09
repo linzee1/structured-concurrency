@@ -105,7 +105,7 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 A `TaskKey` is a type-safe key created as an anonymous subclass so the member's result type is
 captured at runtime; it is registered while configuring the definition, and after submission
 `group.future(key)` resolves the member's future, rejecting a key whose raw result type does not
-cover the registered one. Keys compare equal by member name alone, so a key claiming a supertype of
+cover the registered one. Keys compare equal by name alone, so a key claiming a supertype of
 the registered type is equal to the registered key. Group completion always returns a
 `TaskGroupResult`; the group outcome (`result.outcome()`, a `TaskOutcome`) is result data rather
 than a failure of the completion future. Individual member futures retain normal Guava success,

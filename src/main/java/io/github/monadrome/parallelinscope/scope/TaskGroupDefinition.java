@@ -61,8 +61,9 @@ public final class TaskGroupDefinition {
             this.options = options;
         }
 
-        public String memberName() {
-            return key.memberName();
+        /** The name of this member's key; the member's unique key within its definition. */
+        public String name() {
+            return key.name();
         }
 
         /** The key the member was registered with; carries the captured result type. */
@@ -108,8 +109,9 @@ public final class TaskGroupDefinition {
             this.options = options;
         }
 
-        public String memberName() {
-            return key.memberName();
+        /** The name of this combine's key; unique across the members and the combine. */
+        public String name() {
+            return key.name();
         }
 
         /** The key the combine was registered with; carries the captured result type. */
@@ -152,10 +154,10 @@ public final class TaskGroupDefinition {
             Objects.requireNonNull(parName, "parName cannot be null");
             Objects.requireNonNull(callable, "callable cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
-            if (tasks.containsKey(key.memberName())) {
-                throw new IllegalArgumentException("Duplicate memberName '" + key.memberName() + "'");
+            if (tasks.containsKey(key.name())) {
+                throw new IllegalArgumentException("Duplicate name '" + key.name() + "'");
             }
-            tasks.put(key.memberName(), new TaskDefinition<>(key, parName, callable, options));
+            tasks.put(key.name(), new TaskDefinition<>(key, parName, callable, options));
             return key;
         }
 
@@ -174,8 +176,8 @@ public final class TaskGroupDefinition {
             if (combine != null) {
                 throw new IllegalArgumentException("A group accepts at most one combine");
             }
-            if (tasks.containsKey(key.memberName())) {
-                throw new IllegalArgumentException("Duplicate memberName '" + key.memberName() + "'");
+            if (tasks.containsKey(key.name())) {
+                throw new IllegalArgumentException("Duplicate name '" + key.name() + "'");
             }
             combine = new CombineDefinition<>(key, parName, function, options);
             return key;

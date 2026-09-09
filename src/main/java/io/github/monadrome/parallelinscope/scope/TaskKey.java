@@ -20,27 +20,27 @@ import java.util.Objects;
  * those definitions, where it resolves a different {@link MultiTaskContext#unitId() unit} each time.
  * A key is configuration-time data, never an execution identity.
  *
- * <p>The member name is the key's identity: keys are equal when they name the same slot, so a key
- * whose type parameter is a supertype of the registered result type is equal to the registered key
- * and resolves the same slot. The type parameter is a claim about the slot's result, validated when
- * the key is resolved by {@link TaskGroup#future(TaskKey)} — a claim that does not cover the
- * registered type fails there, not at construction.
+ * <p>The name is the key's identity: keys are equal when they name the same slot, so a key whose
+ * type parameter is a supertype of the registered result type is equal to the registered key and
+ * resolves the same slot. The type parameter is a claim about the slot's result, validated when the
+ * key is resolved by {@link TaskGroup#future(TaskKey)} — a claim that does not cover the registered
+ * type fails there, not at construction.
  */
 public abstract class TaskKey<T> {
-    private final String memberName;
+    private final String name;
     private final TypeToken<T> resultType;
 
-    protected TaskKey(String memberName) {
-        this.memberName = Objects.requireNonNull(memberName, "memberName cannot be null");
-        if (memberName.trim().isEmpty()) {
-            throw new IllegalArgumentException("memberName cannot be empty");
+    protected TaskKey(String name) {
+        this.name = Objects.requireNonNull(name, "name cannot be null");
+        if (name.trim().isEmpty()) {
+            throw new IllegalArgumentException("name cannot be empty");
         }
         this.resultType = new TypeToken<T>(getClass()) {};
     }
 
-    /** The member name this key identifies; also the key's equality identity. */
-    public final String memberName() {
-        return memberName;
+    /** The slot name this key identifies; also the key's equality identity. */
+    public final String name() {
+        return name;
     }
 
     /** The result type captured from the anonymous subclass's type argument. */
@@ -55,17 +55,17 @@ public abstract class TaskKey<T> {
      */
     @Override
     public final boolean equals(Object other) {
-        return this == other || (other instanceof TaskKey && memberName.equals(((TaskKey<?>) other).memberName));
+        return this == other || (other instanceof TaskKey && name.equals(((TaskKey<?>) other).name));
     }
 
     @Override
     public final int hashCode() {
-        return memberName.hashCode();
+        return name.hashCode();
     }
 
     /** Diagnostics only; must not be persisted or used as a wire format. */
     @Override
     public String toString() {
-        return memberName + " (" + resultType + ")";
+        return name + " (" + resultType + ")";
     }
 }

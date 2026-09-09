@@ -87,7 +87,7 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 }
 ```
 
-`TaskKey` 是以匿名子类创建的类型安全的键，在运行时捕获成员的结果类型；它在配置定义时注册，提交后 `group.future(key)` 解析成员的 future，并拒绝 raw 结果类型不能覆盖注册类型的 key。键仅按 memberName 值相等，因此声明父类型的 key 与注册 key 是同一个键。组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。
+`TaskKey` 是以匿名子类创建的类型安全的键，在运行时捕获成员的结果类型；它在配置定义时注册，提交后 `group.future(key)` 解析成员的 future，并拒绝 raw 结果类型不能覆盖注册类型的 key。键仅按 name 值相等，因此声明父类型的 key 与注册 key 是同一个键。组完成始终返回 `TaskGroupResult`；组 outcome（`result.outcome()`，`TaskOutcome`）是结果数据，而不是 completion future 的失败。单个成员 future 保持普通 Guava 的成功、失败和取消语义。
 
 组取消是完全结构化的，与批次语义一致：任一成员首次失败、任一成员 future 或成员 token 被直接取消、组 deadline 或任一成员自身 deadline 到期，都会取消所有未完成成员。`group.cancel()` 和 `close()` 取消未完成成员且不阻塞。成员 outcome 从取消 token 归因，因此被取消的成员报告 `MEMBER_CANCELED`、`FAIL_FAST`、`TIMEOUT` 或 `GROUP_CANCELED` 而不是笼统的取消；超出自身 deadline 的成员会把组升级为 `TIMEOUT`。组和成员的 deadline 从提交边界起算，成员 deadline 受组 deadline 截断。在 scoped task 内提交的组继承外层取消和 deadline 上限；自祖先传播的取消保留其初始原因（`CancellationToken.originState()`），因此祖先 deadline 到期仍使组收敛为 `TIMEOUT` 而不是笼统的 `GROUP_CANCELED`。每个成员仍是真实的子任务，而 membership 本身不会在兄弟之间产生依赖边。
 

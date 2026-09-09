@@ -37,15 +37,15 @@ public final class CompletedTaskValues {
     @SuppressWarnings("unchecked")
     public <T> T value(TaskKey<T> key) {
         Objects.requireNonNull(key, "key cannot be null");
-        if (key.memberName().equals(combineName)) {
+        if (key.name().equals(combineName)) {
             throw new IllegalArgumentException("The combine cannot read its own key '" + combineName + "'");
         }
-        TaskGroup.MemberState member = members.get(key.memberName());
+        TaskGroup.MemberState member = members.get(key.name());
         if (member == null) {
-            throw new IllegalArgumentException("No member named '" + key.memberName() + "'");
+            throw new IllegalArgumentException("No member named '" + key.name() + "'");
         }
         if (!key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
-            throw new IllegalArgumentException("Member '" + key.memberName() + "' was registered with result type "
+            throw new IllegalArgumentException("Member '" + key.name() + "' was registered with result type "
                     + member.resultType + " but the key claims " + key.resultType());
         }
         try {
@@ -54,8 +54,7 @@ public final class CompletedTaskValues {
             // The combine runs only after every member succeeded, so anything but a plain value
             // signals a framework invariant violation, not user input. CancellationException is an
             // IllegalStateException and lands here too.
-            throw new IllegalStateException(
-                    "Member '" + key.memberName() + "' has not completed successfully", failure);
+            throw new IllegalStateException("Member '" + key.name() + "' has not completed successfully", failure);
         }
     }
 }

@@ -126,15 +126,15 @@ public final class TaskGroup implements AutoCloseable {
     @SuppressWarnings("unchecked")
     public <T> ListenableFuture<T> future(TaskKey<T> key) {
         Objects.requireNonNull(key, "key cannot be null");
-        MemberState member = memberStates.get(key.memberName());
-        if (member == null && terminal != null && terminal.name.equals(key.memberName())) {
+        MemberState member = memberStates.get(key.name());
+        if (member == null && terminal != null && terminal.name.equals(key.name())) {
             member = terminal;
         }
         if (member == null) {
-            throw new IllegalArgumentException("No member named '" + key.memberName() + "'");
+            throw new IllegalArgumentException("No member named '" + key.name() + "'");
         }
         if (!key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
-            throw new IllegalArgumentException("Member '" + key.memberName() + "' was registered with result type "
+            throw new IllegalArgumentException("Member '" + key.name() + "' was registered with result type "
                     + member.resultType + " but the key claims " + key.resultType());
         }
         return (ListenableFuture<T>) member.future;
@@ -504,9 +504,9 @@ public final class TaskGroup implements AutoCloseable {
                 ExecutionPhaseHintFuture<Object> future =
                         par.prepareGroupTask(castCallable(member.callable()), unit, taskContext);
                 states.put(
-                        member.memberName(),
+                        member.name(),
                         new MemberState(
-                                member.memberName(),
+                                member.name(),
                                 taskContext,
                                 future,
                                 par.submissionExecutor(),
@@ -540,12 +540,12 @@ public final class TaskGroup implements AutoCloseable {
                         par.executorIdentity(),
                         par.name().value());
                 TaskExecutionContext taskContext = new TaskExecutionContext(unit, 0, start);
-                CompletedTaskValues values = new CompletedTaskValues(states, combineDefinition.memberName());
+                CompletedTaskValues values = new CompletedTaskValues(states, combineDefinition.name());
                 CombineFunction<?> function = combineDefinition.function();
                 ExecutionPhaseHintFuture<Object> future =
                         par.prepareGroupTask(() -> function.apply(values), unit, taskContext);
                 terminal = new MemberState(
-                        combineDefinition.memberName(),
+                        combineDefinition.name(),
                         taskContext,
                         future,
                         par.submissionExecutor(),
