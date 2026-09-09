@@ -91,6 +91,10 @@ Two invariants to respect:
 - After implementing a change and verifying it (targeted tests plus `mvn test`
   green, `mvn spotless:apply` clean), commit and push the current branch
   automatically — no need to ask.
+- Exception: do not auto-commit design proposals or analysis documents. They
+  usually need several rounds of discussion, so leave them in the working tree
+  until the direction is settled; committing early both churns history and
+  reads as approval that has not been given.
 - Stage only the files belonging to the change; leave unrelated working-tree
   modifications uncommitted. Follow the repository's conventional-commit style
   (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`, lowercase summary).
