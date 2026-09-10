@@ -1,0 +1,45 @@
+demo/docs/zh-CN/README.md
+  s_512b1cd0783af7::t_44a854b3027d4f 5
+demo/README.en.md
+  s_512b1cd0783af7::t_44a854b3027d4f 7
+README.en.md
+  s_512b1cd0783af7::t_44a854b3027d4f 10
+README.zh-CN.md
+  s_512b1cd0783af7::t_44a854b3027d4f 10
+demo/pom.xml
+  s_512b1cd0783af7::t_44a854b3027d4f 21
+  s_512b1cd0783af7::t_32acfa0228951e 9
+CHANGELOG.md
+  s_512b1cd0783af7::t_ce0271ff41d396 20
+  s_512b1cd0783af7::t_12f582bdff4e3e 50
+  s_512b1cd0783af7::t_a1d3109560c7e6 68-72
+  s_512b1cd0783af7::t_107120764561cf 3,7-8
+docs/en/user-guide.md
+  s_512b1cd0783af7::t_44a854b3027d4f 3
+pom.xml
+  s_512b1cd0783af7::t_11cf87783a8916 9
+demo/README.md
+  s_512b1cd0783af7::t_44a854b3027d4f 5
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_512b1cd0783af7::t_44a854b3027d4f 14
+docs/zh/user-guide.md
+  s_512b1cd0783af7::t_44a854b3027d4f 3
+demo/docs/en/README.md
+  s_512b1cd0783af7::t_44a854b3027d4f 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2f9b5e5579d681f9d031c114b1f99eede08eb4e8",
+  "prompts": {},
+  "sessions": {
+    "s_512b1cd0783af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20c8c92c-0a6f-4f35-9a42-f538907d1c20",
+        "model": "deepseek-v4.1-flash-expires-on-0910"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
