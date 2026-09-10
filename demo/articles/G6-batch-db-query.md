@@ -35,25 +35,25 @@ for (Future<List<User>> f : futures) {
 `parallel-in-scope` 的 `Par.map()` 天然适合"分片并行"场景。只需三步：
 
 1. 把 ID 列表按片大小切分成 `List<List<Long>>` 分片列表
-2. 调用 `par.map("db-pool", shards, shard -> userDao.selectByIds(shard), options)`
-3. 从 `AsyncBatchResult` 中收集每个分片的结果
+2. 调用 `par.map( shards, shard -> userDao.selectByIds(shard), options)`
+3. 从 `TaskBatchResult` 中收集每个分片的结果
 
 `Par.map()` 的滑动窗口调度确保并发度受控（通过 `parallelism` 参数），不会一次性打满数据库连接池。内置超时和异常处理让代码从上百行缩减到十几行。
 
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
 
 // 1. 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(8);
-ParConfig config = ParConfig.builder()
-        .executor("db-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("db-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 2. 构建分片：把 10000 个 ID 切成 10 片，每片 1000 个
 List<Long> allIds = loadAllIds(); // 10000 个
@@ -64,18 +64,15 @@ for (int i = 0; i < allIds.size(); i += shardSize) {
 }
 
 // 3. 并行查询，parallelism=5 表示最多同时 5 个分片在执行
-ParOptions options = ParOptions.ioTask("db-batch-query")
-        .parallelism(5)
-        .timeout(30000)
-        .build();
+BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(5).taskType(TaskType.IO_BOUND);
 
-AsyncBatchResult<List<User>> result = par.map("db-pool", shards, shard -> {
+TaskBatchResult<List<User>> result = par.map( shards, shard -> {
     return userDao.selectByIds(shard);
 }, options);
 
 // 4. 收集所有分片的结果
 List<User> allUsers = new ArrayList<>();
-for (ListenableFuture<List<User>> future : result.getResults()) {
+for (ListenableFuture<List<User>> future : result.results()) {
     allUsers.addAll(future.get());
 }
 
@@ -95,4 +92,4 @@ System.out.println("查询完成: " + allUsers.size() + " 条");
 
 ---
 
-> 📁 完整测试代码：[G6_BatchDbQueryTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java)
+> 📁 完整测试代码：[G6_BatchDbQueryTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java)

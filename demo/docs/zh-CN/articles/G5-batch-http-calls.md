@@ -32,28 +32,26 @@ try {
 
 ## 解决方法
 
-`Par.map()` + `ParOptions` 一行搞定：
+`Par.map()` + `BatchOptions` 一行搞定：
 - `parallelism(4)` — 最多 4 个并发，滑动窗口调度，队列深度始终受控
 - `timeout(3000)` — 本次批量调用最多执行 3 秒，超时后取消所有未完成任务
 - fail-fast — 首个任务失败即取消剩余未完成任务
 
-结果通过 `AsyncBatchResult` 聚合，`reportString()` 一行查看状态分布。
+结果通过 `TaskBatchResult` 聚合，`reportString()` 一行查看状态分布。
 
 ## 代码
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("http-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("http-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("batch-http")
+BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
         .parallelism(4)           // 最多 4 个并发
-        .timeout(3000)            // 3 秒超时
-        .taskType(TaskType.IO_BOUND)
-        .build();
+        .taskType(TaskType.IO_BOUND);
 
-AsyncBatchResult<String> result = par.map("http-pool", services, svc -> {
+TaskBatchResult<String> result = par.map( services, svc -> {
     return callService(svc);  // 纯业务逻辑
 }, opts);
 
@@ -61,12 +59,12 @@ AsyncBatchResult<String> result = par.map("http-pool", services, svc -> {
 Thread.sleep(3500);
 System.out.println(result.reportString());
 // 成功时: SUCCESS:10
-// 批次超时时可能为: SUCCESS:7,CANCELLED:3
-// 有异常: SUCCESS:8,FAILED:1,CANCELLED:1
+// 批次超时时可能为: SUCCESS:7,MEMBER_CANCELED:3
+// 有异常: SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1
 ```
 
 对比 `CompletableFuture.allOf()`：同样 10 个任务、同样 3 秒等待上限，`Par.map()` 的批次超时会取消剩余未完成任务；`allOf().get(timeout)` 只让调用者停止等待，不会取消池中的任务。正在执行的 HTTP 调用仍需支持线程中断或其他协作式取消机制，才能及时释放线程和连接。
 
 ---
 
-> 完整测试代码：[G5_BatchHttpCallsTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)
+> 完整测试代码：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)

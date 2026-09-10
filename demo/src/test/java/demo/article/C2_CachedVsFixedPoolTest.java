@@ -1,27 +1,25 @@
 package demo.article;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 /**
  * C2. CachedThreadPool 不会死锁 — 问题复现与对比验证
  *
- * <p>场景：同一个嵌套并行模式，分别用 FixedThreadPool 和 CachedThreadPool 执行。
- * FixedThreadPool 因为有界队列 + 固定线程数导致死锁；
+ * <p>场景：同一个嵌套并行模式，分别用 FixedThreadPool 和 CachedThreadPool 执行。 FixedThreadPool 因为有界队列 + 固定线程数导致死锁；
  * CachedThreadPool 因为 SynchronousQueue + 按需创建线程，天然不会死锁。
  *
  * <p>Test 1: FixedThreadPool 嵌套并行导致死锁
+ *
  * <p>Test 2: CachedThreadPool 同样的嵌套模式正常完成
  */
 class C2_CachedVsFixedPoolTest {
@@ -29,9 +27,7 @@ class C2_CachedVsFixedPoolTest {
     /**
      * Test 1 — 问题复现：FixedThreadPool 嵌套并行导致死锁
      *
-     * <p>2 线程的固定池，外层提交 2 个任务占满线程池。
-     * 每个外层任务内部向同一个池提交内层子任务并等待结果。
-     * 内层子任务排队等线程，外层任务等内层完成——循环等待死锁。
+     * <p>2 线程的固定池，外层提交 2 个任务占满线程池。 每个外层任务内部向同一个池提交内层子任务并等待结果。 内层子任务排队等线程，外层任务等内层完成——循环等待死锁。
      *
      * <p>使用 Future.get(timeout) 捕获 TimeoutException 来证明死锁发生。
      */
@@ -83,8 +79,7 @@ class C2_CachedVsFixedPoolTest {
     /**
      * Test 2 — 对比验证：CachedThreadPool 同样的嵌套模式正常完成
      *
-     * <p>与 Test 1 完全相同的嵌套结构，但使用 CachedThreadPool。
-     * CachedThreadPool 底层使用 SynchronousQueue，没有任务队列，
+     * <p>与 Test 1 完全相同的嵌套结构，但使用 CachedThreadPool。 CachedThreadPool 底层使用 SynchronousQueue，没有任务队列，
      * 每当有新任务提交时自动创建新线程。内层子任务总能获得线程执行，不会死锁。
      */
     @Test
@@ -108,11 +103,12 @@ class C2_CachedVsFixedPoolTest {
 
             // 验证所有任务正常完成，无死锁
             assertThatCode(() -> {
-                String result1 = outer1.get(10, TimeUnit.SECONDS);
-                String result2 = outer2.get(10, TimeUnit.SECONDS);
-                assertThat(result1).isEqualTo("inner-result");
-                assertThat(result2).isEqualTo("inner-result");
-            }).doesNotThrowAnyException();
+                        String result1 = outer1.get(10, TimeUnit.SECONDS);
+                        String result2 = outer2.get(10, TimeUnit.SECONDS);
+                        assertThat(result1).isEqualTo("inner-result");
+                        assertThat(result2).isEqualTo("inner-result");
+                    })
+                    .doesNotThrowAnyException();
 
         } finally {
             pool.shutdownNow();

@@ -1,5 +1,7 @@
 # Idea Graveyard
 
+> Historical examples in this note may use the pre-v0.2 API. Current application wiring uses `GlobalPar.builder()` and the per-scope option types (`BatchOptions`/`TaskGroupOptions`/`TaskOptions`); see the [migration guide](../migration-v0.2.md).
+
 This page records features we seriously considered but ultimately decided not to implement, together with the reasons for rejecting them.
 
 ## Configurable failure policies
@@ -20,7 +22,7 @@ Priority scheduling can starve work and conflicts with the predictable sliding-w
 
 ## Spring Boot starter
 
-The core library is framework-neutral and targets Java 8. A starter would add Spring Boot 2.x/3.x compatibility and auto-configuration maintenance for a small amount of wiring. Explicit `ParConfig.builder()` setup keeps the dependency boundary clear.
+The core library is framework-neutral and targets Java 8. A starter would add Spring Boot 2.x/3.x compatibility and auto-configuration maintenance for a small amount of wiring. Explicit `GlobalPar.builder()` setup keeps the dependency boundary clear.
 
 ## Per-task timeout
 

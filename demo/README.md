@@ -2,7 +2,7 @@
 
 # parallel-in-scope-demo
 
-独立示例项目，演示如何使用 parallel-in-scope 并发工具库。
+独立示例项目，演示如何使用 parallel-in-scope 并发工具库。当前代码和文章统一使用 `0.2.0` API，可作为外部消费者示例。
 
 ## 快速开始
 
@@ -63,25 +63,21 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.huatalk.parallelinscope.scope` (Par, ParOptions, AsyncBatchResult, ParConfig)
-- `io.github.huatalk.parallelinscope.spi` (TaskListener, ExecutorResolver)
+- `io.github.monadrome.parallelinscope` (GlobalPar, Par, BatchOptions, TaskBatchResult, listeners)
+- `io.github.monadrome.parallelinscope.queue` (independent general-purpose queues)
 
-**禁止访问**：
-- `io.github.huatalk.parallelinscope.internal`
-- `io.github.huatalk.parallelinscope.cancel`
-- `io.github.huatalk.parallelinscope.context`
-- `io.github.huatalk.parallelinscope.context.graph`
-- `io.github.huatalk.parallelinscope.queue`
+Cancellation, context, graph, and scheduling internals are package-private in the root package, so
+consumer code cannot import them.
 
 ### 包命名约定
 
-使用 `demo.*` 命名空间，禁止使用 `io.github.huatalk.parallelinscope.*`
+使用 `demo.*` 命名空间，禁止使用 `io.github.monadrome.parallelinscope.*`
 
 ## 添加新示例
 
 1. 选择合适的包（basic/advanced/integration）
 2. 创建新的 Java 类，使用 `demo.*` 包名
-3. 只导入允许的包（scope 和 spi）
+3. 只导入已发布的 public 类型
 4. 添加对应的测试类
 5. 更新 `scripts/run-demos.sh` 脚本
 
@@ -89,7 +85,8 @@ demo (消费者) → parallel-in-scope (发布版本)
 
 ### Q: 为什么不能访问内部包？
 
-A: 内部包是 parallel-in-scope 的实现细节，可能在版本更新时发生变化。只使用公共 API 可以确保示例代码的稳定性。
+A: 内核类与 API 同包但使用 package-private 强制隐藏。示例只使用 public 类型，
+因此不会绑定执行实现。
 
 ### Q: 如何更新依赖版本？
 

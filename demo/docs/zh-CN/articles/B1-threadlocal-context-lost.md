@@ -30,14 +30,9 @@ for (int i = 0; i < 3; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 内部集成了阿里巴巴的 `TransmittableThreadLocal`（TTL）来解决跨线程上下文传播问题。框架在 `ThreadRelay` 中注册了 TTL 传播器，当 `Par.map()` 将任务提交到线程池时，TTL 会在提交前自动捕获父线程的上下文，并在工作线程执行前回放。整个过程对开发者透明——你不需要手动 `put`/`get`，也不需要修改 lambda 签名。
+`parallel-in-scope` 会在 `Par.map()` 边界捕获 `TransmittableThreadLocal`，并在每个任务执行前回放、执行后恢复。普通 `ThreadLocal` 不会传播；MDC 只有采用 TTL 兼容适配器时才会随任务传播。
 
-关键机制如下：
-- **提交前捕获**：TTL 在 `ExecutorService.execute()` 调用时，自动快照当前线程的所有 `TransmittableThreadLocal` 值
-- **执行前回放**：工作线程开始执行前，TTL 将快照的值注入到工作线程的 `ThreadLocal` 中
-- **执行后清理**：任务结束后，TTL 恢复工作线程原始的 `ThreadLocal` 状态，避免线程复用导致的上下文泄漏
-
-使用 `Par.map()` 时，lambda 中的业务代码可以像在主线程一样访问 `MDC.get("traceId")`，值与主线程一致。开发者只需把 `MDC` 的 `ThreadLocal` 替换为 `TransmittableThreadLocal` 版本（如 Logback 的 `TtlMDCAdapter`），即可与框架无缝配合。
+任务包装器在完成后释放捕获快照，避免已结束任务继续持有请求上下文。框架自身的取消、deadline 和嵌套关系仍由显式的任务上下文管理，不依赖 TTL。
 
 ## 代码
 
@@ -45,33 +40,29 @@ for (int i = 0; i < 3; i++) {
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("biz-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("biz-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-// 主线程设置 MDC（使用 TTL 版本的 MDC 适配器）
+// 主线程设置 MDC（需要 TTL 兼容的 MDC 适配器）
 MDC.put("traceId", "abc-123");
 
 // 配置并行选项
-ParOptions opts = ParOptions.of("process-orders")
-        .parallelism(4)
-        .timeout(5000)
-        .build();
+BatchOptions opts = BatchOptions.timeout("process-orders", java.time.Duration.ofMillis(5000)).parallelism(4);
 
 // 并行处理订单
 List<Order> orders = orderRepository.findPending();
-AsyncBatchResult<ProcessResult> result = par.map("biz-pool", orders, order -> {
-    // 工作线程中 MDC.get("traceId") 返回 "abc-123"
-    // 框架通过 TTL 自动传播，无需手动设置
+TaskBatchResult<ProcessResult> result = par.map( orders, order -> {
+    // TTL 兼容的 MDC 中可以读取 traceId
     log.info("处理订单: {}", order.getId());
     return processOrder(order);
 }, opts);
 
-// 日志链路完整，所有并行任务的日志都携带 traceId
+// 批次取消与超时由任务上下文管理；MDC 通过 TTL 快照传播
 System.out.println(result.reportString());
 ```
 
 ---
 
-> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)
+> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)

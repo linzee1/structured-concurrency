@@ -4,10 +4,13 @@
 
 The runnable demo classes and tests are language-neutral. The long-form problem articles are currently maintained in Chinese and are indexed separately.
 
+> Demo code targets the `0.2.0` artifact and uses the current `GlobalPar`/`BatchOptions` API.
+
 ## Start Here
 
 - [Demo README](../../README.en.md)
 - [Full English user guide](../../../docs/en/user-guide.md)
+- [v0.2 migration guide](../../../docs/en/migration-v0.2.md)
 - [Chinese article catalog](../zh-CN/README.md)
 
 ## Example Groups

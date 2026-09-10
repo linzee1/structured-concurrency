@@ -1,0 +1,106 @@
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.lang.reflect.Modifier;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+
+class PublicApiSurfaceTest {
+    private static final String BASE_PACKAGE = "io.github.monadrome.parallelinscope";
+
+    private static final Set<String> EXPECTED_PUBLIC_TYPES = new TreeSet<>(Arrays.asList(
+            BASE_PACKAGE + ".BatchOptions",
+            BASE_PACKAGE + ".CancellationToken",
+            BASE_PACKAGE + ".Checkpoints",
+            BASE_PACKAGE + ".CombineFunction",
+            BASE_PACKAGE + ".CompletedTaskValues",
+            BASE_PACKAGE + ".DeadlockDetectionListener",
+            BASE_PACKAGE + ".GlobalPar",
+            BASE_PACKAGE + ".GlobalParDeadlockPolicy",
+            BASE_PACKAGE + ".GlobalParPurgePolicy",
+            BASE_PACKAGE + ".LeanCancellationException",
+            BASE_PACKAGE + ".Par",
+            BASE_PACKAGE + ".ParName",
+            BASE_PACKAGE + ".SmartBlockingQueue",
+            BASE_PACKAGE + ".Task",
+            BASE_PACKAGE + ".TaskBatchResult",
+            BASE_PACKAGE + ".TaskCompletion",
+            BASE_PACKAGE + ".TaskFuture",
+            BASE_PACKAGE + ".TaskGraphObservationScope",
+            BASE_PACKAGE + ".TaskGroup",
+            BASE_PACKAGE + ".TaskGroupDefinition",
+            BASE_PACKAGE + ".TaskGroupOptions",
+            BASE_PACKAGE + ".TaskGroupListener",
+            BASE_PACKAGE + ".TaskGroupResult",
+            BASE_PACKAGE + ".TaskKey",
+            BASE_PACKAGE + ".TaskListener",
+            BASE_PACKAGE + ".TaskOptions",
+            BASE_PACKAGE + ".TaskOutcome",
+            BASE_PACKAGE + ".TaskType",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue",
+            BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue",
+            // Nested types are named with the binary '$' separator; the visibility of a nested
+            // type is part of the API just like a top-level one, so it is pinned here too.
+            BASE_PACKAGE + ".CancellationToken$State",
+            BASE_PACKAGE + ".DeadlockDetectionListener$DeadlockDetectionEvent",
+            BASE_PACKAGE + ".GlobalPar$Builder",
+            BASE_PACKAGE + ".GlobalParDeadlockPolicy$Builder",
+            BASE_PACKAGE + ".GlobalParPurgePolicy$Builder",
+            BASE_PACKAGE + ".TaskBatchResult$BatchReport",
+            BASE_PACKAGE + ".TaskGroupDefinition$Builder",
+            BASE_PACKAGE + ".TaskGroupDefinition$CombineDefinition",
+            BASE_PACKAGE + ".TaskGroupDefinition$TaskDefinition",
+            BASE_PACKAGE + ".TaskGroupListener$TaskGroupEvent",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue$MutationsStrategy",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy$Builder"));
+
+    @Test
+    void publicTypesMatchTheReviewedApi() throws Exception {
+        Set<String> actual = declaredClassNames().stream()
+                .filter(PublicApiSurfaceTest::isPublic)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        assertThat(actual).isEqualTo(EXPECTED_PUBLIC_TYPES);
+    }
+
+    private static Set<String> declaredClassNames() throws Exception {
+        URI location = GlobalPar.class
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .toURI();
+        Path packageRoot = Paths.get(location).resolve(BASE_PACKAGE.replace('.', '/'));
+        try (Stream<Path> paths = Files.walk(packageRoot)) {
+            return paths.filter(Files::isRegularFile)
+                    .map(packageRoot::relativize)
+                    .map(Path::toString)
+                    .filter(name -> name.endsWith(".class"))
+                    // Named nested types stay in (their visibility is API); anonymous, local, and
+                    // synthetic classes are compiler output, not declared types.
+                    .filter(name -> !name.matches(".*\\$\\d.*"))
+                    .filter(name -> !name.endsWith("package-info.class"))
+                    .map(name -> BASE_PACKAGE + "."
+                            + name.substring(0, name.length() - 6).replace('/', '.'))
+                    .collect(Collectors.toCollection(TreeSet::new));
+        }
+    }
+
+    private static boolean isPublic(String className) {
+        try {
+            return Modifier.isPublic(Class.forName(className, false, GlobalPar.class.getClassLoader())
+                    .getModifiers());
+        } catch (ClassNotFoundException impossible) {
+            throw new AssertionError(impossible);
+        }
+    }
+}

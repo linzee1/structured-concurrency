@@ -10,8 +10,10 @@ source: "原创"
 
 # 并发库的减法哲学：parallel-in-scope 设计复盘
 
+> 本文记录 v0.2 前后的设计演进，部分代码片段使用历史 API。当前公开 API 以[使用指南](../user-guide.md)和 [v0.2 迁移指南](../migration-v0.2.md) 为准。
 
-> 本文随仓库按 [Apache License 2.0](https://github.com/HuaTalk/parallel-in-scope/blob/main/LICENSE) 许可使用和转载；请保留许可证要求的版权与许可声明。
+
+> 本文随仓库按 [Apache License 2.0](https://github.com/monadrome/parallel-in-scope/blob/main/LICENSE) 许可使用和转载；请保留许可证要求的版权与许可声明。
 
 ## 引言
 
@@ -97,7 +99,7 @@ par.map("shared-pool", orders, order -> {
 如果并发编程的痛苦来自"选择太多"，那解法就是**减少选择**。
 
 ```java
-AsyncBatchResult<String> result = par.map(
+TaskBatchResult<String> result = par.map(
     "io-pool",   // 线程池名称
     urls,        // 输入列表
     url -> fetch(url),  // 处理函数
@@ -165,22 +167,22 @@ List<Future<String>> results = pool.invokeAll(callables); // 阻塞到全部完�
 // 阶段 1：启动滑动窗口提交
 // 前 parallelism 个任务立即提交，剩余任务用 SettableFuture 占位并按完成情况补充
 // 每完成一个任务，从队列中取下一个占位符，用 SettableFuture.setFuture() 补充实际任务
-AsyncBatchResult<?> result = ConcurrentLimitExecutor
+TaskBatchResult<?> result = SlidingWindowSubmitter
     .create(executor, options, submitterPool)
     .submitAll(wrappedTasks);
 
-// 阶段 2：绑定结果 Future、提交循环、超时、fail-fast 和父级取消
-cancellationToken.lateBind(
-    result.getResults(), options.forTimeout(), result.getSubmitCanceller());
+// 阶段 2：绑定结果 Future、提交循环、超时和 fail-fast
+//（deadline 存在 token 内部，构造时已与 parent 取 min）
+cancellationToken.bind(
+    result.results(), result.submitCanceller(), timer);
 ```
 
-> 注：以上省略了泛型和周边配置。实际实现通过 `ExecutorCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
+> 注：以上省略了泛型和周边配置。实际实现通过内部 `ListenableCompletionService` + `SettableFuture` 占位 + 独立的 `submitterPool` 阻塞循环完成滑动窗口调度；`submitCanceller` 用于在取消时终止后续任务提交。
 
-`lateBind()` 依次绑定三条链路：
+父级取消传播在 token 构造期挂接（parent 完成时子 token 转为 `PROPAGATED_CANCELED`）；`bind()` 再绑定两条链路：
 
-1. **父级取消传播** — 如果存在 parent token，监听 parent 的取消事件，级联取消
-2. **Fail-fast** — `Futures.allAsList(futures)` 将所有子 Future 绑定在一起，任一失败立即触发取消
-3. **超时** — `FluentFuture.withTimeout()` 在全局定时器上设置超时
+1. **Fail-fast** — `Futures.allAsList(futures)` 将所有子 Future 绑定在一起，任一失败立即触发取消
+2. **超时** — `FluentFuture.withTimeout()` 在全局定时器上按 token 内 deadline 设置超时
 
 **晚绑定的本质是显式分离"提交调度"和"取消绑定"。** `submitAll()` 返回按输入顺序排列的 Future（尚未实际提交的任务由占位 Future 表示），随后再把这些 Future、提交循环和超时连接到同一个取消令牌。
 
@@ -198,10 +200,10 @@ cancellationToken.lateBind(
 
 `fillInStackTrace()` 是 JVM 里最贵的操作之一——它要收集整个调用栈的栈帧，大约占异常创建总耗时的 90%+，一次调用约 1-5 微秒（取决于栈深度）。如果检查点每秒被调用 100 万次，那就是每秒 1-5 秒的 CPU 时间花在填栈上——这个开销是致命的。
 
-parallel-in-scope 提供了两种取消异常：
+parallel-in-scope 在高频路径提供轻量取消异常，并在诊断场景使用 JDK 标准异常：
 
 - **`LeanCancellationException`：** 覆写 `fillInStackTrace()` 返回 `this`，零开销。用于高频检查点。
-- **`FatCancellationException`：** 保留完整堆栈。用于调试场景。
+- **`CancellationException`：** 保留完整堆栈。用于调试场景。
 
 ```java
 // 典型使用位置：循环体内部或长任务的关键步骤之间
@@ -211,20 +213,20 @@ for (Item item : items) {
 }
 
 // 调试时切换为 false，保留完整堆栈方便排查
-Checkpoints.checkpoint("process-item", false); // 抛出 FatCancellationException
+Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 ```
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-`CancellationTokenState` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS` 和 `NO_OP`）：
+`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS`）：
 
 | 状态 | Code | 含义 |
 |---|---|---|
 | `RUNNING` | 0 | 正常执行 |
-| `FAIL_FAST_CANCELED` | -1 | 某个子任务失败，触发 fail-fast |
-| `TIMEOUT_CANCELED` | -2 | 批次超时 |
-| `MUTUAL_CANCELED` | -3 | 多个取消源同时触发 |
-| `PROPAGATING_CANCELED` | -4 | 父任务取消，级联传播 |
+| `FAIL_FAST` | -1 | 某个子任务失败，触发 fail-fast |
+| `TIMEOUT` | -2 | 批次超时 |
+| `CANCELED` | -3 | 被显式 `cancel()` |
+| `PROPAGATED_CANCELED` | -4 | 父任务取消，级联传播 |
 
 `shouldInterruptCurrentThread()` 方法简单判断 `code < 0`——如果是负数，说明被取消了，检查点立即抛出异常。
 
@@ -260,13 +262,13 @@ ParOptions ioOpts = ParOptions.ioTask("fetchRemote")
 ```java
 @Override
 public boolean offer(E e) {
-    ParOptions opts = TaskScopeTl.getParallelOptions();
+    MultiTaskContext unit = SubmissionScope.current();
     // CPU 密集型任务：拒绝入队，触发 CallerRunsPolicy 同步执行
-    if (opts != null && opts.getTaskType() == TaskType.CPU_BOUND) {
+    if (unit != null && unit.taskType() == TaskType.CPU_BOUND) {
         return false;
     }
     // 显式拒绝入队的场景
-    if (opts != null && opts.isRejectEnqueue()) {
+    if (unit != null && unit.rejectEnqueue()) {
         return false;
     }
     return delegate.offer(e);  // 组合模式，委托给内部队列
@@ -283,42 +285,11 @@ public boolean offer(E e) {
 
 ---
 
-## 六、两 Map 接力：ThreadLocal 的跨线程传播，零侵入
+## 六、上下文边界：只表达实际执行与实际提交
 
-"ThreadLocal 在线程池中丢失"是 Java 并发编程中最常见的坑之一。
+任务执行时，`TaskExecutionContext.current()` 是当前任务的唯一来源；取消、deadline 和嵌套批次关系都从它的 `multiTaskContext()` 读取。任务尚未开始时没有“当前任务”，线程池只需要知道正在提交哪个批次，内部 `SubmissionScope` 因而只在提交调用的短窗口中存在，用于让 `SmartBlockingQueue` 读取入队策略。
 
-**传统做法有三种，各有各的问题：**
-
-1. **手动传参** — 把 `traceId`、`userId`、`cancellationToken` 一层层传下去。每多一个上下文，所有调用链都要改。一个真实项目中，我见过函数签名从 `fetch(url)` 膨胀到 7 个参数。
-2. **InheritableThreadLocal** — 只在 `new Thread()` 时复制。线程池复用线程时，第二个请求拿到的还是第一个请求的上下文。
-3. **手动包装 Runnable** — 能解决，但每多传一个上下文就要多包一层，代码变成"包装器套包装器"。
-
-三种做法的共同问题是：**上下文传播的逻辑和业务逻辑纠缠在一起。** 你改一个 `fetch()` 的签名，整个调用链都要跟着动。
-
-parallel-in-scope 的方案是 **两 Map 接力**：
-
-```java
-// ThreadRelay 的核心结构（简化）
-private final ConcurrentHashMap<RelayItem, Object> parentMap;  // 从父线程继承
-private final ConcurrentHashMap<RelayItem, Object> curMap;     // 当前线程设置
-```
-
-通过 Alibaba TTL（TransmittableThreadLocal）的 `Transmitter.registerThreadLocal()` 注册后，TTL 增强的提交链路会将父线程的 `curMap` 捕获为子线程的 `parentMap`。传播的内容包括：`CancellationToken`、`ParOptions`、任务名称、执行器名称。用户提供的执行器需要通过 TTL Wrapper 或 TTL Agent 增强；`ThreadRelay` 本身不包装执行器。
-
-**对比手动传参：**
-
-```java
-// 手动传参：每个任务函数都要加参数
-par.map("io-pool", urls, url -> fetch(url, traceId, userId, cancellationToken), opts);
-
-// 两 Map 接力：业务代码无感知
-par.map("io-pool", urls, url -> fetch(url), opts);
-// fetch() 内部通过 TaskScopeTl.getCancellationToken() 自动获取
-```
-
-**与其他方案的对比：** Spring 的 `RequestContextHolder` 基于 `InheritableThreadLocal`，只在 `new Thread()` 时复制——线程池复用线程时不会更新。手动包装 `Runnable` 传参能解决，但每多传一个上下文就要多改一层调用链。TTL 本身解决了线程池复用的问题，但 `ThreadRelay` 的两 Map 设计在此基础上增加了"继承链"——子线程能区分哪些上下文是从父线程继承的、哪些是自己设置的，清理时不会误删父线程的数据。
-
-**完成 TTL 集成后，上下文传播对业务代码保持透明。** 两 Map 接力让业务函数不必为框架上下文增加参数。
+这两个作用域都不通过任意用户线程池提交传播。结构化的子任务必须由 `Par.map()` 创建，避免任意 `Runnable` 被误认为取消树或任务图中的子节点。
 
 ---
 
@@ -341,15 +312,11 @@ parallel-in-scope 的解决方案是 **请求级 DAG 图**（DAG = Directed Acyc
 
 ```java
 // 请求入口
-TaskGraph.initOnRequest();
-try {
+try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
     // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
     // 例如上面的嵌套调用会记录两条边：
     //   "processOrder" → "fetchItem"  (executor: shared-pool → shared-pool)
-} finally {
-    // 请求结束时自动检测
-    TaskGraph.destroyAfterRequest(config);
-}
+} // 请求结束时 close() 自动检测
 ```
 
 请求结束时执行两层检测：
@@ -363,13 +330,13 @@ try {
 - `maximumPoolSize` 为 `Integer.MAX_VALUE` 的执行器 → 不会死锁，因为线程数可以无限增长
 - 其他情况（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能死锁**
 
-检测结果通过 `LivelockListener` SPI 回调通知：
+检测结果通过 `DeadlockDetectionListener` SPI 回调通知：
 
 ```java
 ParConfig config = ParConfig.builder()
     .executor("shared-pool", pool)
-    .livelockDetectionEnabled(true)
-    .livelockListener(event -> {
+    .deadlockDetectionEnabled(true)
+    .deadlockListener(event -> {
         if (event.hasExecutorSelfLoop()) {
             log.warn("Potential deadlock: executor self-loop detected! {}",
                 event.getExecutorEdges());
@@ -473,7 +440,7 @@ parallel-in-scope 有一些已知的局限，它们是刻意的设计选择：
 
 潜龙勿用——但如果用了，就用对。
 
-如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `livelockDetectionEnabled(true)`——一行配置，零代码改动。至少，下次卡死的时候你能知道为什么。
+如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `deadlockDetectionEnabled(true)`——一行配置，零代码改动。至少，下次卡死的时候你能知道为什么。
 
 ---
 

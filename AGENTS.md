@@ -1,0 +1,132 @@
+# AGENTS.md
+
+## Project
+
+**parallel-in-scope** is a structured-concurrency toolkit for Java 8+ built on
+Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
+
+- Maven coordinates: `io.github.monadrome:parallel-in-scope:0.2.0`
+- Java source/target 1.8 (tests compiled with release 11); JUnit 5 via Surefire
+
+## Commands
+
+Run from the repository root.
+
+```bash
+mvn test                                      # all tests
+mvn test -Dtest=<ClassName>#<methodName>      # targeted test
+mvn spotless:apply                            # format
+mvn clean verify                              # tests + package checks
+```
+
+## Architecture
+
+Base package: `io.github.monadrome.parallelinscope`.
+
+| Package | Responsibility |
+|---|---|
+| root package | Public API and callbacks plus the package-private execution kernel |
+| `queue` | Independent general-purpose queue implementations |
+
+The root package deliberately co-locates the public API with package-private cancellation,
+context, graph, and scheduling implementation. This is the Java 8 encapsulation boundary: do not
+reintroduce public bridge types or conceptual subpackages merely to categorize files.
+
+Two invariants to respect:
+
+- `CancellationToken.bind()` wires deadline, fail-fast, and parent
+  propagation only after all futures are submitted; the deadline itself lives
+  in the token (min of the requested deadline and the parent's).
+- `SlidingWindowSubmitter.submitAll()` returns the exact prepared
+  `ExecutionPhaseHintFuture` for tasks in the initial parallelism window;
+  tasks beyond the window are returned as `SettableFuture` placeholders
+  bridged via `setFuture()` when a slot frees.
+
+## Working Principles
+
+- Analyze every requirement's implementation from first principles by
+  default: start from the project's axioms (structured concurrency;
+  maximize the safety and convenience of user-facing concurrency) in
+  `design/first-principles.md`, apply its evaluation checklist to any new
+  capability or concept, and only then drop into the specific contract
+  documents. Prefer parameterizing existing mechanisms over adding new
+  concepts.
+
+## Key Conventions
+
+- Java 8 APIs only in `src/main/java`.
+- Accessors use the bare `x()` style everywhere (`token.state()`, `event.result()`);
+  do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
+  third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
+  `Monitor.Guard.isSatisfied()`).
+- Every package has `package-info.java` with `@ParametersAreNonnullByDefault`;
+  annotate only exceptions with `@Nullable` — `javax.annotation.Nullable` for
+  public API/SPI, `org.checkerframework.checker.nullness.qual.Nullable` for
+  internal code (both provided scope).
+- Logging goes through JUL (`java.util.logging.Logger`).
+- The `Scope` suffix marks a lifecycle scope (`SubmissionScope`,
+  `TaskGraphObservationScope`); public scopes are closeable, while package-private scopes may be
+  stack-installed implementation details. The `Context` suffix marks a data carrier
+  (a view or resolved parameters); the `Key` suffix marks a configuration-time
+  typed key whose equality is its member name (`TaskKey`); the `Name` suffix
+  marks a value object naming a logical entry (`ParName`).
+- Pre-stable API: public APIs and SPI may change between `0.x` releases without
+  compatibility shims. During the `0.x` phase, a breaking change is acceptable
+  when it provides a meaningful improvement and has a sufficiently documented
+  rationale; do not preserve an awkward API solely for compatibility.
+- For public API renames or signature changes, update the implementation,
+  tests, user documentation, and migration notes as one change. Keep the
+  rationale explicit so future maintainers can distinguish intentional API
+  evolution from accidental breakage.
+
+## Testing
+
+- Add or update tests when changing cancellation, context propagation, executor
+  binding, or queue behavior.
+- Run `mvn test` before finishing changes that touch the execution engine or
+  public API.
+
+## Git Workflow
+
+- After implementing a change and verifying it (targeted tests plus `mvn test`
+  green, `mvn spotless:apply` clean), commit and push the current branch
+  automatically — no need to ask.
+- Exception: do not auto-commit design proposals or analysis documents. They
+  usually need several rounds of discussion, so leave them in the working tree
+  until the direction is settled; committing early both churns history and
+  reads as approval that has not been given.
+- Stage only the files belonging to the change; leave unrelated working-tree
+  modifications uncommitted. Follow the repository's conventional-commit style
+  (`feat:`/`fix:`/`refactor:`/`docs:`/`test:`, lowercase summary).
+
+## Ask Before
+
+- Installing Maven dependencies or upgrading plugin versions.
+- Deleting files or directories.
+- Full release builds, PIT mutation tests, or `mvn deploy`.
+
+Never commit secrets, `.env` files, GPG keys, or repository credentials.
+
+## Subagent Usage
+
+When the coding agent is Kimi Code, implement code changes directly in the
+main agent; do not proactively delegate implementation to subagents. The only
+exceptions are read-only exploration/analysis subagents and cases where the
+user explicitly asks for subagent delegation.
+
+## Reference Documents
+
+- `docs/en/user-guide.md` - Read when changing user-facing behavior.
+- `docs/en/migration-v0.2.md` - Breaking changes from the `0.1.x` API.
+
+## Design Documents
+
+Before changing the execution engine, cancellation, task groups, or queue
+behavior, read `design/AGENTS.md` first and load only the documents whose
+summaries match your task — do not pre-read everything.
+Overview: axioms and new-feature evaluation → `design/first-principles.md`;
+task group contract → `design/task-group-*.md`; cancellation
+propagation mechanics → `design/cancellation-propagation.md`; queue
+lifecycle contract → `design/draining-queue-contract.md`; design rationale
+and rejected ideas → `docs/zh/design/philosophy.md` and
+`docs/zh/design/idea-graveyard.md`; immutable decision records → `adr/`.

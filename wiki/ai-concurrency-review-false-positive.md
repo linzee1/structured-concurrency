@@ -57,7 +57,7 @@ public void testLateBind_failFast_cancelsSiblingAndSubmitCanceller() {
     failed.setException(new RuntimeException("boom"));
 
     await().untilAsserted(() -> {
-        assertEquals(CancellationTokenState.FAIL_FAST_CANCELED, token.getState());
+        assertEquals(CancellationToken.State.FAIL_FAST_CANCELED, token.getState());
         assertTrue(sibling.isCancelled(), "sibling future should be cancelled by fail-fast");
         assertTrue(submitCanceller.isCancelled(), "submit canceller should be cancelled by fail-fast");
     });

@@ -34,41 +34,36 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 ## 解决方法
 
-`parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `ParOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
+`parallel-in-scope` 的 `Par.map()` 将超时控制与取消机制集成在一起。通过 `BatchOptions.timeout()` 设置超时时间后，框架会在超时触发时自动执行以下操作：
 
 1. **中断线程**：通过 `CancellationToken` 的 `lateBind` 机制，超时后立即中断所有正在执行的任务线程，释放线程池资源。
 
-2. **协作式取消**：对于 CPU 密集型任务，中断可能无法立即生效。配合 `Checkpoints.check()` 检查点，任务可以在循环中主动检测取消状态并提前退出。
+2. **协作式取消**：对于 CPU 密集型任务，中断可能无法立即生效。配合 `Checkpoints.checkpoint(taskName, true)` 检查点，任务可以在循环中主动检测取消状态并提前退出。
 
 3. **批量管理**：无需逐个处理每个 Future，`Par.map()` 统一管理所有任务的生命周期，超时后自动取消剩余任务。
 
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(2);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 设置选项：2 并发，500ms 超时
-ParOptions opts = ParOptions.of("api-call")
-        .parallelism(2)
-        .timeout(500)
-        .timeUnit(TimeUnit.MILLISECONDS)
-        .taskType(TaskType.IO_BOUND)
-        .build();
+BatchOptions opts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.IO_BOUND);
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2");
-AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     // 模拟长时间 IO 操作（响应中断）
     Thread.sleep(5000);
     return fetchContent(url);
@@ -80,4 +75,4 @@ AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[D1_GetTimeoutStillRunningTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java)
+> 📁 完整测试代码：[D1_GetTimeoutStillRunningTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java)

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConcurrentLimitExecutor 滑动窗口死锁分析</title>
+  <style>
+    :root { --paper:#f4f7f8; --surface:#fff; --ink:#16242f; --muted:#62727d; --line:#d8e1e5; --navy:#19354b; --teal:#087e8b; --teal-soft:#dff4f2; --red:#c74251; --red-soft:#fae8eb; --amber:#b66d08; --amber-soft:#fff1d8; --code:#101b25; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:16px/1.65 "Avenir Next", "Segoe UI", system-ui, sans-serif; }
+    .shell { display:grid; grid-template-columns:230px minmax(0,1fr); min-height:100vh; }
+    aside { position:sticky; top:0; height:100vh; padding:28px 20px; color:#dce9ee; background:var(--navy); }
+    .brand { padding-bottom:22px; border-bottom:1px solid #406176; }
+    .brand b { display:block; font-size:20px; line-height:1.2; }
+    .brand span { display:block; margin-top:7px; color:#a9c0cd; font:12px/1.4 ui-monospace, monospace; }
+    nav { display:grid; gap:5px; margin-top:25px; }
+    nav a { padding:8px 10px; color:#bed0d9; text-decoration:none; border-left:2px solid transparent; }
+    nav a:hover { color:#fff; background:#294b61; border-left-color:#77ded5; }
+    main { width:min(1120px, 100%); padding:0 50px 72px; }
+    header { display:grid; grid-template-columns:minmax(0,1fr) 240px; gap:42px; align-items:end; min-height:360px; padding:62px 0 48px; border-bottom:2px solid var(--ink); }
+    .eyebrow, .tag { color:var(--teal); font:700 12px/1.3 ui-monospace, monospace; text-transform:uppercase; }
+    h1, h2, h3, p { margin-top:0; }
+    h1 { max-width:720px; margin:16px 0 20px; font-size:clamp(40px, 5vw, 68px); line-height:1.03; letter-spacing:0; }
+    .lede { max-width:690px; margin:0; color:var(--muted); font-size:18px; }
+    .severity { padding:20px 0 3px 20px; border-left:5px solid var(--red); }
+    .severity strong { display:block; color:var(--red); font-size:36px; line-height:1; }
+    .severity span { display:block; margin-top:8px; color:var(--muted); font-size:13px; }
+    section { padding:52px 0; border-bottom:1px solid var(--line); }
+    h2 { margin-bottom:8px; font-size:29px; line-height:1.15; }
+    .intro { max-width:790px; color:var(--muted); }
+    .callout { margin-top:22px; padding:18px 20px; background:var(--red-soft); border-left:4px solid var(--red); }
+    .callout b { color:#96333e; }
+    .diagram { margin-top:25px; padding:26px; overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:6px; }
+    .lane-grid { display:grid; grid-template-columns:repeat(5, minmax(135px, 1fr)); min-width:760px; }
+    .lane-title { min-height:50px; padding:10px; color:#fff; background:var(--navy); border-right:2px solid var(--surface); font-weight:700; text-align:center; }
+    .lane { position:relative; min-height:310px; border-right:1px dashed #b8c7ce; }
+    .lane:last-child { border-right:0; }
+    .event { position:absolute; z-index:2; left:9%; width:82%; padding:8px 9px; color:var(--ink); background:#fff; border:1px solid #9ab2bd; border-radius:4px; font-size:12px; line-height:1.35; text-align:center; }
+    .event.teal { background:var(--teal-soft); border-color:#5bbdb5; }
+    .event.red { color:#7f2732; background:var(--red-soft); border-color:#dc7c88; }
+    .event.amber { color:#704704; background:var(--amber-soft); border-color:#d5a64e; }
+    .arrow { position:absolute; z-index:1; height:2px; background:#68808d; transform-origin:left center; }
+    .arrow::after { position:absolute; right:-1px; top:-4px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:8px solid #68808d; content:""; }
+    .arrow.red { background:var(--red); } .arrow.red::after { border-left-color:var(--red); }
+    .arrow.teal { background:var(--teal); } .arrow.teal::after { border-left-color:var(--teal); }
+    .note { position:absolute; z-index:3; padding:7px 9px; color:#7f2732; background:#fff8f8; border:1px solid #e3a3aa; border-radius:4px; font-size:11px; line-height:1.3; text-align:center; }
+    .legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:15px; color:var(--muted); font-size:12px; }
+    .key { display:inline-flex; gap:6px; align-items:center; } .dot { width:10px; height:10px; border-radius:50%; background:var(--teal); } .dot.red { background:var(--red); } .dot.amber { background:var(--amber); }
+    .compare { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:25px; }
+    .panel { padding:22px; background:var(--surface); border:1px solid var(--line); border-top:4px solid var(--teal); border-radius:5px; }
+    .panel.bad { border-top-color:var(--red); } .panel h3 { margin-bottom:9px; font-size:19px; } .panel p { margin-bottom:0; color:var(--muted); }
+    table { width:100%; margin-top:25px; border-collapse:collapse; background:var(--surface); font-size:14px; }
+    th, td { padding:14px 15px; border:1px solid var(--line); text-align:left; vertical-align:top; } th { color:#fff; background:var(--navy); } td:first-child { width:22%; font-weight:700; }
+    pre { margin:25px 0 0; padding:21px; overflow:auto; color:#e9f1f4; background:var(--code); border-left:4px solid var(--teal); border-radius:4px; font:13px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { padding:1px 4px; background:#e8eef0; border-radius:3px; font:13px ui-monospace, monospace; }
+    .invariant { margin-top:24px; padding:25px; color:#125850; background:var(--teal-soft); border:1px solid #8ed2cc; border-radius:5px; font-size:18px; } .invariant strong { display:block; margin-bottom:5px; font-size:13px; letter-spacing:0; text-transform:uppercase; }
+    footer { padding-top:25px; color:var(--muted); font-size:12px; }
+    @media (max-width:800px) { .shell { display:block; } aside { position:static; height:auto; padding:18px; } nav { display:flex; flex-wrap:wrap; margin-top:12px; } nav a { padding:4px 8px; } main { padding:0 20px 46px; } header { grid-template-columns:1fr; min-height:auto; padding:45px 0 35px; gap:26px; } .compare { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand"><b>parallel-in-scope</b><span>CONCURRENT LIMIT EXECUTOR</span></div>
+      <nav><a href="#summary">结论</a><a href="#failure">故障时序</a><a href="#cause">根因</a><a href="#repair">理想修复</a><a href="#test">回归测试</a></nav>
+    </aside>
+    <main>
+      <header id="summary">
+        <div><div class="eyebrow">Bug analysis / CPU_BOUND</div><h1>滑动窗口在 inline 回退后失去完成信号</h1><p class="lede">当 worker executor 拒绝 CPU 任务时，任务会在调用线程内完成；但滑动窗口只等待 completion service 写入的队列事件。因此“任务完成”不再等于“窗口获知完成”。</p></div>
+        <div class="severity"><strong>Confirmed</strong><span>两任务、窗口为一、worker 必拒绝时，可稳定复现第二个 future 永久 PENDING。</span></div>
+      </header>
+
+      <section id="failure">
+        <div class="tag">01 / Failure path</div><h2>复现：任务 1 完成，任务 2 永远不提交</h2>
+        <p class="intro">条件：<code>CPU_BOUND</code>，<code>parallelism = 1</code>，两个任务，worker executor 已关闭。首个任务触发 inline fallback；第二个任务只能等待窗口收到首个完成事件后才会提交。</p>
+        <div class="diagram" aria-label="死锁时序图">
+          <div class="lane-grid">
+            <div class="lane-title">调用线程</div><div class="lane-title">ConcurrentLimitExecutor</div><div class="lane-title">Worker Executor</div><div class="lane-title">blockingQueue</div><div class="lane-title">submitRemaining</div>
+            <div class="lane"><div class="event teal" style="top:25px">submitAll([任务1, 任务2])</div></div>
+            <div class="lane"><div class="event teal" style="top:74px">cs.submit(任务1)</div><div class="event amber" style="top:136px">directExecutor 执行任务1<br>future = 1</div></div>
+            <div class="lane"><div class="event red" style="top:76px">拒绝执行<br>RejectedExecutionException</div></div>
+            <div class="lane"><div class="event red" style="top:198px">队列始终为空</div></div>
+            <div class="lane"><div class="event amber" style="top:198px">take()</div><div class="event red" style="top:250px">永久等待<br>任务2 PENDING</div></div>
+          </div>
+          <div class="legend"><span class="key"><i class="dot"></i> 正常调用</span><span class="key"><i class="dot amber"></i> inline 执行</span><span class="key"><i class="dot red"></i> 信号链路断裂</span></div>
+          <div class="callout"><b>断点：</b><code>Futures.submit(task, directExecutor())</code> 创建的新 future 没有注册“完成后入队”的 listener。任务 1 已终止，但 <code>blockingQueue.take()</code> 仍没有可消费的事件。</div>
+        </div>
+      </section>
+
+      <section id="cause">
+        <div class="tag">02 / Cause</div><h2>同一个批次存在两套完成协议</h2>
+        <table><thead><tr><th>执行路径</th><th>future 如何创建</th><th>终止时发生什么</th><th>窗口是否前进</th></tr></thead><tbody>
+          <tr><td>普通 worker 提交</td><td><code>ListenableCompletionService</code></td><td>listener 将 future 写入 <code>blockingQueue</code></td><td>是</td></tr>
+          <tr><td>CPU inline 回退</td><td><code>Futures.submit(..., directExecutor())</code></td><td>future 仅变为完成状态</td><td>否</td></tr>
+        </tbody></table>
+        <div class="compare"><div class="panel bad"><h3>当前职责分裂</h3><p>完成通知只被认为是 completion service 的副作用。回退分支绕过 service 后，调用方仍等待该 service 的队列。</p></div><div class="panel"><h3>应有职责</h3><p>完成通知应绑定到任务 future 本身：无论由哪个 executor 运行，同一 future 终止时都发布一个完成事件。</p></div></div>
+      </section>
+
+      <section id="repair">
+        <div class="tag">03 / Target design</div><h2>统一为“先监听，再选择执行位置”</h2>
+        <p class="intro">把 CPU 回退放进 <code>ListenableCompletionService</code> 的提交过程。它只创建一次任务 future，并且在尝试 worker 执行前注册完成 listener；若拒绝，再用 direct executor 运行同一个 future。</p>
+        <div class="diagram" aria-label="修复后时序图">
+          <div class="lane-grid">
+            <div class="lane-title">Executor</div><div class="lane-title">Completion Service</div><div class="lane-title">Worker Executor</div><div class="lane-title">blockingQueue</div><div class="lane-title">submitRemaining</div>
+            <div class="lane"><div class="event teal" style="top:26px">提交任务1</div></div>
+            <div class="lane"><div class="event teal" style="top:68px">创建 future</div><div class="event teal" style="top:118px">注册完成 listener</div><div class="event amber" style="top:181px">拒绝后 inline 执行<br>同一个 future</div></div>
+            <div class="lane"><div class="event red" style="top:156px">拒绝执行</div></div>
+            <div class="lane"><div class="event teal" style="top:230px">future 完成，入队</div></div>
+            <div class="lane"><div class="event teal" style="top:230px">take() 返回</div><div class="event teal" style="top:277px">提交任务2</div></div>
+          </div>
+          <div class="invariant"><strong>Required invariant</strong>每个进入滑动窗口的任务 future，在终止时恰好向完成队列发布一次事件。</div>
+        </div>
+        <pre>private ListenableFuture&lt;V&gt; submitCpuTask(Callable&lt;V&gt; task) {
+    ExecutionPhaseHintFuture&lt;V&gt; future =
+            ExecutionPhaseHintFuture.create(task, phaseObserver);
+    future.addListener(() -&gt; completionQueue.add(future), directExecutor());
+
+    try {
+        executor.execute(future);
+    } catch (RejectedExecutionException rejected) {
+        directExecutor().execute(future); // 运行同一个已监听 future
+    }
+    return future;
+}</pre>
+      </section>
+
+      <section id="test">
+        <div class="tag">04 / Regression test</div><h2>把缺失的窗口补充路径纳入测试</h2>
+        <p class="intro">原测试只有单任务，<code>remaining == 0</code>，不会调用 <code>submitRemaining()</code>。回归测试必须让 inline 任务的完成事件真正驱动下一次提交。</p>
+        <pre>// worker 已关闭，保证每个任务都走 CPU inline fallback
+BatchExecutionContext context = context(2, 1, TaskType.CPU_BOUND);
+AsyncBatchResult&lt;Integer&gt; batch = executor.submitAll(Arrays.asList(() -&gt; 1, () -&gt; 2));
+
+assertThat(batch.getResults().get(0).get(1, SECONDS)).isEqualTo(1);
+assertThat(batch.getResults().get(1).get(1, SECONDS)).isEqualTo(2);
+assertThat(batch.getSubmitCanceller().get(1, SECONDS)).isNotNull();</pre>
+      </section>
+      <footer>依据：ConcurrentLimitExecutor.java 第 150–161 行与 submitRemaining() 第 172–210 行；ListenableCompletionService.java 第 150–159 行。</footer>
+    </main>
+  </div>
+</body>
+</html>
