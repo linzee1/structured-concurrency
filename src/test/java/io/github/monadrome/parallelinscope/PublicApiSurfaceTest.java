@@ -45,18 +45,33 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskOutcome",
             BASE_PACKAGE + ".TaskType",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue",
-            BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue"));
+            BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue",
+            // Nested types are named with the binary '$' separator; the visibility of a nested
+            // type is part of the API just like a top-level one, so it is pinned here too.
+            BASE_PACKAGE + ".CancellationToken$State",
+            BASE_PACKAGE + ".DeadlockDetectionListener$DeadlockDetectionEvent",
+            BASE_PACKAGE + ".GlobalPar$Builder",
+            BASE_PACKAGE + ".GlobalParDeadlockPolicy$Builder",
+            BASE_PACKAGE + ".GlobalParPurgePolicy$Builder",
+            BASE_PACKAGE + ".TaskBatchResult$BatchReport",
+            BASE_PACKAGE + ".TaskGroupDefinition$Builder",
+            BASE_PACKAGE + ".TaskGroupDefinition$CombineDefinition",
+            BASE_PACKAGE + ".TaskGroupDefinition$TaskDefinition",
+            BASE_PACKAGE + ".TaskGroupListener$TaskGroupEvent",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue$MutationsStrategy",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy",
+            BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy$Builder"));
 
     @Test
-    void publicTopLevelTypesMatchTheReviewedApi() throws Exception {
-        Set<String> actual = topLevelClassNames().stream()
+    void publicTypesMatchTheReviewedApi() throws Exception {
+        Set<String> actual = declaredClassNames().stream()
                 .filter(PublicApiSurfaceTest::isPublic)
                 .collect(Collectors.toCollection(TreeSet::new));
 
         assertThat(actual).isEqualTo(EXPECTED_PUBLIC_TYPES);
     }
 
-    private static Set<String> topLevelClassNames() throws Exception {
+    private static Set<String> declaredClassNames() throws Exception {
         URI location = GlobalPar.class
                 .getProtectionDomain()
                 .getCodeSource()
@@ -68,7 +83,9 @@ class PublicApiSurfaceTest {
                     .map(packageRoot::relativize)
                     .map(Path::toString)
                     .filter(name -> name.endsWith(".class"))
-                    .filter(name -> !name.contains("$"))
+                    // Named nested types stay in (their visibility is API); anonymous, local, and
+                    // synthetic classes are compiler output, not declared types.
+                    .filter(name -> !name.matches(".*\\$\\d.*"))
                     .filter(name -> !name.endsWith("package-info.class"))
                     .map(name -> BASE_PACKAGE + "."
                             + name.substring(0, name.length() - 6).replace('/', '.'))

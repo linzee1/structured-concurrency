@@ -18,7 +18,7 @@ class PackageBoundaryTest {
     private static final String ROOT = "io.github.monadrome.parallelinscope";
     private static final Pattern PACKAGE = Pattern.compile("(?m)^package\\s+([\\w.]+);");
     private static final Pattern PROJECT_IMPORT =
-            Pattern.compile("(?m)^import\\s+" + ROOT.replace(".", "\\.") + "([\\w.]*);");
+            Pattern.compile("(?m)^import\\s+(?:static\\s+)?" + ROOT.replace(".", "\\.") + "([\\w.]*);");
 
     @Test
     void mainSourcesUseOnlyTheRootAndIndependentQueuePackages() throws IOException {

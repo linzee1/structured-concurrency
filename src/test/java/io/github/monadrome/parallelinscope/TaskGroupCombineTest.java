@@ -378,6 +378,19 @@ class TaskGroupCombineTest {
         assertThat(definition.build().combine()).isNotNull();
     }
 
+    @Test
+    void aMemberRegisteredAfterTheCombineCannotReuseItsName() {
+        TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+        definition.buildWithCombiner(new TaskKey<>("assemble") {}, ParName.of("worker"), values -> "x");
+
+        // The combine owns its name for the rest of the builder's life, in either registration
+        // order; a collision would leave the combine's future unreachable through its own key.
+        assertThatThrownBy(() -> definition.task(new TaskKey<>("assemble") {}, ParName.of("worker"), () -> "alice"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate name 'assemble'");
+        assertThat(definition.build().tasks()).isEmpty();
+    }
+
     private static Throwable catchIllegal(Runnable action) {
         try {
             action.run();

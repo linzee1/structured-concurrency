@@ -158,7 +158,9 @@ public final class TaskGroupDefinition {
         /**
          * Registers one member. The key carries the member name and captures its result type;
          * name nullness and blankness are rejected by the {@link TaskKey} constructor, while a
-         * duplicate name is rejected here. The {@code parName} is validated by {@link
+         * duplicate name is rejected here. The name must be unique across every member and the
+         * combine, so a member registered after {@link #buildWithCombiner} cannot reuse the
+         * combine's name. The {@code parName} is validated by {@link
          * ParName#of(String)} and resolved against the submitting {@link GlobalPar} at submit time.
          */
         public <T> TaskKey<T> task(TaskKey<T> key, ParName parName, Callable<T> callable, TaskOptions options) {
@@ -166,7 +168,7 @@ public final class TaskGroupDefinition {
             Objects.requireNonNull(parName, "parName cannot be null");
             Objects.requireNonNull(callable, "callable cannot be null");
             Objects.requireNonNull(options, "options cannot be null");
-            if (tasks.containsKey(key.name())) {
+            if (tasks.containsKey(key.name()) || isCombineName(key.name())) {
                 throw new IllegalArgumentException("Duplicate name '" + key.name() + "'");
             }
             tasks.put(key.name(), new TaskDefinition<>(key, parName, callable, options));
@@ -191,8 +193,9 @@ public final class TaskGroupDefinition {
          * <p>The combine is a real scoped task that depends on every member: it is prepared at submit
          * like a member but submitted to its executor only after all members succeed, and the group
          * completes only when its future is terminal. A group accepts at most one combine; its name
-         * must not collide with any member name. The combine stays registered on this builder, so a
-         * later {@link #build()} returns the same definition.
+         * must not collide with any member name, and a member registered after this call cannot
+         * reuse the combine's name. The combine stays registered on this builder, so a later {@link
+         * #build()} returns the same definition.
          */
         public <R> TaskGroupDefinition buildWithCombiner(
                 TaskKey<R> key, ParName parName, CombineFunction<R> function, TaskOptions options) {
@@ -212,6 +215,11 @@ public final class TaskGroupDefinition {
 
         public TaskGroupDefinition build() {
             return new TaskGroupDefinition(this);
+        }
+
+        /** Whether {@code name} is already taken by the registered combine. */
+        private boolean isCombineName(String name) {
+            return combine != null && combine.name().equals(name);
         }
     }
 }

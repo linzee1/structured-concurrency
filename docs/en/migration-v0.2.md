@@ -29,9 +29,9 @@ The public/runtime split is intentional: the option types are caller input, whil
 through parent-child contexts, including nested calls across named `Par` entries. Applications should
 configure these semantics through the option types and must not construct or cache runtime contexts.
 
-Executor lookup keys are now the value type `ParName` instead of bare `String`. Every place that named a `Par` takes a `ParName`: `GlobalPar.Builder.register` / `defaultPar` / `parTaskListener`, `GlobalPar.par` / `find` / `taskListenersFor`, `GlobalPar.pars()`, and `TaskGroupDefinition.Builder.task` / `combine`. Construction validates once (never null, never blank) and the value is used verbatim — no trimming or lower-casing — so existing keys keep their exact meaning. `ParName` is a logical lookup key, not a resource identity: it must never replace `ExecutorIdentity`, which stays the reference-equality key for deadlock detection and purge. A well-formed `ParName` still says nothing about whether the name is registered; unknown names are rejected at `GlobalPar.Builder.build()` and `TaskGroup.submit` exactly as before.
+Executor lookup keys are now the value type `ParName` instead of bare `String`. Every place that named a `Par` takes a `ParName`: `GlobalPar.Builder.register` / `defaultPar` / `parTaskListener`, `GlobalPar.par` / `find` / `taskListenersFor`, `GlobalPar.pars()`, and `TaskGroupDefinition.Builder.task` / `buildWithCombiner`. Construction validates once (never null, never blank) and the value is used verbatim — no trimming or lower-casing — so existing keys keep their exact meaning. `ParName` is a logical lookup key, not a resource identity: it must never replace `ExecutorIdentity`, which stays the reference-equality key for deadlock detection and purge. A well-formed `ParName` still says nothing about whether the name is registered; unknown names are rejected at `GlobalPar.Builder.build()` and `TaskGroup.submit` exactly as before.
 
-Earlier `0.2.x` snapshots named the batch option type `ExecutionOptions`, then `BatchExecutionOptions`, and briefly unified every role into the superset type `MultiTaskOptions`. The final API splits it by scope into three types: `BatchOptions` for `Par.map`, `TaskGroupOptions` for `TaskGroupDefinition.builder`, and `TaskOptions` for `TaskGroupDefinition.Builder.task` / `combine`. Rename imports, variable declarations, and arguments to the type of their scope; no compatibility alias is retained during the `0.x` phase.
+Earlier `0.2.x` snapshots named the batch option type `ExecutionOptions`, then `BatchExecutionOptions`, and briefly unified every role into the superset type `MultiTaskOptions`. The final API splits it by scope into three types: `BatchOptions` for `Par.map`, `TaskGroupOptions` for `TaskGroupDefinition.builder`, and `TaskOptions` for `TaskGroupDefinition.Builder.task` / `buildWithCombiner`. Rename imports, variable declarations, and arguments to the type of their scope; no compatibility alias is retained during the `0.x` phase.
 
 Earlier `0.2.x` snapshots renamed the internal `BatchExecutionContext` to `MultiTaskContext` because it
 backs both `Par.map` batches and task-group members. The final API hides that runtime context and its
@@ -45,7 +45,7 @@ Option types map one-to-one onto scopes, and each type declares only the fields 
 only name/timeout/listeners; `TaskOptions` declares only timeout/taskType/rejectEnqueue. Identity is
 not an option — a member's name comes from its `TaskKey` — and concurrency belongs to fan-out, so a
 single task has nothing to limit. The `taskName()`/`groupName()` accessors and the matching builder
-methods converge on `name()`; the `TaskGroupDefinition.Builder.task` / `combine` arguments narrow
+methods converge on `name()`; the `TaskGroupDefinition.Builder.task` / `buildWithCombiner` arguments narrow
 from the superset type to `TaskOptions`.
 
 The timeout is now a forced explicit choice between two mutually exclusive static factories:

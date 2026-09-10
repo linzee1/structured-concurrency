@@ -27,9 +27,9 @@
 `MultiTaskContext` 是单次调用的运行时状态。取消、deadline 和执行器 identity 仍通过父子上下文
 传播，但应用只应通过选项类型配置语义，不应构造或缓存运行时 context。
 
-执行器查找键由裸 `String` 改为值类型 `ParName`。所有表示 `Par` 名称的位置都接收 `ParName`：`GlobalPar.Builder.register`/`defaultPar`/`parTaskListener`、`GlobalPar.par`/`find`/`taskListenersFor`、`GlobalPar.pars()`，以及 `TaskGroupDefinition.Builder.task`/`combine`。构造时一次性校验（非 null、非空白），值按原样使用——不做 trim 或小写规范化——因此既有键的语义不变。`ParName` 是逻辑查找键，不是资源身份：它不能替代 `ExecutorIdentity`，后者仍是 deadlock 检测和 purge 所依据的引用相等键。格式合法的 `ParName` 也不代表名称已注册；未注册名称仍分别在 `GlobalPar.Builder.build()` 和 `TaskGroup.submit` 被拒绝。
+执行器查找键由裸 `String` 改为值类型 `ParName`。所有表示 `Par` 名称的位置都接收 `ParName`：`GlobalPar.Builder.register`/`defaultPar`/`parTaskListener`、`GlobalPar.par`/`find`/`taskListenersFor`、`GlobalPar.pars()`，以及 `TaskGroupDefinition.Builder.task`/`buildWithCombiner`。构造时一次性校验（非 null、非空白），值按原样使用——不做 trim 或小写规范化——因此既有键的语义不变。`ParName` 是逻辑查找键，不是资源身份：它不能替代 `ExecutorIdentity`，后者仍是 deadlock 检测和 purge 所依据的引用相等键。格式合法的 `ParName` 也不代表名称已注册；未注册名称仍分别在 `GlobalPar.Builder.build()` 和 `TaskGroup.submit` 被拒绝。
 
-早期 `0.2.x` 快照曾把批次选项命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`，再短暂统一为超集类型 `MultiTaskOptions`。最终按作用域拆分为三个类型：`BatchOptions`（`Par.map`）、`TaskGroupOptions`（`TaskGroupDefinition.builder`）、`TaskOptions`（`TaskGroupDefinition.Builder.task`/`combine`）。请将 import、变量声明和实参改为对应作用域的类型；在 `0.x` 阶段不保留兼容别名。
+早期 `0.2.x` 快照曾把批次选项命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`，再短暂统一为超集类型 `MultiTaskOptions`。最终按作用域拆分为三个类型：`BatchOptions`（`Par.map`）、`TaskGroupOptions`（`TaskGroupDefinition.builder`）、`TaskOptions`（`TaskGroupDefinition.Builder.task`/`buildWithCombiner`）。请将 import、变量声明和实参改为对应作用域的类型；在 `0.x` 阶段不保留兼容别名。
 
 早期 `0.2.x` 快照曾将内部 `BatchExecutionContext` 改名为 `MultiTaskContext`，因为它同时支撑
 `Par.map` 批次与任务组成员。最终 API 完全隐藏该运行时 context 及其 `resolve(...)` 方法。
@@ -41,7 +41,7 @@
 name/parallelism/timeout/taskType/rejectEnqueue；`TaskGroupOptions` 只声明 name/timeout/listeners；
 `TaskOptions` 只声明 timeout/taskType/rejectEnqueue。身份不属于选项——成员名来自 `TaskKey`；
 并发度属于扇出——单任务没有可限流的对象。`taskName()`/`groupName()` 访问器及对应方法统一为
-`name()`；`TaskGroupDefinition.Builder.task`/`combine` 的实参由超集类型收窄为 `TaskOptions`。
+`name()`；`TaskGroupDefinition.Builder.task`/`buildWithCombiner` 的实参由超集类型收窄为 `TaskOptions`。
 
 timeout 现在必须在两个互斥的静态工厂里显式二选一：`timeout(name, Duration)` 设置正数显式
 超时，`inheritTimeout(name)` 声明继承外层作用域的 deadline。没有 Builder，也没有第三种状态：
