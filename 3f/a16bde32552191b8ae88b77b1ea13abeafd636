@@ -1,0 +1,19 @@
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_512b1cd0783af7::t_772c6a5d296271 3-10,14,16-17,33-34,38,40,42,44-52,54,56,58-59,61,71,73-74,77,79,82-83,87,97,99-100,111,113,115-116,121,131-132,134-135,138,141,143,154,156,159-160,164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3fa16bde32552191b8ae88b77b1ea13abeafd636",
+  "prompts": {},
+  "sessions": {
+    "s_512b1cd0783af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20c8c92c-0a6f-4f35-9a42-f538907d1c20",
+        "model": "unknown"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
