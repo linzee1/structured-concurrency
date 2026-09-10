@@ -3,7 +3,9 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*-SNAPSHOT'
+      # Release and snapshot tags alike: the tag must equal `v` plus the Maven version,
+      # and the verification step below rejects any tag that does not match.
+      - 'v*.*.*'
 
 permissions:
   contents: read
@@ -35,7 +37,7 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
-      - name: Verify snapshot tag matches the Maven version
+      - name: Verify the tag matches the Maven version
         run: |
           MAVEN_VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
           test "v${MAVEN_VERSION}" = "${GITHUB_REF_NAME}"
