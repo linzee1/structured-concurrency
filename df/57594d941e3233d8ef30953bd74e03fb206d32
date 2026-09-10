@@ -1,0 +1,177 @@
+demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  ai_agent 29,31,42-43,45,48,52,63
+demo/src/test/java/demo/article/E1_QueueFloodingTest.java
+  ai_agent 3,5-10,20-21,27,37,81-82,91-93,95,104-122,136
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  ai_agent 3,5-9,18-21,32-34,36,48,51,54,66-68,82-83,86,90,92-93,97-98,112-113,122-123
+demo/articles/D1-get-timeout-task-still-running.md
+  ai_agent 37,41,48-52,56-57,59,62,66,78
+demo/src/test/java/demo/ArchitectureConstraintsTest.java
+  ai_agent 3,13,19,21-22,27-34,37,45-46,48-49,51,63-64,71,75,82-83,97,104
+demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  ai_agent 34,39,45-46,49,51,68
+demo/docs/zh-CN/articles/E1-queue-flooding.md
+  ai_agent 43,57-58,60,63,67,86
+demo/docs/zh-CN/articles/I2-java8-compatibility-cost.md
+  ai_agent 23,27-31,34,40,58,60,62,64-65
+demo/articles/I2-java8-compatibility-cost.md
+  ai_agent 23,27-31,34,40,58,60,62,64-65,78
+demo/articles/I4-vs-completable-future.md
+  ai_agent 62,73-74,76,78,80,82,89,97
+demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java
+  ai_agent 3-4,9-14,26-27,32-33,36,48-49,52,60,87-88,128-129,132,134-136,147-149,151,154,156,164-175,178-179,194
+demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  ai_agent 38,40,48-49,51,53-54,58,62,74
+demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 39,46,54-55,57,60,63,81
+demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  ai_agent 3,5-10,19-22,28-29,48,55-64,70-86,95,115,118,120,126-128,130,133-144,148-165,175,177-178
+demo/articles/A2-nested-cancel-propagation.md
+  ai_agent 44-45,47,50,54,56-57,60-61,74
+demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  ai_agent 3,5-10,21-22,27,29,37,50,101-102,109,111-112,121-123,125,131,133-148,151-152,161-162
+demo/articles/B1-threadlocal-context-lost.md
+  ai_agent 32,34,39-42,46-47,49,51,55,59-60,65,71
+demo/articles/G4-named-executor-pool.md
+  ai_agent 33,35,44-48,50,53-54,58-59,63-64,71,75-76,80
+demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  ai_agent 51-52,54,56,60,70
+demo/docs/zh-CN/articles/G6-batch-db-query.md
+  ai_agent 39-40,50-51,53,64,66,72,92
+demo/articles/G1-task-listener-monitoring.md
+  ai_agent 32,34-37,41,43,48-52,56-57,60-63,67,72,75-76,83
+demo/articles/I1-idea-graveyard.md
+  ai_agent 3,19,26,39,48-50,63,87,108,123
+demo/articles/F1-cpu-task-queuing.md
+  ai_agent 36,46-50,53-54,56,58-59,62,72,81
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  ai_agent 16-17,19,25-27,29,36-37,62-64,66,72,90,93,108,111,119,123,126,129,148,151-153,164,183,191-194,197,203,217
+demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  ai_agent 3,5-10,20-23,28-29,39-41,43,56,62-73,77-94,100,102,104-105,113,123-124,133,138-149,153-154,163,167,175,183,187-204,210,212,214-215
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 62-63,65,68,71,73,76,89
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  ai_agent 12,14,25-26,28,31-32,36,39,44,48,51,54,68-69,72,79,82,86,89,95-97,102,104,110
+demo/articles/G5-batch-http-calls.md
+  ai_agent 34,39,44-45,47,49,51,53,61-62,69
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  ai_agent 48,55-56,65-66,68,70,73,82-84,89,94-95,100,103,107,117
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  ai_agent 44-45,47,57-58,60,62,66-67,71-72,76-77,82
+demo/docs/zh-CN/README.md
+  ai_agent 5
+demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java
+  ai_agent 3,5-9,19-20,26,35,91-92,97-99,101,107,111-134,136-138,140,142-144
+demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java
+  ai_agent 3,5-10,18-20,25,35-37,39,103,109-120
+demo/CLAUDE.md
+  ai_agent 1
+demo/src/main/java/demo/integration/BatchProcessingDemo.java
+  ai_agent 3-7,18,20-23,37-39,41,45,47,54-60,67-68,75,85,90,99,111
+demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  ai_agent 28,31,33,41-42,44,47,51,73
+demo/pom.xml
+  ai_agent 7,9,21,29,67-78
+demo/README.md
+  ai_agent 5,66-67,69-70,74,80,88-89
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  ai_agent 1-178
+demo/architecture-constraints.md
+  ai_agent 25-26,28-29,45,57-59,95-97,101-102,106-107,118-119,122,132-133
+demo/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 33,38,45,50-54,58-59,61,64,67,80-81,85
+demo/articles/B2-function-signature-bloat.md
+  ai_agent 37,39,44-47,51-52,54,56-57,61,65,77
+demo/src/test/java/demo/article/QuickStartTest.java
+  ai_agent 3,5-9,16-19,35-37,39,53-54,57-60,63-64,67,73,75,78,80,89-91
+demo/AGENTS.md
+  ai_agent 1-42
+demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java
+  ai_agent 3-4,6-10,21,26,30,54,65,72,78-80,82,84,89-99,103
+demo/articles/I3-sliding-window-vs-semaphore.md
+  ai_agent 45,88,94
+demo/articles/D2-late-bind-race-condition.md
+  ai_agent 48,58-62,66-67,69,72,78,88
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  ai_agent 31,33,43-45,47,50,53,55,58,70
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  ai_agent 36,48-49,51,53-54,57,67,76
+demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java
+  ai_agent 3-4,6,13,18,22,30,82,106-111
+demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java
+  ai_agent 3-5,7-12,21,26,29,37-38,66,74-77,79-80,83,86-90,92-98,100-112,116-121
+demo/articles/G6-batch-db-query.md
+  ai_agent 38-39,46-49,53-54,56,67,69,75,95
+demo/articles/A3-lean-vs-fat-exception.md
+  ai_agent 27,30,32,37-40,44-45,47,50,54,76
+demo/docs/en/README.md
+  ai_agent 7-8,13
+demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java
+  ai_agent 3,5-10,19-21,26,36-38,40,107,110-126,137
+demo/articles/A1-cancel-true-ignored.md
+  ai_agent 28,30,38-42,46-47,49,52,56,67
+demo/README.en.md
+  ai_agent 7-8,33
+demo/articles/H1-defensive-null-handling.md
+  ai_agent 44-45,47,54-57,61-62,64,66,70-71,75-76,80-81,86
+demo/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 54-57,67-68,70,73,76,78,81,94
+demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java
+  ai_agent 3,5-11,21-23,28,38-40,42,87,91-98
+demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  ai_agent 3-4,6-10,18-20,25,35-37,39,47,54-59,62,74,77,80,83,85,88,91,94,96-97,100,103,106,109,112
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  ai_agent 3-9,21,30,32-34,46-48,50,58,63-67,70-71,75,95,100,102,105-116,119,121-122
+demo/articles/G2-batch-result-report.md
+  ai_agent 47,54-55,62-65,68-69,71,73,76,85-87,92,97-98,103,106,110,120
+demo/docs/zh-CN/articles/I3-sliding-window-vs-semaphore.md
+  ai_agent 46,89,95
+demo/src/test/java/demo/article/G1_TaskListenerMonitoringTest.java
+  ai_agent 3,5-11,21-23,29,49,71,93-94,99,101-102,104,106,110,113-123,132-133,137,139,144,146,151-153,165,169,171-172,174,176,180-194,202-203,206,209,212,218
+demo/articles/C1-thread-pool-deadlock.md
+  ai_agent 31,33,38-42,48-50,52,55,58,60,63,75
+demo/docs/zh-CN/articles/I1-idea-graveyard.md
+  ai_agent 20,27-28,30,32,45,53-54,56,66,90,111
+demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  ai_agent 45-46,48,51,55,57-58,61-62,75
+demo/src/main/java/demo/basic/BasicParDemo.java
+  ai_agent 3-7,17,19-22,34-37,41,49,51,55-62,70
+demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java
+  ai_agent 3,5-10,17-19,24-25,35-37,39,49-50,64-72,93,102,116,119,123-129,132,149,153-166
+demo/src/test/java/demo/article/B1_MdcContextLostTest.java
+  ai_agent 3,5-9,17-19,24,37-39,41,55,91-92,94,99,105-113,116,126,133-139,143,145-146,148,152,156,158-165,168,178
+demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  ai_agent 33,35,44-48,50,53-54,58-59,63-64,71,75-76,80
+demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  ai_agent 33,35,43-44,46,48,52,56-57,62,68
+demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  ai_agent 3,5-10,21-23,28,30-31,41-43,45,56-57,115-116,120,125-137,144,148-149,159,164,166,168,172,174-175,179,184-198,206,209,211
+demo/articles/E1-queue-flooding.md
+  ai_agent 43,54-57,61-62,64,67,71,90
+demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java
+  ai_agent 3,5-10,16-17,23-24,31-32,39,47,69,80,82,89,97,105-109,111-112,117-123,126-132,135-137,141-143,152
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  ai_agent 35,40,45-46,48,50,52,54,62-63,70
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  ai_agent 63,74-75,77,79,81,83,90,98
+demo/articles/E3-closable-blocking-queue.md
+  ai_agent 1-178
+"demo/docs/zh-CN/articles/Shared understanding (共识).md"
+  ai_agent 1
+demo/src/main/java/demo/basic/CancellationDemo.java
+  ai_agent 4-9,19,21-24,27,36-38,40,46,49,53-56,58,60-64,68,78
+demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  ai_agent 37,41,51-52,54,57,61,73
+demo/articles/E2-submitter-pool-offloading.md
+  ai_agent 48-51,55-56,58,60,64,74
+demo/src/test/java/demo/article/G6_BatchDbQueryTest.java
+  ai_agent 3,5-10,19-22,27,29,44-46,48,56,63,66,78,83-84,104,111-112,119-120,125,130-135,139-140,156,159,165-166,173-186,189-190,199
+demo/docs/zh-CN/articles/G1-task-listener-monitoring.md
+  ai_agent 32,34-37,41,43,51-52,55-58,62,67,70-71,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "df57594d941e3233d8ef30953bd74e03fb206d32",
+  "prompts": {}
+}
