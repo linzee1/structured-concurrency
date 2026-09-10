@@ -379,7 +379,7 @@ class GlobalParTest {
                 GlobalPar.builder().register(ParName.of("io"), executor).build();
         CountDownLatch setupEntered = new CountDownLatch(1);
         CountDownLatch releaseSetup = new CountDownLatch(1);
-        CountDownLatch closeStarted = new CountDownLatch(1);
+        CountDownLatch closeReturned = new CountDownLatch(1);
         try {
             Future<?> setup = callers.submit(() -> global.whileOpen(() -> {
                 setupEntered.countDown();
@@ -389,10 +389,10 @@ class GlobalParTest {
             assertThat(setupEntered.await(5, TimeUnit.SECONDS)).isTrue();
 
             Future<?> close = callers.submit(() -> {
-                closeStarted.countDown();
                 global.close();
+                closeReturned.countDown();
             });
-            assertThat(closeStarted.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(closeReturned.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(global.closed()).isTrue();
 
             releaseSetup.countDown();
