@@ -1,0 +1,89 @@
+src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_7c83a986e7d7ab::t_c6220a9b2b2c25 3
+  s_7c83a986e7d7ab::t_04067c227bbccc 189-211,214-216,219-245
+  s_7c83a986e7d7ab::t_abda734453d1ab 1-2,6-11,15-188,246-263
+  s_7c83a986e7d7ab::t_cb1337439af7c2 212-213,217-218
+  s_7c83a986e7d7ab::t_9dbd316159cd8c 4-5,12-14
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_7c83a986e7d7ab::t_5e3224e67596b2 65
+  s_7c83a986e7d7ab::t_85caca3d056094 10,17-20,28,49-51,54,66,70,78,84-92,100-104
+  s_7c83a986e7d7ab::t_65e2d6d0f191e4 3
+  s_7c83a986e7d7ab::t_a428a61fa1c5ea 77
+  s_7c83a986e7d7ab::t_f313fdd0329c59 99
+  s_7c83a986e7d7ab::t_d8d2347b25627f 30,32
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_7c83a986e7d7ab::t_4257ead1ea0233 37
+  s_7c83a986e7d7ab::t_9afae7514fb85d 34
+src/test/java/io/github/monadrome/parallelinscope/FutureInspectorTest.java
+  s_7c83a986e7d7ab::t_1f48baecd0e23d 45-47,50-52,54
+src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_7c83a986e7d7ab::t_7563c7d863e81a 605-616
+  s_7c83a986e7d7ab::t_736148480b1548 245-256
+  s_7c83a986e7d7ab::t_e860074b11e386 11,28-29,42,47,50-51,58-61,63,80-82,85-89,105-106,111-113,116,118,134,139,143,145,205,231,243,262-263,265,281,333,351,364,388-390,475,503-504,557-558,586,603,631,668-675,699-705,709-718
+  s_7c83a986e7d7ab::t_a9e86c875ef409 220-221,223-228
+  s_7c83a986e7d7ab::t_2ffb6724ef2419 207-213
+  s_7c83a986e7d7ab::t_c5d6bcab16f58e 342-348
+  s_7c83a986e7d7ab::t_f56fa54008e62a 537
+  s_7c83a986e7d7ab::t_4e2afe1659dd6d 638-646,649-666
+  s_7c83a986e7d7ab::t_5e7ed1c748c82a 40-41,73-74,101-102,121-122,132-133,156-157,175-176,190-192,202-203,240-241,274-275,284-285,298-299,308-309,376-377,398-399,411-412,419-420,423-424,437-438,522-523,559-560,581-582,588-589,601-602,624-625,647-648
+  s_7c83a986e7d7ab::t_4764e3a26a6ff2 200,218,222,229
+  s_7c83a986e7d7ab::t_9ac150b7e4b435 1-10,12-19,21-27,30-39,43-46,48-49,52-57,62,64-72,75-79,83-84,90-100,103-104,107-110,114-115,117,119-120,123-131,135-138,140-142,144,146-155,158-174,177-189,193-199,201,204,206,214-217,219,230,232-239,242,244,257-261,264,266-273,276-280,282-283,286-297,300-307,310-332,334-341,349-350,352-363,365-375,378-387,391-397,400-410,413-418,421-422,425-436,439-474,476-502,505-521,524-536,538-556,561-580,583-585,587,590-600,604,617-623,626-630,632-637,667,676-698,706-708,719
+  s_7c83a986e7d7ab::t_c7b785e7322025 20
+CHANGELOG.md
+  s_7c83a986e7d7ab::t_079a722097d8e7 36-37,42
+docs/zh/user-guide.md
+  s_7c83a986e7d7ab::t_12b05f00607303 53
+  s_7c83a986e7d7ab::t_807398734f0c42 109-140
+src/main/java/io/github/monadrome/parallelinscope/TaskFuture.java
+  s_7c83a986e7d7ab::t_e9855a55862e1c 1-39,46-77
+  s_7c83a986e7d7ab::t_011ffbb80173a1 40-45
+docs/en/user-guide.md
+  s_7c83a986e7d7ab::t_051b5ce0512e7d 163-214
+  s_7c83a986e7d7ab::t_728c4fd31a261f 57
+src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  s_7c83a986e7d7ab::t_88ec6c37770b64 21,25-28,44,63,70-92,124-126,136-137,140,155,189,203-206,217-218,225-227
+  s_7c83a986e7d7ab::t_5e7ed1c748c82a 46-47,173-174,178-179
+src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java
+  s_7c83a986e7d7ab::t_73c6d30f650716 249
+  s_7c83a986e7d7ab::t_fa656600cf76bb 296-298
+docs/zh/migration-v0.3.md
+  s_7c83a986e7d7ab::t_7dab6af94b17c8 1-54
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_7c83a986e7d7ab::t_593260de2db854 572-573,575-578,597
+  s_7c83a986e7d7ab::t_f099ae39440ac0 136
+  s_7c83a986e7d7ab::t_d493ba3547cdf2 85-90
+  s_7c83a986e7d7ab::t_3517e1fd1681a2 59,61
+  s_7c83a986e7d7ab::t_a0926891e53cca 102-103,106,110
+  s_7c83a986e7d7ab::t_69b0f8097beaa1 123
+src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_7c83a986e7d7ab::t_3d9ab97f7d9251 129-131
+docs/en/migration-v0.3.md
+  s_7c83a986e7d7ab::t_204c8f420377bd 1-59
+src/main/java/io/github/monadrome/parallelinscope/FutureInspector.java
+  s_7c83a986e7d7ab::t_cc92a374b277b9 18-22,28-29
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_7c83a986e7d7ab::t_5e7ed1c748c82a 118-119
+  s_7c83a986e7d7ab::t_a7dff95388dbb4 167
+  s_7c83a986e7d7ab::t_99841cc7a01287 114,120,126-128
+  s_7c83a986e7d7ab::t_f7543318d7c16f 190,192
+  s_7c83a986e7d7ab::t_4901a047a74f39 140
+  s_7c83a986e7d7ab::t_51e6159ccec3f5 73-76,78
+  s_7c83a986e7d7ab::t_e9c5dab44ca627 111
+  s_7c83a986e7d7ab::t_347238097837c4 51-54,61,64,80,86,90-91,94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d9966cbc83a17d2b3d89deb07671ef50c3a1bc7c",
+  "prompts": {},
+  "sessions": {
+    "s_7c83a986e7d7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "60757af7-1fe1-4bdb-bf08-40394b664531",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
