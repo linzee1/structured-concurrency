@@ -1,0 +1,13 @@
+.gitignore
+  ai_agent 8-13,17-24,28
+AGENTS.md
+  ai_agent 1-132
+CLAUDE.md
+  ai_agent 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "e70437aa05fce5d5e03627db3e9e54d93b061b4d",
+  "prompts": {}
+}
