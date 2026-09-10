@@ -41,6 +41,11 @@ jobs:
       - name: Build documentation
         run: mkdocs build --strict
 
+      - name: Preserve legacy HTML redirects
+        run: |
+          mkdir -p site/zh-CN/visuals
+          cp ../docs/zh-CN/visuals/parallel-in-scope-*.html site/zh-CN/visuals/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

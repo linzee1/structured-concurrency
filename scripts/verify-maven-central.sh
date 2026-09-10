@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="${1:-0.1.0}"
-artifact_dir="$HOME/.m2/repository/io/github/huatalk/parallel-in-scope/$version"
+version="${1:-0.2.0}"
+artifact_dir="$HOME/.m2/repository/io/github/monadrome/parallel-in-scope/$version"
 
 # Remove the local copy so this check proves Maven Central can serve the artifact.
 rm -rf "$artifact_dir"
