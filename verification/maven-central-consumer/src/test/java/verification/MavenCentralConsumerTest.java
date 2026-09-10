@@ -1,14 +1,20 @@
 package verification;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskFuture;
+import io.github.monadrome.parallelinscope.TaskOutcome;
+import io.github.monadrome.parallelinscope.TaskType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -24,34 +30,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Timeout(value = 15, unit = TimeUnit.SECONDS)
 class MavenCentralConsumerTest {
 
+    private static final ParName CONSUMER = ParName.of("consumer-pool");
+
     @Test
     void publishedArtifactCanBeResolvedAndUsed() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
+        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
         try {
-            ParConfig config = ParConfig.builder()
-                    .executor("consumer-pool", executor)
-                    .build();
-            ParOptions options = ParOptions.ioTask("consumer-smoke")
+            BatchOptions options = BatchOptions.timeout("consumer-smoke", Duration.ofSeconds(5))
                     .parallelism(2)
-                    .timeout(5)
-                    .timeUnit(TimeUnit.SECONDS)
-                    .build();
+                    .taskType(TaskType.IO_BOUND);
 
-            AsyncBatchResult<Integer> result = new Par(config).map(
-                    "consumer-pool",
-                    Arrays.asList(1, 2),
-                    value -> value * 2,
-                    options);
+            Par par = global.par(CONSUMER);
+            TaskBatchResult<Integer> result = par.map(Arrays.asList(1, 2), value -> value * 2, options);
 
-            assertEquals(2, result.getResults().get(0).get());
-            assertEquals(4, result.getResults().get(1).get());
-            assertEquals("consumer-smoke", options.getTaskName());
-            assertEquals(2, options.getParallelism());
-            assertEquals(5, options.getTimeout());
-            assertEquals(TimeUnit.SECONDS, options.getTimeUnit());
-            assertEquals(TaskType.IO_BOUND, options.getTaskType());
-            assertEquals(config, new Par(config).getConfig());
+            List<TaskFuture<Integer>> results = result.results();
+            assertEquals(2, results.size());
+            assertEquals(2, results.get(0).get());
+            assertEquals(4, results.get(1).get());
+            assertEquals("consumer-smoke", results.get(0).taskName());
+            assertEquals(TaskOutcome.SUCCESS, results.get(0).outcome());
+
+            assertEquals("consumer-smoke", options.name());
+            assertEquals(2, options.parallelism());
+            assertEquals(Optional.of(Duration.ofSeconds(5)), options.timeout());
+            assertEquals(TaskType.IO_BOUND, options.taskType());
+            assertEquals(CONSUMER, par.name());
+            assertEquals(global, par.globalPar());
         } finally {
+            global.close();
             executor.shutdownNow();
         }
     }
@@ -61,23 +68,23 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch started = new CountDownLatch(2);
         CountDownLatch interrupted = new CountDownLatch(2);
+        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
         try {
-            Par par = new Par(ParConfig.builder().executor("timeout-pool", executor).build());
-            AsyncBatchResult<Integer> result = par.map(
-                    "timeout-pool",
+            Par par = global.par(CONSUMER);
+            TaskBatchResult<Integer> result = par.map(
                     Arrays.asList(1, 2),
                     value -> awaitInterruption(started, interrupted, value),
-                    ParOptions.ioTask("timeout-contract")
+                    BatchOptions.timeout("timeout-contract", Duration.ofMillis(200))
                             .parallelism(2)
-                            .timeout(200)
-                            .build());
+                            .taskType(TaskType.IO_BOUND));
 
             assertTrue(started.await(5, TimeUnit.SECONDS), "tasks did not start");
-            assertThrows(CancellationException.class,
-                    () -> result.getResults().get(0).get(5, TimeUnit.SECONDS));
+            assertThrows(
+                    CancellationException.class, () -> result.results().get(0).get(5, TimeUnit.SECONDS));
             assertTrue(interrupted.await(5, TimeUnit.SECONDS), "timeout did not interrupt running tasks");
-            assertTrue(result.getResults().stream().allMatch(future -> future.isCancelled()));
+            assertTrue(result.results().stream().allMatch(future -> future.isCancelled()));
         } finally {
+            global.close();
             executor.shutdownNow();
         }
     }
@@ -87,10 +94,10 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(3);
         CountDownLatch siblingsStarted = new CountDownLatch(2);
         CountDownLatch siblingsInterrupted = new CountDownLatch(2);
+        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
         try {
-            Par par = new Par(ParConfig.builder().executor("fail-fast-pool", executor).build());
-            AsyncBatchResult<Integer> result = par.map(
-                    "fail-fast-pool",
+            Par par = global.par(CONSUMER);
+            TaskBatchResult<Integer> result = par.map(
                     Arrays.asList(1, 2, 3),
                     value -> {
                         if (value == 1) {
@@ -101,18 +108,17 @@ class MavenCentralConsumerTest {
                         }
                         return awaitInterruption(siblingsStarted, siblingsInterrupted, value);
                     },
-                    ParOptions.ioTask("fail-fast-contract")
+                    BatchOptions.timeout("fail-fast-contract", Duration.ofSeconds(10))
                             .parallelism(3)
-                            .timeout(10)
-                            .timeUnit(TimeUnit.SECONDS)
-                            .build());
+                            .taskType(TaskType.IO_BOUND));
 
-            assertThrows(ExecutionException.class,
-                    () -> result.getResults().get(0).get(5, TimeUnit.SECONDS));
+            assertThrows(
+                    ExecutionException.class, () -> result.results().get(0).get(5, TimeUnit.SECONDS));
             assertTrue(siblingsInterrupted.await(5, TimeUnit.SECONDS), "failure did not interrupt sibling tasks");
-            assertTrue(result.getResults().get(1).isCancelled());
-            assertTrue(result.getResults().get(2).isCancelled());
+            assertTrue(result.results().get(1).isCancelled());
+            assertTrue(result.results().get(2).isCancelled());
         } finally {
+            global.close();
             executor.shutdownNow();
         }
     }
@@ -122,43 +128,39 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(4);
         CountDownLatch innerStarted = new CountDownLatch(2);
         CountDownLatch innerInterrupted = new CountDownLatch(2);
-        AtomicReference<AsyncBatchResult<Integer>> innerResult = new AtomicReference<>();
+        CountDownLatch releaseOuter = new CountDownLatch(1);
+        AtomicReference<TaskBatchResult<Integer>> innerResult = new AtomicReference<>();
+        GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
         try {
-            Par par = new Par(ParConfig.builder().executor("nested-pool", executor).build());
-            AsyncBatchResult<Integer> outerResult = par.map(
-                    "nested-pool",
+            Par par = global.par(CONSUMER);
+            TaskBatchResult<Integer> outerResult = par.map(
                     Arrays.asList(1),
                     outerValue -> {
-                        AsyncBatchResult<Integer> nested = par.map(
-                                "nested-pool",
+                        TaskBatchResult<Integer> nested = par.map(
                                 Arrays.asList(10, 20),
                                 value -> awaitInterruption(innerStarted, innerInterrupted, value),
-                                ParOptions.ioTask("inner-contract")
+                                BatchOptions.timeout("inner-contract", Duration.ofSeconds(10))
                                         .parallelism(2)
-                                        .timeout(10)
-                                        .timeUnit(TimeUnit.SECONDS)
-                                        .build());
+                                        .taskType(TaskType.IO_BOUND));
                         innerResult.set(nested);
-                        try {
-                            for (int i = 0; i < nested.getResults().size(); i++) {
-                                nested.getResults().get(i).get();
-                            }
-                        } catch (Exception e) {
-                            throw new RuntimeException("nested task failed", e);
-                        }
+                        // Stay in the body until the test releases it, swallowing the interrupt the
+                        // deadline delivers: the outer element must end cancelled by the deadline,
+                        // not by the body racing it with an exception of its own.
+                        awaitUninterruptibly(releaseOuter);
                         return outerValue;
                     },
-                    ParOptions.ioTask("outer-contract")
+                    BatchOptions.timeout("outer-contract", Duration.ofMillis(300))
                             .parallelism(1)
-                            .timeout(300)
-                            .build());
+                            .taskType(TaskType.IO_BOUND));
 
             assertTrue(innerStarted.await(5, TimeUnit.SECONDS), "nested tasks did not start");
-            assertThrows(CancellationException.class,
-                    () -> outerResult.getResults().get(0).get(5, TimeUnit.SECONDS));
+            assertThrows(
+                    CancellationException.class, () -> outerResult.results().get(0).get(5, TimeUnit.SECONDS));
             assertTrue(innerInterrupted.await(5, TimeUnit.SECONDS), "outer timeout did not interrupt nested tasks");
-            assertTrue(innerResult.get().getResults().stream().allMatch(future -> future.isCancelled()));
+            assertTrue(innerResult.get().results().stream().allMatch(future -> future.isCancelled()));
         } finally {
+            releaseOuter.countDown();
+            global.close();
             executor.shutdownNow();
         }
     }
@@ -173,6 +175,21 @@ class MavenCentralConsumerTest {
             interrupted.countDown();
             Thread.currentThread().interrupt();
             throw new RuntimeException("task interrupted", e);
+        }
+    }
+
+    private static void awaitUninterruptibly(CountDownLatch latch) {
+        boolean interrupted = false;
+        while (true) {
+            try {
+                latch.await();
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 
