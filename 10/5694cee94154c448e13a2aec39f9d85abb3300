@@ -1,0 +1,513 @@
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/queue/package-info.java
+  ai_agent 1-14
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  ai_agent 1-178
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/GlobalParPurgePolicy.java
+  ai_agent 1-68
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  ai_agent 1-78
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java
+  ai_agent 1-144
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/AsyncBatchResultTest.java
+  ai_agent 1-88
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/scripts/verify-maven-central.sh
+  ai_agent 1-26
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/internal/TaskExecutionContextTest.java
+  ai_agent 1-78
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/user-guide.md
+  ai_agent 1-150
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/package-info.java
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskGroupMemberResult.java
+  ai_agent 1-36
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/A2-nested-cancel-propagation.md
+  ai_agent 1-75
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java
+  ai_agent 1-531
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueueCartesianTest.java
+  ai_agent 1-205
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/testing/async-batch-result-report-test-design.md
+  ai_agent 1-31
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/AGENTS.md
+  ai_agent 1-83
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueue.java
+  ai_agent 1-516
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/package-info.java
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  ai_agent 1-72
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerQueueCompatibilityTest.java
+  ai_agent 1-124
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/SubmissionException.java
+  ai_agent 1-14
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/BlockingRisk.java
+  ai_agent 1-9
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/adr/0003-event-coalesced-purge-maintenance.md
+  ai_agent 1-113
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  ai_agent 1-73
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/ScopePrimitivesTest.java
+  ai_agent 1-289
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  ai_agent 1-120
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/cancel/Checkpoints.java
+  ai_agent 1-543
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/control/ActionGateTest.java
+  ai_agent 1-153
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/adr/0005-globalpar-executor-binding.md
+  ai_agent 1-1228
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenTest.java
+  ai_agent 1-261
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutorBatchContextTest.java
+  ai_agent 1-282
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/AGENTS.md
+  ai_agent 1-42
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskEdge.java
+  ai_agent 1-178
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/blogs/CancellationToken-lateBind-竞态分析翻车记录.md
+  ai_agent 1-160
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/A1-cancel-true-ignored.md
+  ai_agent 1-71
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/main/java/demo/basic/BasicParDemo.java
+  ai_agent 1-74
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/adr/0004-lifecycle-blocking-queue-recovery.md
+  ai_agent 1-206
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/design/philosophy.md
+  ai_agent 1-447
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java
+  ai_agent 1-139
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java
+  ai_agent 1-338
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/CHANGELOG.md
+  ai_agent 1-59
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/ParallelTaskGroupTest.java
+  ai_agent 1-616
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/E1-queue-flooding.md
+  ai_agent 1-93
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  ai_agent 1-132
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  ai_agent 1-76
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/README.md
+  ai_agent 1-48
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/codeql.yml
+  ai_agent 1-39
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueueContractTest.java
+  ai_agent 1-547
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/GlobalParDeadlockPolicy.java
+  ai_agent 1-54
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/G4-named-executor-pool.md
+  ai_agent 1-80
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/en/README.md
+  ai_agent 1-25
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContextTest.java
+  ai_agent 1-115
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 1-84
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/model-selection-pareto-analysis.md
+  ai_agent 1-147
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/architecture-constraints.md
+  ai_agent 1-160
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/control/ActionGate.java
+  ai_agent 1-177
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/spi/TaskListener.java
+  ai_agent 1-158
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/greetings.yml
+  ai_agent 1-16
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/BATCH-best-practices.md
+  ai_agent 1-219
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/I1-idea-graveyard.md
+  ai_agent 1-126
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/LeanCancellationExceptionTest.java
+  ai_agent 1-32
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/G2-batch-result-report.md
+  ai_agent 1-120
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/I1-idea-graveyard.md
+  ai_agent 1-123
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/handoff.md
+  ai_agent 1-133
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/README.md
+  ai_agent 1-111
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 1-100
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/B2-function-signature-bloat.md
+  ai_agent 1-80
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/reference/nullability-annotations.md
+  ai_agent 1-105
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/reports/concurrent-limit-executor-inline-fallback-deadlock.html
+  ai_agent 1-143
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/G5-batch-http-calls.md
+  ai_agent 1-71
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationPropagationCartesianTest.java
+  ai_agent 1-185
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/spi/TaskListenerTest.java
+  ai_agent 1-100
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/TaskGraphObservationContext.java
+  ai_agent 1-221
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphExportTest.java
+  ai_agent 1-496
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/I2-java8-compatibility-cost.md
+  ai_agent 1-81
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/index.md
+  ai_agent 1-35
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/adr/0001-layered-cartesian-concurrency-testing.md
+  ai_agent 1-369
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  ai_agent 1-80
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/wiki/ai-concurrency-review-false-positive.md
+  ai_agent 1-116
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/D1-get-timeout-task-still-running.md
+  ai_agent 1-83
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/README.en.md
+  ai_agent 1-79
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/spi/ExecutionPhase.java
+  ai_agent 1-20
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueueTest.java
+  ai_agent 1-901
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/reference/nullability-annotations.md
+  ai_agent 1-42
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/BatchExecutionOptions.java
+  ai_agent 1-92
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/cancel/LeanCancellationException.java
+  ai_agent 1-26
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/G1_TaskListenerMonitoringTest.java
+  ai_agent 1-233
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/case-studies/ai-concurrency-review-false-positive.md
+  ai_agent 1-36
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java
+  ai_agent 1-204
+idea_list.md
+  ai_agent 1-71
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/G1-task-listener-monitoring.md
+  ai_agent 1-83
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/design/philosophy.md
+  ai_agent 1-39
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/guava-monitor-code-reading-report.html
+  ai_agent 1-547
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/GlobalPar.java
+  ai_agent 1-426
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/Par.java
+  ai_agent 1-184
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationToken.java
+  ai_agent 1-307
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/testing/async-batch-result-report-test-design.md
+  ai_agent 1-96
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionService.java
+  ai_agent 1-183
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionOptionsTest.java
+  ai_agent 1-75
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/pom.xml
+  ai_agent 1-140
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/ScopedCallable.java
+  ai_agent 1-184
+design/handoff-task-future-implementation.md
+  ai_agent 1-128
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/user-guide.md
+  ai_agent 1-196
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContext.java
+  ai_agent 1-257
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskGroupOptions.java
+  ai_agent 1-72
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/reference/cooperative-cancellation.md
+  ai_agent 1-191
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskEdgeEntry.java
+  ai_agent 1-28
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/main/java/demo/basic/CancellationDemo.java
+  ai_agent 1-84
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/ci.yml
+  ai_agent 1-98
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java
+  ai_agent 1-186
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java
+  ai_agent 1-117
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java
+  ai_agent 1-171
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/design/idea-graveyard.md
+  ai_agent 1-260
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/scripts/extract_figures.py
+  ai_agent 1-144
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/ExecutorIdentity.java
+  ai_agent 1-40
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 1-95
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/adr/0002-separate-task-execution-and-future-lifecycle.md
+  ai_agent 1-454
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/control/ActionGateBoundaryTest.java
+  ai_agent 1-57
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/E1_QueueFloodingTest.java
+  ai_agent 1-146
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  ai_agent 1-187
+package.json
+  ai_agent 1-8
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/README.en.md
+  ai_agent 1-43
+design/task-future-design.md
+  ai_agent 1-281
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  ai_agent 1-185
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/spi/DeadlockDetectionListener.java
+  ai_agent 1-126
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParPoliciesTest.java
+  ai_agent 1-103
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/design/idea-graveyard.md
+  ai_agent 1-49
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  ai_agent 1-82
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  ai_agent 1-216
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/ParallelTaskGroup.java
+  ai_agent 1-553
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskGroupResult.java
+  ai_agent 1-75
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  ai_agent 1-72
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/A3-lean-vs-fat-exception.md
+  ai_agent 1-79
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/G6_BatchDbQueryTest.java
+  ai_agent 1-221
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/pom.xml
+  ai_agent 1-304
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/spi/TaskGroupListener.java
+  ai_agent 1-23
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/I3-sliding-window-vs-semaphore.md
+  ai_agent 1-95
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/reports/timer-holder-execution-analysis.html
+  ai_agent 1-974
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/spi/DeadlockDetectionListenerTest.java
+  ai_agent 1-53
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/visuals/parallel-in-scope-architecture.html
+  ai_agent 1-27
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/CLAUDE.md
+  ai_agent 1
+.gitignore
+  ai_agent 39-41
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/mkdocs/requirements.txt
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/graph/package-info.java
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/dependency-review.yml
+  ai_agent 1-18
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/internal/ScopedCallableContextRestoreTest.java
+  ai_agent 1-108
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/scripts/run-demos.sh
+  ai_agent 1-131
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/CLAUDE.md
+  ai_agent 1
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/B1_MdcContextLostTest.java
+  ai_agent 1-185
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/gh-pages.yml
+  ai_agent 1-66
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/summary.yml
+  ai_agent 1-40
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/G6-batch-db-query.md
+  ai_agent 1-98
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/G6-batch-db-query.md
+  ai_agent 1-95
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/scripts/check-local-links.py
+  ai_agent 1-70
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/F1-cpu-task-queuing.md
+  ai_agent 1-83
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  ai_agent 1-100
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/I4-vs-completable-future.md
+  ai_agent 1-99
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/package-info.java
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/migration-v0.2.md
+  ai_agent 1-105
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskGroupCompletionReason.java
+  ai_agent 1-9
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/CheckpointsOutcomeTest.java
+  ai_agent 1-229
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerConcurrencyTest.java
+  ai_agent 1-268
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphPolarityTest.java
+  ai_agent 1-179
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/reference/cooperative-cancellation.md
+  ai_agent 1-91
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/LICENSE
+  ai_agent 1-199
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/D2-late-bind-race-condition.md
+  ai_agent 1-92
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/scripts/check-english-docs.py
+  ai_agent 1-31
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/queue/SmartBlockingQueue.java
+  ai_agent 1-88
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/reports/mutation-testing-2026-08-21.md
+  ai_agent 1-85
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueueTest.java
+  ai_agent 1-799
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/internal/FutureInspectorTest.java
+  ai_agent 1-147
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java
+  ai_agent 1-114
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/H1-defensive-null-handling.md
+  ai_agent 1-86
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/ArchitectureConstraintsTest.java
+  ai_agent 1-110
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/cancel/package-info.java
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/C1-thread-pool-deadlock.md
+  ai_agent 1-82
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  ai_agent 1-71
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphData.java
+  ai_agent 1-218
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/E1-queue-flooding.md
+  ai_agent 1-89
+design/enhanced-listenablefuture-analysis.md
+  ai_agent 1-145
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java
+  ai_agent 1-160
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh-CN/visuals/parallel-in-scope-user-guide.html
+  ai_agent 1-13
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/design/draining-blocking-queue-contract.md
+  ai_agent 1-302
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/case-studies/ai-concurrency-review-false-positive.md
+  ai_agent 1-116
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/spi/package-info.java
+  ai_agent 1-5
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTokenLateBindRaceTest.java
+  ai_agent 1-140
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/context/TaskGraphObservationContextTest.java
+  ai_agent 1-137
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/G1-task-listener-monitoring.md
+  ai_agent 1-78
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh-CN/visuals/parallel-in-scope-architecture.html
+  ai_agent 1-13
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/mkdocs/mkdocs.yml
+  ai_agent 1-143
+design/group-api-redesign-v0.3-proposal.md
+  ai_agent 1-227
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionOptionsMatrixTest.java
+  ai_agent 1-71
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerCartesianTest.java
+  ai_agent 1-121
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.github/workflows/release.yml
+  ai_agent 1-53
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/CancellationTriggerCartesianTest.java
+  ai_agent 1-249
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/TaskExecutionContext.java
+  ai_agent 1-85
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/queue/SmartBlockingQueueTest.java
+  ai_agent 1-77
+design/AGENTS.md
+  ai_agent 16-19
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/E3-closable-blocking-queue.md
+  ai_agent 1-178
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/I3-sliding-window-vs-semaphore.md
+  ai_agent 1-94
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/E2-submitter-pool-offloading.md
+  ai_agent 1-76
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  ai_agent 1-76
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskOutcome.java
+  ai_agent 1-37
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskType.java
+  ai_agent 1-19
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  ai_agent 1-67
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerExpiryTest.java
+  ai_agent 1-218
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/adr/AGENTS.md
+  ai_agent 1-43
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/GlobalExecutionPolicy.java
+  ai_agent 1-59
+handoff-canceltoken-deadline-group-bind.md
+  ai_agent 1-133
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 1-88
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  ai_agent 1-77
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/main/java/demo/integration/BatchProcessingDemo.java
+  ai_agent 1-130
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphBatchIdentityTest.java
+  ai_agent 1-196
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/TaskContext.java
+  ai_agent 1-23
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  ai_agent 1-126
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskEdgeTest.java
+  ai_agent 1-44
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/ExecutorRuntime.java
+  ai_agent 1-77
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/internal/ExecutionPhaseCartesianTest.java
+  ai_agent 1-148
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/README.md
+  ai_agent 1-75
+package-lock.json
+  ai_agent 1-22
+"llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/Shared understanding (共识).md"
+  ai_agent 1
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutor.java
+  ai_agent 1-201
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/assets/stylesheets/extra.css
+  ai_agent 1-10
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java
+  ai_agent 1-134
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/G2-batch-result-report.md
+  ai_agent 1-123
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/scope/AsyncBatchResult.java
+  ai_agent 1-176
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/visuals/parallel-in-scope-user-guide.html
+  ai_agent 1-30
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  ai_agent 1-77
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/en/index.md
+  ai_agent 1-40
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/README.zh-CN.md
+  ai_agent 1-79
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/explore/PR文档与代码一致性分析.md
+  ai_agent 1-27
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/basic/BasicParDemoTest.java
+  ai_agent 1-21
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerBoundaryTest.java
+  ai_agent 1-107
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/verification/maven-central-consumer/pom.xml
+  ai_agent 1-50
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/articles/B1-threadlocal-context-lost.md
+  ai_agent 1-74
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java
+  ai_agent 1-109
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  ai_agent 1-112
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  ai_agent 1-228
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/migration-v0.2.md
+  ai_agent 1-63
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/QuickStartTest.java
+  ai_agent 1-98
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/docs/zh/design/parallel-task-group-contract-final.md
+  ai_agent 1-824
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueueSignalTest.java
+  ai_agent 1-184
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/reports/recent-update-analysis.html
+  ai_agent 1-279
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/.gitignore
+  ai_agent 1-38
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/FutureInspector.java
+  ai_agent 1-73
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/test/java/io/github/huatalk/parallelinscope/cancel/CheckpointsTest.java
+  ai_agent 1-302
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueue.java
+  ai_agent 1-1629
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/I2-java8-compatibility-cost.md
+  ai_agent 1-81
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  ai_agent 1-79
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  ai_agent 1-169
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  ai_agent 1-427
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/context/SubmissionScope.java
+  ai_agent 1-34
+llm_arena/cancellation-deadline-bind/work/codex-gpt56-yolo/src/main/java/io/github/huatalk/parallelinscope/internal/ExecutionPhaseHintFuture.java
+  ai_agent 1-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "105694cee94154c448e13a2aec39f9d85abb3300",
+  "prompts": {}
+}
