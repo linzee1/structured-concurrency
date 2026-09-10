@@ -190,3 +190,6 @@ try {
     Throwable rejected = cause.getCause();           // RejectedExecutionException
 }
 ```
+
+`SubmissionException` 本身是内部类型：它只会出现在 `getCause()` 链和堆栈里，无法在 `catch`
+子句中指名。请通过 `TaskOutcome.SUBMISSION_FAILURE` 区分这类终态。

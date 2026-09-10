@@ -116,7 +116,7 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `AsyncBatchResult.getResults()` | `TaskBatchResult.results()` |
 | `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
-| `GlobalPar.isClosed()/isShutdown()/isTerminated()` | `GlobalPar.closed()/shutdown()/terminated()` |
+| `GlobalPar.isClosed()` | `GlobalPar.closed()` |
 | `CancellationToken.getState()` / `State.getCode()` | `state()`; `code()` is removed — interruption semantics are expressed by the enum values themselves |
 | `TaskGroupMemberResult.completionReason()` | `TaskCompletion.outcome()` (member snapshots are now `TaskGroupResult.members()` values of type `TaskCompletion`) |
 | `TaskGroupMemberResult.taskContext()` | removed; timing flattened to `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
@@ -257,3 +257,7 @@ try {
     Throwable rejected = cause.getCause();           // RejectedExecutionException
 }
 ```
+
+`SubmissionException` itself is an internal type: it surfaces only through `getCause()` chains and
+stack traces and cannot be named in a `catch` clause. Classify the outcome through
+`TaskOutcome.SUBMISSION_FAILURE` instead.
