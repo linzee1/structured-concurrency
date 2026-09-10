@@ -42,45 +42,16 @@ public class FutureInspectorTest {
     }
 
     @Test
-    public void hintFutureReportsRunningWhenNotDone() {
-        ExecutionPhaseHintFuture<String> pending = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
-        assertThat(FutureInspector.outcome(pending)).isEqualTo(TaskOutcome.RUNNING);
-    }
-
-    @Test
-    public void hintFutureReportsSuccessAfterRun() {
-        ExecutionPhaseHintFuture<String> succeeded = ExecutionPhaseHintFuture.create(() -> "done", phase -> {});
-        succeeded.run();
-        assertThat(FutureInspector.outcome(succeeded)).isEqualTo(TaskOutcome.SUCCESS);
-    }
-
-    @Test
-    public void hintFutureReportsSubmissionFailureInsteadOfUserFailure() {
-        ExecutionPhaseHintFuture<String> rejected = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
-        rejected.submitPrepared(
-                command -> {
-                    throw new java.util.concurrent.RejectedExecutionException("full");
-                },
-                false);
-        assertThat(FutureInspector.outcome(rejected)).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-    }
-
-    @Test
-    public void hintFutureReportsUserFailureForCallableThrow() {
-        ExecutionPhaseHintFuture<String> failed = ExecutionPhaseHintFuture.create(
-                () -> {
-                    throw new IllegalStateException("boom");
-                },
-                phase -> {});
-        failed.run();
-        assertThat(FutureInspector.outcome(failed)).isEqualTo(TaskOutcome.USER_FAILURE);
-    }
-
-    @Test
-    public void hintFutureReportsMemberCanceledOnCancel() {
+    public void taskFutureSuppliesTheAttributionABareFutureCannot() {
+        CancellationToken token = new CancellationToken();
+        token.timeoutCancel();
         ExecutionPhaseHintFuture<String> canceled = ExecutionPhaseHintFuture.create(() -> "never", phase -> {});
         canceled.cancel(true);
+
+        // The same future under inspection: only the delivered TaskFuture view can tell that the
+        // cancellation came from the token's deadline.
         assertThat(FutureInspector.outcome(canceled)).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+        assertThat(FutureInspector.outcome(Task.of("task", token, canceled))).isEqualTo(TaskOutcome.TIMEOUT);
     }
 
     @Test

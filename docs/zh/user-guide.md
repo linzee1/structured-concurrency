@@ -50,7 +50,7 @@ TaskBatchResult<Account> result = httpPar.map(
         client::fetchAccount,
         options);
 
-List<ListenableFuture<Account>> futures = result.results();
+List<TaskFuture<Account>> futures = result.results();
 ```
 
 `parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制。timeout 必须在两个互斥的静态工厂里显式二选一：`BatchOptions.timeout(name, Duration)` 设置正数超时，`BatchOptions.inheritTimeout(name)` 继承外层作用域的 deadline——没有第三个状态，遗漏声明根本无法构造选项对象。显式 timeout 会被外层 deadline 截断；在没有外层 scoped task 时声明继承会在入口点被拒绝。`TaskType.CPU_BOUND` 与 `TaskType.IO_BOUND` 描述调度意图。`rejectEnqueue` 控制绑定执行器支持时是否拒绝排队。
@@ -105,6 +105,38 @@ try (TaskGroup group = TaskGroup.submit(global, built)) {
 ```
 
 `CompletedTaskValues` 视图不阻塞，只通过注册的 `TaskKey` 键暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine 函数恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`，不会 inline 执行），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，submit 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine，使用自己的 `TaskKey`；`group.future(combineKey)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedTaskName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
+
+## 从 future 读取任务归因
+
+库为每一次任务执行交付的 future 都是 `TaskFuture<T>`：它既是 `ListenableFuture<T>`，也能回答这个任务是谁、最后如何结束。批次的每个元素、任务组的成员、终端 combine，以及组完成 future 都适用。
+
+| 方法 | 回答 |
+|---|---|
+| `taskName()` | 批次名、成员/combine 的 key 名，或组名 |
+| `outcome()` | 未终态为 `RUNNING`，终态后是一个 `TaskOutcome` |
+| `deadlineNanos()` | 该任务在 `System.nanoTime()` 基准上的绝对 deadline |
+| `remaining()` | 距该 deadline 的剩余预算，永不为负 |
+| `failure()` | `USER_FAILURE` / `SUBMISSION_FAILURE` 背后的 cause，其余情况为 `null` |
+
+这是纯增量视图。`TaskFuture` 继承 `ListenableFuture`，`Futures.allAsList`、`addCallback` 等全部 Guava 组合 API 照常工作，不检查该接口的代码行为完全不变。用 `instanceof` 检查；实现类不公开，不要书写类名。
+
+```java
+Account account = future.get();
+if (future instanceof TaskFuture) {
+    TaskFuture<?> task = (TaskFuture<?>) future;
+    if (task.outcome() == TaskOutcome.TIMEOUT) {
+        log.warn("{} timed out with {} of its budget left", task.taskName(), task.remaining());
+    }
+}
+```
+
+`outcome()` 是这个接口存在的理由：它消除了"future 被取消了，猜猜为什么"这一步。被取消的任务按其取消 token 归因——自身 deadline 到期记 `TIMEOUT`，兄弟任务失败后的级联记 `FAIL_FAST`，所在组或外层作用域取消记 `GROUP_CANCELED`，而没有任何框架路径取消过它（调用方直接取消了该 future）记 `MEMBER_CANCELED`。仅仅表达"已观测到取消"的失败——例如抢在级联之前的 `Checkpoints.checkpoint` 中断——同样按取消归因，不会读成用户失败。失败区分 `SUBMISSION_FAILURE`（被拒绝，或用户代码执行前就失败）与 `USER_FAILURE`，`failure()` 直接给出 cause，无需拆 `ExecutionException`。
+
+归因按 future 逐个读取其自身 token 链，因此在所在组收敛之前就可读。组的终态归类——`TaskGroupResult.outcome()` 与每个成员的 `TaskCompletion`——在收敛后推导，仍是组级原因归属的权威：快照能区分"被直接取消的成员"与"作为连带被害者被取消的成员"，而单个 future 只能报告其 token 链最终归到组的取消。
+
+有一个句柄刻意保持裸 future：`TaskBatchResult.submitCanceller()` 用于停止提交，不代表一次任务执行，因此不是 `TaskFuture`。
+
+需要链式编排时用 `FluentFuture.from(task)` 获得完整的 `FluentFuture` API。链上派生的 future 是普通 `FluentFuture`：它们不是库执行的任务，没有 token 归因它们。
 
 ## 取消与嵌套批次
 

@@ -246,7 +246,7 @@ class SlidingWindowSubmitterTest {
     }
 
     @Test
-    void slidingWindowRejectionPropagatesOriginalFailure() throws Exception {
+    void slidingWindowRejectionReportsSubmissionFailureAndKeepsTheOriginalCause() throws Exception {
         AtomicInteger submissions = new AtomicInteger();
         ExecutorService firstThenReject = new AbstractExecutorService() {
             private volatile boolean shutdown;
@@ -293,7 +293,9 @@ class SlidingWindowSubmitterTest {
             assertThat(batch.results().get(0).get(1, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(1, TimeUnit.SECONDS))
                     .isInstanceOf(java.util.concurrent.ExecutionException.class)
-                    .hasCauseInstanceOf(RejectedExecutionException.class);
+                    .hasCauseInstanceOf(SubmissionException.class)
+                    .hasRootCauseInstanceOf(RejectedExecutionException.class);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(java.util.concurrent.ExecutionException.class)
                     .hasCauseInstanceOf(RejectedExecutionException.class);

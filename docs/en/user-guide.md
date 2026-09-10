@@ -54,7 +54,7 @@ TaskBatchResult<Account> result = httpPar.map(
         client::fetchAccount,
         options);
 
-List<ListenableFuture<Account>> futures = result.results();
+List<TaskFuture<Account>> futures = result.results();
 ```
 
 `parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
@@ -159,6 +159,58 @@ the group's attributed outcome. The combine's snapshot appears as `TaskGroupResu
 `failedTaskName()` carries the combine's registered name. The group deadline spans the fan-out
 and the combine, so a combine whose members consumed most of the budget may time out before it
 starts — that is the intended end-to-end semantics.
+
+## Read task attribution from a future
+
+Every future the library delivers for a task execution is a `TaskFuture<T>`: a `ListenableFuture<T>`
+that also answers what the task is and how it ended. That covers a batch's elements, a group's
+members, its terminal combine, and the group completion future.
+
+| Method | Answer |
+|---|---|
+| `taskName()` | The batch name, the member or combine key name, or the group name |
+| `outcome()` | `RUNNING` while pending, then one terminal `TaskOutcome` |
+| `deadlineNanos()` | The task's absolute deadline on the `System.nanoTime()` clock |
+| `remaining()` | The budget left before that deadline, never negative |
+| `failure()` | The cause behind `USER_FAILURE` / `SUBMISSION_FAILURE`, otherwise `null` |
+
+The view is purely additive. `TaskFuture` extends `ListenableFuture`, so `Futures.allAsList`,
+`addCallback`, and every other Guava combinator keep working on it unchanged, and code that never
+checks the interface behaves exactly as before. Check with `instanceof`; the implementation class is
+private and must never be named.
+
+```java
+Account account = future.get();
+if (future instanceof TaskFuture) {
+    TaskFuture<?> task = (TaskFuture<?>) future;
+    if (task.outcome() == TaskOutcome.TIMEOUT) {
+        log.warn("{} timed out with {} of its budget left", task.taskName(), task.remaining());
+    }
+}
+```
+
+`outcome()` is why the interface exists: it removes the "the future is cancelled, so guess why"
+step. A cancelled task is attributed from its cancellation token — `TIMEOUT` for a deadline,
+`FAIL_FAST` for the cascade after a sibling failed, `GROUP_CANCELED` for its group's or an enclosing
+scope's cancellation, and `MEMBER_CANCELED` when no framework path cancelled it (the caller
+cancelled that future directly). A failure that only reports observed cancellation — a
+`Checkpoints.checkpoint` interruption that won the race against the cascade — is attributed the same
+way instead of reading as a user failure. A failed task separates `SUBMISSION_FAILURE` (rejected, or
+failed before user code ran) from `USER_FAILURE`, and `failure()` hands back the cause without
+unwrapping an `ExecutionException`.
+
+Attribution is per future, read from that task's own token chain, so it is available while the
+enclosing group is still converging. The group's terminal classification — `TaskGroupResult.outcome()`
+and each member's `TaskCompletion` — is derived after convergence and remains the authority on
+group-level reasons: the snapshot keeps a member cancelled directly distinct from one cancelled as
+fallout, while a future can only report that its token chain ends in the group's cancellation.
+
+One handle stays a plain future on purpose: `TaskBatchResult.submitCanceller()` stops submission, it
+does not represent a task execution, so it is not a `TaskFuture`.
+
+Need fluent chaining? `FluentFuture.from(task)` gives the full `FluentFuture` API. The futures on
+such a chain are ordinary `FluentFuture`s: they are not executions the library ran, and no token
+owns them.
 
 ## Cancellation and nested batches
 

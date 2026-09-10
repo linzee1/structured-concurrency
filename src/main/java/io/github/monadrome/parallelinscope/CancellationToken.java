@@ -126,7 +126,9 @@ public class CancellationToken {
      * @param timer scheduler used to detect the deadline
      */
     public <T> void bind(
-            List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
+            List<? extends ListenableFuture<T>> futures,
+            ListenableFuture<?> submitCanceller,
+            ScheduledExecutorService timer) {
         Objects.requireNonNull(timer);
         FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
                 .withTimeout(Duration.ofNanos(deadlineNanos - System.nanoTime()), timer);

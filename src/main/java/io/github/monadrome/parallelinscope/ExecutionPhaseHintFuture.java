@@ -208,31 +208,4 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             LOGGER.log(Level.WARNING, "Execution phase observer failed", e);
         }
     }
-
-    /**
-     * Classifies this future as a {@link TaskOutcome} using the richer phase hint, which separates
-     * submission failure from user failure — a distinction a plain {@code Future} cannot express.
-     * Cancellation always reads as {@link TaskOutcome#MEMBER_CANCELED} here; the finer TIMEOUT /
-     * FAIL_FAST / GROUP_CANCELED reasons are written by the owning batch or group, not by this
-     * future.
-     */
-    TaskOutcome outcome() {
-        if (!isDone()) {
-            return TaskOutcome.RUNNING;
-        }
-        if (isCancelled()) {
-            return TaskOutcome.MEMBER_CANCELED;
-        }
-        try {
-            get();
-            return TaskOutcome.SUCCESS;
-        } catch (java.util.concurrent.ExecutionException failure) {
-            return failure.getCause() instanceof SubmissionException
-                    ? TaskOutcome.SUBMISSION_FAILURE
-                    : TaskOutcome.USER_FAILURE;
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            return TaskOutcome.USER_FAILURE;
-        }
-    }
 }

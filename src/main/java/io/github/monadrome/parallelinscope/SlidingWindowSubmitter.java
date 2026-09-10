@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.SettableFuture;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -49,19 +48,20 @@ final class SlidingWindowSubmitter<V> {
     /**
      * Submits all tasks and returns the batch result immediately.
      *
-     * <p>Each returned future is the exact {@link ExecutionPhaseHintFuture} passed in: the caller
-     * prepares tasks via {@link TaskSubmissions}, and this executor only coordinates when each
-     * prepared future enters the worker pool.
+     * <p>Each returned future is a {@link Task} view of the exact {@link ExecutionPhaseHintFuture}
+     * passed in — or of a placeholder standing in for one that has not reached a free slot yet: the
+     * caller prepares tasks via {@link TaskSubmissions}, and this executor only coordinates when
+     * each prepared future enters the worker pool.
      *
      * @param tasks prepared task futures to execute
      * @return TaskBatchResult containing individual task futures
      */
     public TaskBatchResult<V> submitAll(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         if (tasks.isEmpty()) {
-            return TaskBatchResult.of(unit.cancellationToken(), ImmutableList.of());
+            return TaskBatchResult.of(ImmutableList.of());
         }
 
-        ImmutableList.Builder<ListenableFuture<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
+        ImmutableList.Builder<Task<V>> resultBuilder = ImmutableList.builderWithExpectedSize(tasks.size());
 
         int start = Math.min(tasks.size(), parallelism());
 
@@ -70,27 +70,28 @@ final class SlidingWindowSubmitter<V> {
             try {
                 resultBuilder.add(fallbackSubmit(tasks, i));
             } catch (RuntimeException failure) {
-                resultBuilder.add(Futures.immediateFailedFuture(failure));
+                // The rejection is the batch's shared verdict for every element; wrapping it keeps
+                // each element attributed as a submission failure rather than a user one.
+                Throwable rejected = new SubmissionException(failure);
+                resultBuilder.add(rejectedTask(rejected));
                 for (int pending = i + 1; pending < tasks.size(); pending++) {
-                    resultBuilder.add(Futures.immediateFailedFuture(failure));
+                    resultBuilder.add(rejectedTask(rejected));
                 }
-                return TaskBatchResult.of(unit.cancellationToken(), resultBuilder.build());
+                return TaskBatchResult.of(resultBuilder.build());
             }
         }
 
         int remaining = tasks.size() - start;
         if (remaining <= 0) {
-            ImmutableList<ListenableFuture<V>> results = resultBuilder.build();
-            return TaskBatchResult.of(unit.cancellationToken(), results);
+            return TaskBatchResult.of(resultBuilder.build());
         }
 
         // Async submit remaining tasks
-        List<SettableFuture<V>> others = IntStream.range(0, remaining)
-                .mapToObj(ignore -> SettableFuture.<V>create())
+        List<Task<V>> others = IntStream.range(0, remaining)
+                .mapToObj(ignore -> Task.<V>placeholder(unit.name(), unit.cancellationToken()))
                 .collect(toImmutableList());
 
-        ImmutableList<ListenableFuture<V>> results =
-                resultBuilder.addAll(others).build();
+        ImmutableList<Task<V>> results = resultBuilder.addAll(others).build();
         AtomicInteger nextIndex = new AtomicInteger(start);
         ListenableFuture<?> submittingFuture = submitterPool.submit(() -> submitRemaining(tasks, results, nextIndex));
         // A cancellation may win before the submitter thread starts. In that case the callable
@@ -107,17 +108,24 @@ final class SlidingWindowSubmitter<V> {
                 },
                 directExecutor());
 
-        return TaskBatchResult.of(unit.cancellationToken(), submittingFuture, results);
+        return TaskBatchResult.of(submittingFuture, results);
     }
 
-    private ListenableFuture<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
+    private Task<V> fallbackSubmit(List<? extends ExecutionPhaseHintFuture<V>> tasks, int i) {
         ExecutionPhaseHintFuture<V> task = tasks.get(i);
         MultiTaskContext previous = SubmissionScope.install(unit);
         try {
-            return TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
+            ListenableFuture<V> submitted =
+                    TaskType.CPU_BOUND == taskType() ? cs.submitOrRunInline(task) : cs.submit(task);
+            return Task.of(unit.name(), unit.cancellationToken(), submitted);
         } finally {
             SubmissionScope.restore(previous);
         }
+    }
+
+    /** Wraps one element of a batch whose task will never reach the executor. */
+    private Task<V> rejectedTask(Throwable rejection) {
+        return Task.of(unit.name(), unit.cancellationToken(), Futures.immediateFailedFuture(rejection));
     }
 
     private int parallelism() {
@@ -129,9 +137,7 @@ final class SlidingWindowSubmitter<V> {
     }
 
     private int submitRemaining(
-            List<? extends ExecutionPhaseHintFuture<V>> tasks,
-            List<ListenableFuture<V>> result,
-            AtomicInteger nextIndex) {
+            List<? extends ExecutionPhaseHintFuture<V>> tasks, List<Task<V>> result, AtomicInteger nextIndex) {
         int index = nextIndex.get();
         int size = tasks.size();
         int submitted = 0;
@@ -158,7 +164,7 @@ final class SlidingWindowSubmitter<V> {
                 return submitted;
             }
             try {
-                ((SettableFuture<V>) result.get(index)).setFuture(fallbackSubmit(tasks, index));
+                result.get(index).bind(fallbackSubmit(tasks, index));
             } catch (RuntimeException e) {
                 abandonRemaining(result, index, e);
                 throw e;
@@ -181,15 +187,9 @@ final class SlidingWindowSubmitter<V> {
      * @param reason the failure reported for the abandoned futures, or {@code null} to cancel them
      *     when the batch is already being canceled
      */
-    private static <V> void abandonRemaining(
-            List<ListenableFuture<V>> result, int fromIndex, @Nullable Throwable reason) {
+    private static <V> void abandonRemaining(List<Task<V>> result, int fromIndex, @Nullable Throwable reason) {
         for (int i = fromIndex; i < result.size(); i++) {
-            SettableFuture<V> future = (SettableFuture<V>) result.get(i);
-            if (reason != null) {
-                future.setException(reason);
-            } else {
-                future.cancel(true);
-            }
+            result.get(i).abandon(reason);
         }
     }
 }

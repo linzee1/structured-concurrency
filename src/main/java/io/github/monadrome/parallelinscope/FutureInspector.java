@@ -15,18 +15,18 @@ final class FutureInspector {
     /**
      * Returns the current {@link TaskOutcome} of the given future.
      *
-     * <p>Futures that carry a phase hint ({@link ExecutionPhaseHintFuture}) report a richer outcome
-     * — distinguishing submission failure from user failure — because they track it themselves. Any
-     * other {@code Future} exposes only done/cancelled state, so the mapping is conservative: a
-     * failed future reads as {@link TaskOutcome#USER_FAILURE} and a cancelled one as {@link
-     * TaskOutcome#MEMBER_CANCELED}.
+     * <p>A {@link TaskFuture} reports its own attribution, which is richer than a bare future can
+     * express: it distinguishes submission failure from user failure and derives a cancellation's
+     * cause from the task's token chain. Any other {@code Future} exposes only done/cancelled
+     * state, so the mapping is conservative: a failed future reads as {@link
+     * TaskOutcome#USER_FAILURE} and a cancelled one as {@link TaskOutcome#MEMBER_CANCELED}.
      *
      * @param future the future to inspect
      * @return the current {@link TaskOutcome}
      */
     public static TaskOutcome outcome(Future<?> future) {
-        if (future instanceof ExecutionPhaseHintFuture) {
-            return ((ExecutionPhaseHintFuture<?>) future).outcome();
+        if (future instanceof TaskFuture) {
+            return ((TaskFuture<?>) future).outcome();
         }
         if (!future.isDone()) {
             return TaskOutcome.RUNNING;

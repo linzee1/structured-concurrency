@@ -56,8 +56,9 @@ public final class TaskGroup implements AutoCloseable {
     private final List<TaskGroupListener> listeners;
     private final Map<String, MemberState> memberStates;
     private final @Nullable MemberState terminal;
-    private final Map<String, ListenableFuture<?>> members;
+    private final Map<String, TaskFuture<?>> members;
     private final SettableFuture<TaskGroupResult> completion = SettableFuture.create();
+    private final Task<TaskGroupResult> completionTask;
     private final CancellationToken groupToken;
 
     private int terminalCount;
@@ -81,8 +82,12 @@ public final class TaskGroup implements AutoCloseable {
         this.groupToken = groupToken;
         this.memberStates = new LinkedHashMap<>(memberStates);
         this.terminal = terminal;
-        Map<String, ListenableFuture<?>> publicMembers = new LinkedHashMap<>();
-        for (MemberState member : memberStates.values()) publicMembers.put(member.name, member.future);
+        // The group's own terminal future is a task like any other: it carries the group name and
+        // the group token, so a caller waiting on convergence reads the same attribution vocabulary
+        // as on a member future.
+        this.completionTask = Task.of(groupName, groupToken, completion);
+        Map<String, TaskFuture<?>> publicMembers = new LinkedHashMap<>();
+        for (MemberState member : memberStates.values()) publicMembers.put(member.name, member.view);
         this.members = Collections.unmodifiableMap(publicMembers);
     }
 
@@ -94,15 +99,15 @@ public final class TaskGroup implements AutoCloseable {
         return groupName;
     }
 
-    public ListenableFuture<TaskGroupResult> completionFuture() {
-        return completion;
+    public TaskFuture<TaskGroupResult> completionFuture() {
+        return completionTask;
     }
 
-    public Optional<ListenableFuture<?>> findMember(String memberName) {
+    public Optional<TaskFuture<?>> findMember(String memberName) {
         return Optional.ofNullable(members.get(memberName));
     }
 
-    public Map<String, ListenableFuture<?>> members() {
+    public Map<String, TaskFuture<?>> members() {
         return members;
     }
 
@@ -115,7 +120,7 @@ public final class TaskGroup implements AutoCloseable {
      *     claiming a supertype of the registered type is accepted)
      */
     @SuppressWarnings("unchecked")
-    public <T> ListenableFuture<T> future(TaskKey<T> key) {
+    public <T> TaskFuture<T> future(TaskKey<T> key) {
         Objects.requireNonNull(key, "key cannot be null");
         MemberState member = memberStates.get(key.name());
         if (member == null && terminal != null && terminal.name.equals(key.name())) {
@@ -128,7 +133,7 @@ public final class TaskGroup implements AutoCloseable {
             throw new IllegalArgumentException("Member '" + key.name() + "' was registered with result type "
                     + member.resultType + " but the key claims " + key.resultType());
         }
-        return (ListenableFuture<T>) member.future;
+        return (TaskFuture<T>) member.view;
     }
 
     /** Cancels every unfinished member without blocking for user code to stop. */
@@ -564,7 +569,13 @@ public final class TaskGroup implements AutoCloseable {
     /** Package-visible for {@link CompletedTaskValues}, which reads member futures and types. */
     static final class MemberState {
         final String name;
+
+        /** The engine object: submitted to the executor, never handed to the caller. */
         final ExecutionPhaseHintFuture<Object> future;
+
+        /** The caller-facing view of {@link #future}; carries the member name and the member token. */
+        final Task<Object> view;
+
         final TypeToken<?> resultType;
         private final TaskExecutionContext context;
         private final Executor executor;
@@ -583,6 +594,7 @@ public final class TaskGroup implements AutoCloseable {
             this.name = name;
             this.context = context;
             this.future = future;
+            this.view = Task.of(name, context.multiTaskContext().cancellationToken(), future);
             this.executor = executor;
             this.cpuBound = cpuBound;
             this.resultType = resultType;
