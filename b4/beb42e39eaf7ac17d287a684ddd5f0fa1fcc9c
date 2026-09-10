@@ -1,0 +1,38 @@
+docs/zh/migration-v0.2.md
+  s_c5d5a07c619e2f::t_58d3e6a942760e 30
+  s_c5d5a07c619e2f::t_028b7fdced54b1 32
+  s_c5d5a07c619e2f::t_1c773e08c9a92d 44
+docs/en/migration-v0.2.md
+  s_c5d5a07c619e2f::t_a494b21708b591 48
+  s_c5d5a07c619e2f::t_968d2def8322f7 32
+  s_c5d5a07c619e2f::t_ce4db6d216cdaf 34
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_c5d5a07c619e2f::t_517359ca06c340 48-59,66-67,74
+  s_c5d5a07c619e2f::t_ee500ee2453c30 60-63
+  s_c5d5a07c619e2f::t_3b416504c87349 86-88
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_c5d5a07c619e2f::t_723f375e0393a2 161-163,171
+  s_c5d5a07c619e2f::t_e593724eddf595 196-198
+  s_c5d5a07c619e2f::t_96ca4a34329157 219-223
+src/test/java/io/github/monadrome/parallelinscope/PackageBoundaryTest.java
+  s_c5d5a07c619e2f::t_6ac595fb3cb028 21
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineTest.java
+  s_c5d5a07c619e2f::t_88dde7cd0c8ddd 381-387,389-393
+  s_c5d5a07c619e2f::t_d0c4d024893c84 388
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "b4beb42e39eaf7ac17d287a684ddd5f0fa1fcc9c",
+  "prompts": {},
+  "sessions": {
+    "s_c5d5a07c619e2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ee7282f0-93a4-45d9-8082-e4a643ceded1",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
