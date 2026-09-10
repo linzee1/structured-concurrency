@@ -7,8 +7,10 @@ on:
       # and the verification step below rejects any tag that does not match.
       - 'v*.*.*'
 
+# `contents: write` is only needed by the final step, which publishes the GitHub release for a
+# release tag. Snapshot tags deploy to Central but deliberately do not create a release.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -53,3 +55,9 @@ jobs:
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn -B -ntp -Prelease -DskipTests deploy
+
+      - name: Create GitHub release
+        if: ${{ !contains(github.ref_name, '-SNAPSHOT') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --generate-notes --verify-tag
