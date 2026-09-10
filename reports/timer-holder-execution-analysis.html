@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TimerHolder 执行与占用逻辑</title>
+  <style>
+    :root {
+      --paper: #f5f7fa;
+      --surface: #ffffff;
+      --ink: #142235;
+      --muted: #5f6f82;
+      --line: #d8e0e8;
+      --teal: #087e8b;
+      --teal-soft: #dff3f3;
+      --coral: #d1495b;
+      --coral-soft: #fbe7ea;
+      --amber: #d88b16;
+      --amber-soft: #fff0cc;
+      --navy: #213a5c;
+      --code: #101923;
+      --sidebar: 248px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      letter-spacing: 0;
+    }
+
+    button, code, pre { font: inherit; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 24px;
+      color: #e8eef5;
+      background: var(--navy);
+      border-right: 1px solid #182d49;
+      overflow-y: auto;
+    }
+
+    .brand {
+      padding-bottom: 22px;
+      border-bottom: 1px solid rgba(255,255,255,.16);
+    }
+
+    .brand strong {
+      display: block;
+      font-family: "DIN Alternate", "Arial Narrow", sans-serif;
+      font-size: 23px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 8px;
+      color: #afbecf;
+      font-size: 12px;
+    }
+
+    .toc {
+      display: grid;
+      gap: 4px;
+      margin-top: 22px;
+    }
+
+    .toc a {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      min-height: 38px;
+      padding: 6px 8px;
+      color: #c8d4e1;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+    }
+
+    .toc a:hover,
+    .toc a:focus-visible,
+    .toc a.active {
+      color: #fff;
+      background: rgba(255,255,255,.07);
+      border-left-color: #68d8d0;
+      outline: none;
+    }
+
+    .toc b {
+      color: #7f95ad;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .sidebar-note {
+      margin-top: 32px;
+      padding-top: 16px;
+      color: #9eb0c3;
+      font-size: 11px;
+      border-top: 1px solid rgba(255,255,255,.16);
+    }
+
+    main {
+      width: min(1120px, 100%);
+      padding: 0 48px 72px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+      gap: 48px;
+      align-items: end;
+      min-height: 390px;
+      padding: 64px 0 46px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .eyebrow,
+    .section-label {
+      color: var(--teal);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 720px;
+      margin-bottom: 22px;
+      font-family: "DIN Alternate", "Arial Narrow", sans-serif;
+      font-size: clamp(42px, 6vw, 76px);
+      line-height: .98;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h1 span { display: block; }
+
+    .lede {
+      max-width: 670px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    .core-fact {
+      padding: 22px 0 4px 24px;
+      border-left: 5px solid var(--coral);
+    }
+
+    .core-fact b {
+      display: block;
+      color: var(--coral);
+      font-family: "DIN Alternate", "Arial Narrow", sans-serif;
+      font-size: 48px;
+      line-height: 1;
+    }
+
+    .core-fact span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    section {
+      padding: 56px 0;
+      border-bottom: 1px solid var(--line);
+      scroll-margin-top: 24px;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 18px;
+      margin-bottom: 30px;
+    }
+
+    .section-index {
+      color: var(--line);
+      font-family: "DIN Alternate", "Arial Narrow", sans-serif;
+      font-size: 42px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin-bottom: 8px;
+      font-family: "DIN Alternate", "Arial Narrow", sans-serif;
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    pre {
+      min-width: 0;
+      margin: 0;
+      padding: 24px;
+      color: #e9f0f7;
+      background: var(--code);
+      border-left: 5px solid var(--teal);
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .kw { color: #83d7df; }
+    .num { color: #ffc66d; }
+    .str { color: #f29ca8; }
+    .comment { color: #8290a0; }
+
+    .facts {
+      display: grid;
+      grid-template-rows: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .fact {
+      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
+    .fact b { display: block; margin-bottom: 5px; }
+    .fact p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 152px;
+      padding: 18px 16px;
+      background: var(--surface);
+      border-top: 4px solid var(--teal);
+      border-radius: 4px;
+      box-shadow: 0 8px 24px rgba(20,34,53,.06);
+    }
+
+    .flow-step::after {
+      content: "→";
+      position: absolute;
+      top: 52px;
+      right: -19px;
+      color: var(--muted);
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .flow-step:last-child::after { display: none; }
+
+    .flow-step b {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 14px;
+    }
+
+    .flow-step code {
+      color: var(--teal);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 11px;
+    }
+
+    .flow-step p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .rule-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .rule {
+      padding: 18px 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .rule:last-child { border-right: 0; }
+    .rule b { color: var(--navy); }
+    .rule span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .simulator {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .sim-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      background: #edf2f6;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sim-toolbar strong { font-size: 14px; }
+
+    .segments {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      padding: 3px;
+      background: #dce4ec;
+      border-radius: 6px;
+    }
+
+    .segments button {
+      min-height: 34px;
+      padding: 6px 12px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .segments button:hover { color: var(--ink); }
+
+    .segments button:focus-visible {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+    }
+
+    .segments button.active {
+      color: var(--ink);
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(20,34,53,.14);
+    }
+
+    .sim-body { padding: 24px 24px 20px; }
+
+    .timeline-axis {
+      display: grid;
+      grid-template-columns: 110px repeat(5, 1fr);
+      margin-bottom: 8px;
+      color: #8190a0;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 10px;
+    }
+
+    .timeline-axis span:not(:first-child) { text-align: right; }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      align-items: center;
+      min-height: 66px;
+      border-top: 1px solid var(--line);
+    }
+
+    .lane-label {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .track {
+      position: relative;
+      height: 30px;
+      background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(20% - 1px), #e7edf2 calc(20% - 1px), #e7edf2 20%);
+      background-color: #f8fafc;
+    }
+
+    .bar {
+      position: absolute;
+      top: 3px;
+      height: 24px;
+      min-width: 30px;
+      padding: 2px 8px;
+      color: #fff;
+      background: var(--coral);
+      border-radius: 3px;
+      overflow: hidden;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 20px;
+      transition: left .28s ease, width .28s ease;
+    }
+
+    .scheduler-track { background-color: var(--teal-soft); }
+    .scheduler-bar { color: #064e55; background: var(--teal); }
+
+    .queue-lane .track { background-color: var(--amber-soft); }
+    .queue-lane .bar { color: #5e3a00; background: #f4bc55; }
+
+    .sim-summary {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      align-items: start;
+      margin-top: 18px;
+      padding: 14px 16px;
+      color: #3d4d5e;
+      background: var(--teal-soft);
+      border-left: 4px solid var(--teal);
+      font-size: 13px;
+    }
+
+    .sim-summary i {
+      width: 10px;
+      height: 10px;
+      margin-top: 6px;
+      background: var(--teal);
+      border-radius: 50%;
+    }
+
+    .scenario-table {
+      width: 100%;
+      margin-top: 28px;
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: 13px;
+    }
+
+    .scenario-table th,
+    .scenario-table td {
+      padding: 14px 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scenario-table th {
+      color: #fff;
+      background: var(--navy);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .scenario-table td:nth-child(2),
+    .scenario-table td:nth-child(3) {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      white-space: nowrap;
+    }
+
+    .state {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 3px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .state.ok { color: #075e67; background: var(--teal-soft); }
+    .state.wait { color: #765000; background: var(--amber-soft); }
+    .state.risk { color: #922d3a; background: var(--coral-soft); }
+
+    .occupancy {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, .8fr);
+      gap: 30px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 0;
+      border-left: 3px solid var(--navy);
+    }
+
+    .stack-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 145px 1fr;
+      gap: 18px;
+      min-height: 76px;
+      padding: 12px 0 12px 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stack-row::before {
+      content: "";
+      position: absolute;
+      left: -7px;
+      top: 26px;
+      width: 11px;
+      height: 11px;
+      background: var(--surface);
+      border: 3px solid var(--teal);
+      border-radius: 50%;
+    }
+
+    .stack-row b { font-size: 13px; }
+    .stack-row code { color: var(--teal); font-family: "SFMono-Regular", Consolas, monospace; font-size: 11px; }
+    .stack-row p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+
+    .formula {
+      padding: 22px;
+      color: #eef5fb;
+      background: var(--navy);
+      border-radius: 6px;
+    }
+
+    .formula span { color: #b7c6d5; font-size: 12px; }
+
+    .formula strong {
+      display: block;
+      margin: 16px 0;
+      color: #fff;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .formula p { margin: 0; color: #c7d5e2; font-size: 12px; }
+
+    .conclusion {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+
+    .verdict {
+      min-height: 150px;
+      padding: 24px;
+      background: var(--surface);
+    }
+
+    .verdict b {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 17px;
+    }
+
+    .verdict p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+
+    .verdict.good { border-top: 5px solid var(--teal); }
+    .verdict.bad { border-top: 5px solid var(--coral); }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding-top: 28px;
+      color: #8492a1;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 10px;
+    }
+
+    @media (max-width: 980px) {
+      :root { --sidebar: 210px; }
+      main { padding-inline: 28px; }
+      .intro { grid-template-columns: 1fr; min-height: auto; }
+      .flow { grid-template-columns: 1fr; gap: 12px; }
+      .flow-step { min-height: auto; }
+      .flow-step::after { content: "↓"; top: auto; right: 50%; bottom: -20px; }
+      .occupancy { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .layout { display: block; }
+      .sidebar { position: relative; width: 100%; height: auto; padding: 18px; }
+      .toc { grid-template-columns: repeat(2, 1fr); }
+      .sidebar-note { display: none; }
+      main { padding: 0 18px 48px; }
+      .intro { padding-top: 42px; gap: 28px; }
+      h1 { font-size: 46px; }
+      .source-grid, .conclusion { grid-template-columns: 1fr; }
+      .rule-strip { grid-template-columns: 1fr; }
+      .rule { border-right: 0; border-bottom: 1px solid var(--line); }
+      .rule:last-child { border-bottom: 0; }
+      .section-head { grid-template-columns: 44px 1fr; }
+      .section-index { font-size: 30px; }
+      .sim-toolbar { align-items: stretch; }
+      .segments { width: 100%; }
+      .segments button { flex: 1; min-width: 100px; }
+      .sim-body { padding-inline: 14px; overflow-x: auto; }
+      .timeline { min-width: 620px; }
+      .scenario-table { min-width: 720px; }
+      .table-wrap { overflow-x: auto; }
+      .stack-row { grid-template-columns: 1fr; gap: 2px; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .bar { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>TimerHolder</strong>
+        <span>调度与 action 占用说明</span>
+      </div>
+      <nav class="toc" aria-label="页面目录">
+        <a href="#source"><b>01</b><span>配置源码</span></a>
+        <a href="#submit"><b>02</b><span>提交路径</span></a>
+        <a href="#concurrency"><b>03</b><span>并发演示</span></a>
+        <a href="#occupancy"><b>04</b><span>占用边界</span></a>
+        <a href="#result"><b>05</b><span>结论</span></a>
+      </nav>
+      <div class="sidebar-note">
+        范围：仅分析 TimerHolder、调度装饰器、cached task pool 和 JDK ScheduledThreadPoolExecutor。
+      </div>
+    </aside>
+
+    <main>
+      <header class="intro">
+        <div>
+          <div class="eyebrow">Runtime anatomy / Java 8</div>
+          <h1><span>到期不等于</span><span>立即执行</span></h1>
+          <p class="lede">TimerHolder 接受任意数量的延迟任务。默认 scheduler 有两个 worker，它们只负责等待 deadline 并把到期 action 投递给独立的 cached task pool；取消链不会在 scheduler worker 上长时间执行。</p>
+        </div>
+        <div class="core-fact">
+          <b>2 + cached</b>
+          <span>2 个 scheduler worker 负责到期 dispatch；实际 timeout/cancel action 使用独立 cached pool。</span>
+        </div>
+      </header>
+
+      <section id="source">
+        <div class="section-head">
+          <div class="section-index">01</div>
+          <div>
+            <div class="section-label">Configuration</div>
+            <h2>功能类实际创建了什么</h2>
+            <p>Holder 只负责延迟初始化和发布单例。真正的执行边界由 scheduler 核心线程数、延迟队列、dispatch 包装器和 task pool 决定。</p>
+          </div>
+        </div>
+
+        <div class="source-grid">
+          <pre aria-label="TimerHolder 源码"><span class="kw">private static final class</span> TimerHolder {
+    <span class="kw">private static final int</span> CORE_POOL_SIZE = <span class="num">2</span>;
+    <span class="kw">static final</span> ListeningScheduledExecutorService INSTANCE;
+
+    <span class="kw">static</span> {
+        ThreadFactory threadFactory = <span class="kw">new</span> ThreadFactoryBuilder()
+            .setDaemon(<span class="kw">true</span>)
+            .setNameFormat(<span class="str">"Par-Timer-%d"</span>)
+            .setUncaughtExceptionHandler(...)
+            .setPriority(Thread.MAX_PRIORITY)
+            .build();
+
+        ScheduledThreadPoolExecutor timerImpl =
+            <span class="kw">new</span> ScheduledThreadPoolExecutor(
+                CORE_POOL_SIZE, threadFactory);
+
+        timerImpl.setRemoveOnCancelPolicy(<span class="kw">true</span>);
+        INSTANCE = createDispatchingTimer(timerImpl);
+    }
+}
+
+<span class="kw">private static final class</span> TimerTaskExecutorHolder {
+    <span class="kw">static final</span> ExecutorService INSTANCE = Executors.newCachedThreadPool(
+        <span class="kw">new</span> ThreadFactoryBuilder()
+            .setDaemon(<span class="kw">true</span>)
+            .setNameFormat(<span class="str">"Par-Timer-Task-%d"</span>)
+            .build());
+}
+
+<span class="kw">// scheduler worker 只执行这一小段 dispatch</span>
+scheduler.schedule(
+    () -&gt; TimerTaskExecutorHolder.INSTANCE.execute(action), delay, unit);</pre>
+          <div class="facts">
+            <article class="fact">
+              <b>两个 scheduler worker</b>
+              <p><code>corePoolSize=2</code> 提供两个延迟队列取出与 dispatch 槽位，不再限制取消 action 的并发执行数。</p>
+            </article>
+            <article class="fact">
+              <b>近似无界延迟队列</b>
+              <p>任务先进入 <code>DelayedWorkQueue</code>。到期后 scheduler 只提交短小的 dispatch，随后立即回到队列。</p>
+            </article>
+            <article class="fact">
+              <b>取消动作隔离</b>
+              <p>真正的 timeout/cancel 链在线程名 <code>Par-Timer-Task-*</code> 上执行；scheduler worker 不执行用户 action。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="submit">
+        <div class="section-head">
+          <div class="section-index">02</div>
+          <div>
+            <div class="section-label">Submission path</div>
+            <h2>从 schedule 到 action 返回</h2>
+            <p>每次提交先创建延迟触发器。到期时 scheduler worker 只负责把 action 投递到 cached pool，实际取消和 Future listener 不占用 scheduler。</p>
+          </div>
+        </div>
+
+        <div class="flow" role="img" aria-label="timer task 从提交到执行完成的流程图">
+          <article class="flow-step">
+            <code>STEP 1</code>
+            <b>调用 schedule</b>
+            <p>传入 Runnable、delay 和 TimeUnit；可来自默认 TimerHolder 或用户配置的 timer。</p>
+          </article>
+          <article class="flow-step">
+            <code>STEP 2</code>
+            <b>进入延迟队列</b>
+            <p>scheduler 保存 trigger，按 deadline 排序；相同 deadline 按队列规则竞争。</p>
+          </article>
+          <article class="flow-step">
+            <code>STEP 3</code>
+            <b>scheduler dispatch</b>
+            <p>Par-Timer worker 到期后只调用 cached pool 的 <code>execute()</code>，不运行取消链。</p>
+          </article>
+          <article class="flow-step">
+            <code>STEP 4</code>
+            <b>task pool 执行</b>
+            <p><code>Par-Timer-Task-*</code> 执行 timeout/cancel action；多个 action 可以同时运行。</p>
+          </article>
+          <article class="flow-step">
+            <code>STEP 5</code>
+            <b>完成或取消</b>
+            <p>action 完成 Future；调用方取消时同时取消 trigger 和尚未开始的 action。</p>
+          </article>
+        </div>
+
+        <div class="rule-strip">
+          <div class="rule"><b>提交数量</b><span>由 scheduler 的延迟队列承载，不受 core=2 拒绝限制。</span></div>
+          <div class="rule"><b>调度并发</b><span>最多两个 scheduler worker 取出到期 trigger 并 dispatch。</span></div>
+          <div class="rule"><b>action 并发</b><span>cached pool 按需创建线程；资源耗尽、系统调度或 action 自身仍可能造成延迟。</span></div>
+        </div>
+      </section>
+
+      <section id="concurrency">
+        <div class="section-head">
+          <div class="section-index">03</div>
+          <div>
+            <div class="section-label">Concurrency simulator</div>
+            <h2>三个 timer 到期时谁被占用</h2>
+            <p>蓝色表示两个 scheduler worker 的短暂 dispatch；红色表示 cached task pool 中正在执行的 action。黄色表示 action 已触发但仍等待 task pool 资源。</p>
+          </div>
+        </div>
+
+        <div class="simulator">
+          <div class="sim-toolbar">
+            <strong>调度时间线</strong>
+            <div class="segments" role="tablist" aria-label="调度场景">
+              <button type="button" role="tab" aria-selected="true" class="active" data-scenario="staggered">错峰到期</button>
+              <button type="button" role="tab" aria-selected="false" data-scenario="burst">三个同时到期</button>
+              <button type="button" role="tab" aria-selected="false" data-scenario="blocked">action 长时间运行</button>
+            </div>
+          </div>
+          <div class="sim-body">
+            <div class="timeline">
+              <div class="timeline-axis"><span>线程 / 时间</span><span>T0</span><span>T1</span><span>T2</span><span>T3</span><span>T4</span></div>
+              <div class="lane">
+                <div class="lane-label">Par-Timer-0</div>
+                <div class="track scheduler-track" id="scheduler"></div>
+              </div>
+              <div class="lane">
+                <div class="lane-label">Par-Timer-1</div>
+                <div class="track scheduler-track" id="scheduler1"></div>
+              </div>
+              <div class="lane">
+                <div class="lane-label">Task-0</div>
+                <div class="track" id="task0"></div>
+              </div>
+              <div class="lane">
+                <div class="lane-label">Task-1</div>
+                <div class="track" id="task1"></div>
+              </div>
+              <div class="lane">
+                <div class="lane-label">Task-2</div>
+                <div class="track" id="task2"></div>
+              </div>
+              <div class="lane queue-lane">
+                <div class="lane-label">action 等待</div>
+                <div class="track" id="waiting"></div>
+              </div>
+            </div>
+            <div class="sim-summary"><i aria-hidden="true"></i><span id="scenarioText"></span></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="scenario-table">
+            <thead><tr><th>提交场景</th><th>scheduler</th><th>task pool</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr><td>1 个 timer task</td><td>1 次短 dispatch</td><td>1 个 action</td><td><span class="state ok">正常</span> scheduler 很快释放，action 在线程池执行。</td></tr>
+              <tr><td>3 个 timer，截止时间分散</td><td>逐个 dispatch</td><td>通常 1 / 3</td><td><span class="state ok">正常</span> scheduler 不被 action 耗时占用。</td></tr>
+              <tr><td>3 个 timer 同时到期，action 很短</td><td>连续 3 次 dispatch</td><td>最多 3 个</td><td><span class="state ok">正常</span> 三个 action 可并行启动。</td></tr>
+              <tr><td>3 个 timer 同时到期，action 很长</td><td>仍只做短 dispatch</td><td>3 个长 action</td><td><span class="state wait">资源相关</span> timeout 不会卡住 scheduler，但 task pool 会保留长任务线程。</td></tr>
+              <tr><td>task pool 被外部策略限制</td><td>dispatch 成功</td><td>排队或拒绝</td><td><span class="state risk">需配置</span> 隔离 scheduler 不等于保证 action 无限资源。</td></tr>
+              <tr><td>任务在到期前被取消</td><td>trigger 移除</td><td>尚未开始的 action 取消</td><td><span class="state ok">不占用</span> 默认 scheduler 开启 remove-on-cancel。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="occupancy">
+        <div class="section-head">
+          <div class="section-index">04</div>
+          <div>
+            <div class="section-label">Worker occupancy</div>
+            <h2>scheduler 与 action 的占用边界</h2>
+            <p>未来 deadline 之前 scheduler worker 阻塞在延迟队列；到期后只做 dispatch。取消链、Future 完成和同步 listener 的耗时转移到 task pool。</p>
+          </div>
+        </div>
+
+        <div class="occupancy">
+          <div class="stack">
+            <div class="stack-row">
+              <div><code>WAITING</code><br><b>scheduler 等待 deadline</b></div>
+              <p>Par-Timer worker 阻塞在 <code>DelayedWorkQueue.take()</code>，这是正常等待，不等于线程泄露。</p>
+            </div>
+            <div class="stack-row">
+              <div><code>DISPATCH</code><br><b>取出并投递 action</b></div>
+              <p>deadline 到达后，scheduler 只调用 cached pool 的提交接口；这段代码应保持短小。</p>
+            </div>
+            <div class="stack-row">
+              <div><code>ACTION</code><br><b>task pool 执行取消链</b></div>
+              <p>包括 Future 取消、超时回调和同步 listener。阻塞会占用 <code>Par-Timer-Task-*</code>，不占用 scheduler。</p>
+            </div>
+            <div class="stack-row">
+              <div><code>RELEASE</code><br><b>action 返回</b></div>
+              <p>cached pool 线程回收或复用；周期任务在 action 完成后安排下一次触发，避免同一任务重叠执行。</p>
+            </div>
+          </div>
+
+          <aside class="formula">
+            <span>两类线程的实际占用时间</span>
+            <strong>scheduler：等待 + dispatch<br>task pool：取消 action + listener</strong>
+            <p>core=2 提高调度 dispatch 的并发余量；cached pool 仍受内存、线程数和业务 action 时长影响。</p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="result">
+        <div class="section-head">
+          <div class="section-index">05</div>
+          <div>
+            <div class="section-label">Boundary</div>
+            <h2>配置能够保证什么</h2>
+            <p>默认 TimerHolder 将“何时触发”和“如何执行取消”分离；用户也可以通过 <code>ParConfig.builder().timer(customTimer)</code> 指定自己的 scheduler。</p>
+          </div>
+        </div>
+
+        <div class="conclusion">
+          <article class="verdict good">
+            <b>能够保证</b>
+            <p>scheduler worker 不执行用户定义的 timeout/cancel action；三个同时到期任务会快速完成 dispatch；默认取消 trigger 会从队列移除；自定义 timer 的生命周期由用户控制。</p>
+          </article>
+          <article class="verdict bad">
+            <b>不能保证</b>
+            <p>action 恰好在 deadline 执行；cached pool 无限可用；用户自定义 scheduler 自身不被错误配置拖慢；协作式取消能强制终止不响应中断的业务代码。</p>
+          </article>
+        </div>
+      </section>
+
+      <footer>
+        <span>parallel-in-scope / TimerHolder runtime note</span>
+        <span>Scope: ParConfig.TimerHolder · dispatch adapter · cached task pool · Java 8</span>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const scenarios = {
+      staggered: {
+        text: "三个任务的 deadline 彼此错开。scheduler 每次只做短 dispatch，action 在线程池中逐个执行。",
+        scheduler: [{ label: "dispatch", left: 6, width: 8 }, { label: "dispatch", left: 37, width: 8 }, { label: "dispatch", left: 68, width: 8 }],
+        scheduler1: [],
+        task0: [{ label: "A", left: 7, width: 16 }, { label: "C", left: 69, width: 16 }],
+        task1: [{ label: "B", left: 38, width: 16 }],
+        task2: [],
+        waiting: []
+      },
+      burst: {
+        text: "A、B、C 同时到期。两个 scheduler worker 可以并行完成 dispatch，三个 action 可以分别进入 Task-0、Task-1、Task-2。",
+        scheduler: [{ label: "A/B/C dispatch", left: 10, width: 18 }],
+        scheduler1: [{ label: "dispatch", left: 10, width: 18 }],
+        task0: [{ label: "A", left: 12, width: 44 }],
+        task1: [{ label: "B", left: 12, width: 44 }],
+        task2: [{ label: "C", left: 12, width: 44 }],
+        waiting: []
+      },
+      blocked: {
+        text: "A、B、C 的 action 都很慢。scheduler 仍会很快完成 dispatch；真正的风险转移到 task pool 的线程和资源上，而不是让 timer worker 卡死。",
+        scheduler: [{ label: "dispatch", left: 10, width: 10 }, { label: "dispatch", left: 22, width: 10 }, { label: "dispatch", left: 34, width: 10 }],
+        scheduler1: [{ label: "dispatch", left: 16, width: 10 }, { label: "dispatch", left: 28, width: 10 }],
+        task0: [{ label: "A 长 action", left: 12, width: 76 }],
+        task1: [{ label: "B 长 action", left: 12, width: 76 }],
+        task2: [{ label: "C 长 action", left: 12, width: 76 }],
+        waiting: []
+      }
+    };
+
+    function renderBars(targetId, bars, scheduler) {
+      const target = document.getElementById(targetId);
+      target.replaceChildren();
+      bars.forEach(item => {
+        const bar = document.createElement("span");
+        bar.className = "bar";
+        if (scheduler) bar.classList.add("scheduler-bar");
+        bar.textContent = item.label;
+        bar.style.left = item.left + "%";
+        bar.style.width = item.width + "%";
+        target.appendChild(bar);
+      });
+    }
+
+    function selectScenario(name) {
+      const scenario = scenarios[name];
+      renderBars("scheduler", scenario.scheduler, true);
+      renderBars("scheduler1", scenario.scheduler1, true);
+      renderBars("task0", scenario.task0, false);
+      renderBars("task1", scenario.task1, false);
+      renderBars("task2", scenario.task2, false);
+      renderBars("waiting", scenario.waiting, false);
+      document.getElementById("scenarioText").textContent = scenario.text;
+      document.querySelectorAll("[data-scenario]").forEach(button => {
+        const selected = button.dataset.scenario === name;
+        button.classList.toggle("active", selected);
+        button.setAttribute("aria-selected", String(selected));
+      });
+    }
+
+    document.querySelectorAll("[data-scenario]").forEach(button => {
+      button.addEventListener("click", () => selectScenario(button.dataset.scenario));
+    });
+
+    selectScenario("staggered");
+  </script>
+</body>
+</html>
