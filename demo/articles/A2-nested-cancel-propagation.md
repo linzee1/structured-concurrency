@@ -41,25 +41,24 @@ outer.cancel(true); // 取消外层任务
 ## 代码
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("pool", Executors.newFixedThreadPool(8))
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("pool"), Executors.newFixedThreadPool(8))
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 外层配置：500ms 超时
-ParOptions outerOptions = ParOptions.of("outer")
-        .timeout(500)
-        .build();
+BatchOptions outerOptions = BatchOptions.timeout("outer", java.time.Duration.ofMillis(500));
 
 List<String> orders = Arrays.asList("ORD-001", "ORD-002", "ORD-003");
 
-AsyncBatchResult<String> result = par.map("pool", orders, order -> {
+TaskBatchResult<String> result = par.map( orders, order -> {
     // 内层并行调用多个下游服务
-    ParOptions innerOptions = ParOptions.of("inner").build();
+    BatchOptions innerOptions = BatchOptions.inheritTimeout("inner").parallelism(3)  // 嵌套任务：继承外层 deadline
+            .build();
     List<String> services = Arrays.asList("inventory", "payment", "shipping");
 
-    AsyncBatchResult<String> innerResult =
-            par.map("pool", services, svc -> callDownstream(svc, order), innerOptions);
+    TaskBatchResult<String> innerResult =
+            par.map( services, svc -> callDownstream(svc, order), innerOptions);
 
     // 等待内层结果
     return aggregate(innerResult);
@@ -72,4 +71,4 @@ AsyncBatchResult<String> result = par.map("pool", orders, order -> {
 
 ---
 
-> 📁 完整测试代码：[A2_NestedCancelPropagationTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java)
+> 📁 完整测试代码：[A2_NestedCancelPropagationTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java)

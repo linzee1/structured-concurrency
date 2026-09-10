@@ -1,13 +1,12 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -17,13 +16,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * A2. 嵌套任务取消传播 —— 配套测试
  *
  * <p>测试 1：演示原生 ExecutorService 中，取消外层任务不会停止内层任务。
+ *
  * <p>测试 2：演示 Par.map() 嵌套调用时，超时取消自动传播到内层任务。
  */
 @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -32,8 +32,7 @@ class A2_NestedCancelPropagationTest {
     /**
      * 问题演示：原生 ExecutorService 中，取消外层任务不会停止内层任务。
      *
-     * <p>外层任务提交 3 个内层任务，每个内层任务 sleep 2 秒。
-     * 取消外层 Future 后，内层任务仍正常完成，说明取消信号没有穿透到内层。
+     * <p>外层任务提交 3 个内层任务，每个内层任务 sleep 2 秒。 取消外层 Future 后，内层任务仍正常完成，说明取消信号没有穿透到内层。
      */
     @Test
     void testVanillaOuterCancelDoesNotStopInnerTasks() throws Exception {
@@ -89,60 +88,60 @@ class A2_NestedCancelPropagationTest {
     /**
      * 解决方案：Par.map() 嵌套调用时，超时取消自动传播到内层任务。
      *
-     * <p>外层 Par.map() 设置 500ms 超时，内层任务 sleep 5 秒。
-     * 外层超时后，取消信号通过 CancellationToken 父子链传播到内层，
-     * 内层任务的 Thread.sleep() 被中断，不会正常完成。
+     * <p>外层 Par.map() 设置 500ms 超时，内层任务 sleep 5 秒。 外层超时后，取消信号通过 CancellationToken 父子链传播到内层， 内层任务的
+     * Thread.sleep() 被中断，不会正常完成。
      */
     @Test
     void testParNestedCancelPropagatesViaTimeout() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(8);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
         AtomicInteger innerCompletedNormally = new AtomicInteger(0);
         CountDownLatch innerStarted = new CountDownLatch(6);
 
         try {
             // 外层配置：500ms 超时
-            ParOptions outerOptions = ParOptions.of("outer")
-                    .parallelism(2)
-                    .timeout(500)
-                    .build();
+            BatchOptions outerOptions = BatchOptions.timeout("outer", java.time.Duration.ofMillis(500)).parallelism(2);
 
             List<Integer> items = Arrays.asList(1, 2);
 
-            AsyncBatchResult<String> result = par.map("test-pool", items, outerItem -> {
-                // 内层并行处理
-                ParOptions innerOptions = ParOptions.of("inner")
-                        .parallelism(3)
-                        .build();
+            TaskBatchResult<String> result = par.map(
+                    items,
+                    outerItem -> {
+                        // 内层并行处理
+                        BatchOptions innerOptions = BatchOptions.inheritTimeout("inner").parallelism(3);
 
-                List<Integer> innerItems = Arrays.asList(10, 20, 30);
-                AsyncBatchResult<Integer> innerResult =
-                        par.map("test-pool", innerItems, innerItem -> {
-                            innerStarted.countDown();
+                        List<Integer> innerItems = Arrays.asList(10, 20, 30);
+                        TaskBatchResult<Integer> innerResult = par.map(
+                                innerItems,
+                                innerItem -> {
+                                    innerStarted.countDown();
+                                    try {
+                                        Thread.sleep(5000);
+                                        innerCompletedNormally.incrementAndGet();
+                                        return innerItem * 2;
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                        throw new RuntimeException("inner task interrupted", e);
+                                    }
+                                },
+                                innerOptions);
+
+                        // 等待内层结果（阻塞导致外层超时）
+                        for (int i = 0; i < innerResult.results().size(); i++) {
                             try {
-                                Thread.sleep(5000);
-                                innerCompletedNormally.incrementAndGet();
-                                return innerItem * 2;
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                throw new RuntimeException("inner task interrupted", e);
+                                innerResult.results().get(i).get();
+                            } catch (Exception e) {
+                                // 被取消或失败
                             }
-                        }, innerOptions);
+                        }
 
-                // 等待内层结果（阻塞导致外层超时）
-                for (int i = 0; i < innerResult.getResults().size(); i++) {
-                    try {
-                        innerResult.getResults().get(i).get();
-                    } catch (Exception e) {
-                        // 被取消或失败
-                    }
-                }
-
-                return "done-" + outerItem;
-            }, outerOptions);
+                        return "done-" + outerItem;
+                    },
+                    outerOptions);
 
             // 等待内层任务启动，再给足时间让超时生效
             innerStarted.await(3, TimeUnit.SECONDS);

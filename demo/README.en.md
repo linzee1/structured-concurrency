@@ -4,6 +4,8 @@
 
 An independent consumer project containing runnable examples for `parallel-in-scope`.
 
+> The demo targets the current `0.2.0` API and serves as an external-consumer reference.
+
 ## Build and Run
 
 Install the library from the repository root, then build the demo:
@@ -28,7 +30,7 @@ mvn -f demo/pom.xml exec:java -Dexec.mainClass=demo.integration.BatchProcessingD
 The demo depends on the published library artifact and acts as an external consumer:
 
 ```text
-demo -> io.github.huatalk:parallel-in-scope
+demo -> io.github.monadrome:parallel-in-scope
 ```
 
 Examples use the `demo.*` namespace and access public APIs from `scope`, `spi`, and the public `cancel.Checkpoints` utility. Internal implementation packages are intentionally excluded.

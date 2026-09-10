@@ -28,9 +28,9 @@ for (int i = 0; i < 2; i++) {
 
 `parallel-in-scope` 在此基础上提供了自动化的死锁检测能力。`TaskGraph` 会自动记录父子任务依赖关系，构建 DAG。在请求结束时，通过 Guava `Graphs.hasCycle()` 检测是否存在环路，并结合 `canDeadlock()` 检查涉及的线程池是否为有界池（`FixedThreadPool`）——只有有界池才会触发死锁告警，无界池（`CachedThreadPool`）天然安全。
 
-此外，`parallel-in-scope` 通过滑动窗口调度（`ConcurrentLimitExecutor`）和超时控制双管齐下：
+此外，`parallel-in-scope` 通过滑动窗口调度（`SlidingWindowSubmitter`）和超时控制双管齐下：
 - 滑动窗口确保不会一次性向池中灌入过多任务，降低死锁概率
-- `ParOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
+- `BatchOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
 
 ## 代码
 
@@ -40,29 +40,22 @@ for (int i = 0; i < 2; i++) {
 ExecutorService outerPool = Executors.newFixedThreadPool(2);
 ExecutorService innerPool = Executors.newCachedThreadPool();
 
-ParConfig config = ParConfig.builder()
-        .executor("outer-pool", outerPool)
-        .executor("inner-pool", innerPool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("outer-pool"), outerPool)
+        .register(ParName.of("inner-pool"), innerPool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 外层任务
-ParOptions outerOpts = ParOptions.of("outer-task")
-        .parallelism(2)
-        .timeout(10_000)
-        .taskType(TaskType.IO_BOUND)
-        .build();
+BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(2).taskType(TaskType.IO_BOUND);
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
-AsyncBatchResult<String> result = par.map("outer-pool", items, item -> {
+TaskBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用不同线程池，不会死锁
-    ParOptions innerOpts = ParOptions.of("inner-task")
-            .parallelism(2)
-            .timeout(5_000)
-            .build();
+    BatchOptions innerOpts = BatchOptions.timeout("inner-task", java.time.Duration.ofMillis(5_000)).parallelism(2);
 
     List<String> subItems = Arrays.asList("a", "b");
-    AsyncBatchResult<String> innerResult = par.map("inner-pool", subItems, sub -> {
+    TaskBatchResult<String> innerResult = par.map( subItems, sub -> {
         return item + "-" + sub;
     }, innerOpts);
 
@@ -74,4 +67,4 @@ AsyncBatchResult<String> result = par.map("outer-pool", items, item -> {
 
 ---
 
-> 📁 完整测试代码：[C1_ThreadPoolDeadlockTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java)
+> 📁 完整测试代码：[C1_ThreadPoolDeadlockTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java)

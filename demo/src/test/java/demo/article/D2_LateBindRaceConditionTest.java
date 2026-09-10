@@ -1,18 +1,17 @@
 package demo.article;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -24,18 +23,17 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * D2. 为什么使用统一的超时时间 — 问题复现与解决方案
  *
- * <p>场景：滑动窗口调度下，如果每个 Future 在提交时就绑定超时（per-task timeout），
- * 先提交的任务超时计时器先启动，后提交的任务超时计时器后启动。
- * 当线程池被占满时，后提交的任务在队列中等待，等轮到它执行时，
- * 它的超时计时器可能已经过期了——任务还没开始就被取消。
+ * <p>场景：滑动窗口调度下，如果每个 Future 在提交时就绑定超时（per-task timeout）， 先提交的任务超时计时器先启动，后提交的任务超时计时器后启动。
+ * 当线程池被占满时，后提交的任务在队列中等待，等轮到它执行时， 它的超时计时器可能已经过期了——任务还没开始就被取消。
  *
  * <p>Test 1: 用 Guava FluentFuture.withTimeout 模拟 per-task timeout，展示后提交任务的不公平超时
+ *
  * <p>Test 2: 用 Par.map() 的 lateBind 机制，展示整个批次共享一个超时截止时间
  */
 class D2_LateBindRaceConditionTest {
@@ -47,11 +45,11 @@ class D2_LateBindRaceConditionTest {
     /**
      * Test 1 — 问题复现：per-task timeout 导致后提交任务超时
      *
-     * <p>模拟原生做法：每个 Future 在提交时通过 FluentFuture.withTimeout() 绑定超时。
-     * 8 个任务提交到 3 线程的池（parallelism=2，预留 1 个调度线程），
-     * 每个任务需要 1200ms，超时 2000ms。
+     * <p>模拟原生做法：每个 Future 在提交时通过 FluentFuture.withTimeout() 绑定超时。 8 个任务提交到 3 线程的池（parallelism=2，预留 1
+     * 个调度线程）， 每个任务需要 1200ms，超时 2000ms。
      *
      * <p>时间线：
+     *
      * <pre>
      * task 0-1: submitted T=0/100ms,   timeout@2000/2100ms, run immediately,     finish@1200/1300ms → SUCCEED
      * task 2:   submitted T=200ms,     timeout@2200ms,      queued, starts@1200, finish@2400ms     → SUCCEED (barely)
@@ -59,9 +57,7 @@ class D2_LateBindRaceConditionTest {
      * task 4-7: submitted T=400-700ms, timeout@2400-2700ms, queued much longer   → FAIL
      * </pre>
      *
-     * <p>关键问题：每个任务都有自己的 2000ms 超时窗口，但窗口从"提交"开始计时，
-     * 而非从"开始执行"开始计时。后续任务在队列中等待的时间消耗了超时预算，
-     * 导致实际可用执行时间不足。
+     * <p>关键问题：每个任务都有自己的 2000ms 超时窗口，但窗口从"提交"开始计时， 而非从"开始执行"开始计时。后续任务在队列中等待的时间消耗了超时预算， 导致实际可用执行时间不足。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -88,8 +84,8 @@ class D2_LateBindRaceConditionTest {
                 });
 
                 // Per-task timeout: timer starts NOW at submission time
-                FluentFuture<String> withTimeout = FluentFuture.from(raw)
-                        .withTimeout(perTaskTimeoutMs, TimeUnit.MILLISECONDS, timer);
+                FluentFuture<String> withTimeout =
+                        FluentFuture.from(raw).withTimeout(perTaskTimeoutMs, TimeUnit.MILLISECONDS, timer);
                 futures.add(withTimeout);
 
                 // Small stagger to simulate realistic submission pattern
@@ -129,14 +125,15 @@ class D2_LateBindRaceConditionTest {
     /**
      * Test 2 — 解决方案：Par.map() 的 lateBind 机制确保全批次统一超时
      *
-     * <p>Par.map() 先提交初始窗口并为剩余逻辑任务创建 Future 槽位，然后通过
-     * CancellationToken.lateBind() 将这些 Future 和异步提交循环绑定到统一超时。
+     * <p>Par.map() 先提交初始窗口并为剩余逻辑任务创建 Future 槽位，然后通过 CancellationToken.lateBind() 将这些 Future
+     * 和异步提交循环绑定到统一超时。
      *
      * <p>关键特性：
+     *
      * <ul>
-     *   <li>所有任务共享同一个超时截止时间</li>
-     *   <li>超时约束的是整个批次的总执行时间，而非单个任务的执行时间</li>
-     *   <li>如果整个批次在超时前完成，所有任务都成功；否则所有未完成的任务被取消</li>
+     *   <li>所有任务共享同一个超时截止时间
+     *   <li>超时约束的是整个批次的总执行时间，而非单个任务的执行时间
+     *   <li>如果整个批次在超时前完成，所有任务都成功；否则所有未完成的任务被取消
      * </ul>
      */
     @Test
@@ -147,21 +144,16 @@ class D2_LateBindRaceConditionTest {
         long batchTimeoutMs = 8000;
 
         ExecutorService rawPool = Executors.newFixedThreadPool(PARALLELISM + 1);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", rawPool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), rawPool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
 
         try {
-            List<Integer> items = IntStream.range(0, TASK_COUNT)
-                    .boxed()
-                    .collect(Collectors.toList());
+            List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            ParOptions options = ParOptions.of("late-bind-test")
-                    .parallelism(PARALLELISM)
-                    .timeout(batchTimeoutMs)
-                    .taskType(TaskType.IO_BOUND)
-                    .build();
+            BatchOptions options = BatchOptions.timeout("late-bind-test", java.time.Duration.ofMillis(batchTimeoutMs)).parallelism(PARALLELISM).taskType(TaskType.IO_BOUND);
 
             long startTime = System.currentTimeMillis();
 
@@ -169,19 +161,22 @@ class D2_LateBindRaceConditionTest {
             // 1. Submits the initial window and creates Future slots for remaining tasks
             // 2. Calls CancellationToken.lateBind() on the complete logical batch
             // 3. The aggregate timeout gives the batch one shared deadline
-            AsyncBatchResult<String> result = par.map("test-pool", items, taskId -> {
-                try {
-                    Thread.sleep(TASK_SLEEP_MS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(e);
-                }
-                return "task-" + taskId;
-            }, options);
+            TaskBatchResult<String> result = par.map(
+                    items,
+                    taskId -> {
+                        try {
+                            Thread.sleep(TASK_SLEEP_MS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new RuntimeException(e);
+                        }
+                        return "task-" + taskId;
+                    },
+                    options);
 
             // Wait for all futures to complete
-            for (int i = 0; i < result.getResults().size(); i++) {
-                result.getResults().get(i).get(15, TimeUnit.SECONDS);
+            for (int i = 0; i < result.results().size(); i++) {
+                result.results().get(i).get(15, TimeUnit.SECONDS);
             }
 
             long totalElapsed = System.currentTimeMillis() - startTime;
@@ -196,8 +191,7 @@ class D2_LateBindRaceConditionTest {
 
             // Verify total time is within the batch timeout
             assertThat(totalElapsed)
-                    .as("Total elapsed time (%dms) should be within batch timeout (%dms)",
-                            totalElapsed, batchTimeoutMs)
+                    .as("Total elapsed time (%dms) should be within batch timeout (%dms)", totalElapsed, batchTimeoutMs)
                     .isLessThan(batchTimeoutMs);
 
         } finally {

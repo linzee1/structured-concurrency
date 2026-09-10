@@ -13,29 +13,28 @@
 - 一个挂了就取消其余（fail-fast）
 
 ```java
-ParConfig config = ParConfig.builder()
-        .executor("http-pool", Executors.newFixedThreadPool(8))
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("http-pool"), Executors.newFixedThreadPool(8))
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 List<String> services = Arrays.asList(
         "order", "user", "payment", "inventory", "notification",
         "billing", "shipping", "review", "recommendation", "analytics");
 
-ParOptions opts = ParOptions.ioTask("batch-http")
-        .parallelism(5)        // 最多 5 个并发，保护下游
-        .timeout(3000)         // 3 秒超时
-        .build();
+BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
+        .taskType(TaskType.IO_BOUND)
+        .parallelism(5);       // 最多 5 个并发，保护下游
 
-AsyncBatchResult<String> result = par.map("http-pool", services, svc -> {
+TaskBatchResult<String> result = par.map( services, svc -> {
     return callDownstream(svc);  // 你的 HTTP 调用逻辑
 }, opts);
 
 Thread.sleep(3500);  // 等待任务完成
 System.out.println(result.reportString());
 // 正常: SUCCESS:10
-// 部分超时: SUCCESS:7,CANCELLED:3
-// 有异常: SUCCESS:8,FAILED:1,CANCELLED:1
+// 部分超时: SUCCESS:7,MEMBER_CANCELED:3
+// 有异常: SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1
 ```
 
 关键点：
@@ -60,18 +59,17 @@ for (int i = 0; i < allIds.size(); i += 1000) {
 }
 // shards.size() == 10
 
-ParOptions opts = ParOptions.ioTask("db-batch-query")
-        .parallelism(3)        // DB 连接池就 3 个，别超了
-        .timeout(30000)        // 查询可能慢，30 秒超时
-        .build();
+BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
+        .taskType(TaskType.IO_BOUND)
+        .parallelism(3);       // DB 连接池就 3 个，别超了
 
-AsyncBatchResult<List<User>> result = par.map("db-pool", shards, shard -> {
+TaskBatchResult<List<User>> result = par.map( shards, shard -> {
     return userMapper.selectByIds(shard);  // 你的 DAO 调用
 }, opts);
 
 // 合并分片结果
 List<User> allUsers = new ArrayList<>();
-for (ListenableFuture<List<User>> future : result.getResults()) {
+for (ListenableFuture<List<User>> future : result.results()) {
     allUsers.addAll(future.get(30, TimeUnit.SECONDS));
 }
 System.out.println("查询到 " + allUsers.size() + " 条记录");
@@ -89,12 +87,10 @@ System.out.println("查询到 " + allUsers.size() + " 条记录");
 一个请求需要同时调 HTTP、查 DB、读缓存，三种 IO 混在一个批次里：
 
 ```java
-ParOptions opts = ParOptions.ioTask("mixed-io")
-        .parallelism(6)
-        .timeout(5000)         // 统一 5 秒超时
+BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000)).parallelism(6).taskType(TaskType.IO_BOUND)         // 统一 5 秒超时
         .build();
 
-AsyncBatchResult<Object> result = par.map("mixed-pool", tasks, task -> {
+TaskBatchResult<Object> result = par.map( tasks, task -> {
     if (task instanceof HttpRequest) {
         return httpClient.execute((HttpRequest) task);   // HTTP 调用
     } else if (task instanceof DbQuery) {
@@ -109,10 +105,10 @@ Thread.sleep(5500);
 String report = result.reportString();
 ```
 
-关于超时：用统一的 `ParOptions.timeout` 即可，不需要每个任务设不同超时。原因：
+关于超时：用统一的 `BatchOptions.timeout` 即可，不需要每个任务设不同超时。原因：
 - 框架级超时是"兜底"，防止任务永远挂起
 - 如果某个调用需要更细粒度的超时，在任务内部自己处理（比如 HTTP client 的 connectTimeout/readTimeout）
-- 这样保持 `ParOptions` 简洁，任务逻辑自包含
+- 这样保持 `BatchOptions` 简洁，任务逻辑自包含
 
 ---
 
@@ -120,17 +116,17 @@ String report = result.reportString();
 
 ### 1. 超时必须设
 
-不设超时 = 任务可能永远挂起。框架默认 60 秒超时，但建议根据业务场景显式设置：
+不设超时 = 任务可能永远挂起。新 API 不再提供默认超时：`timeout(Duration)` 与 `inheritTimeout()` 必须二选一，根级调用缺省 `.build()` 会直接抛异常。根据业务场景显式设置：
 
 ```java
 // 快速 HTTP 调用
-ParOptions.ioTask("http").timeout(3000).build();
+BatchOptions.timeout("http", java.time.Duration.ofMillis(3000)).taskType(TaskType.IO_BOUND);
 
 // 数据库查询
-ParOptions.ioTask("db").timeout(30000).build();
+BatchOptions.timeout("db", java.time.Duration.ofMillis(30000)).taskType(TaskType.IO_BOUND);
 
 // 文件处理
-ParOptions.ioTask("file").timeout(120000).build();
+BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskType.IO_BOUND);
 ```
 
 ### 2. 并行度要匹配资源
@@ -149,12 +145,12 @@ ParOptions.ioTask("file").timeout(120000).build();
 ```java
 // 一行看全貌
 String report = result.reportString();
-// "SUCCESS:8,FAILED:1,CANCELLED:1 | firstException=timeout"
+// "SUCCESS:8,USER_FAILURE:1,MEMBER_CANCELED:1 | firstException=timeout"
 
 // 结构化访问
-BatchReport r = result.report();
-Map<FutureState, Integer> counts = r.getStateCounts();
-Throwable firstError = r.getFirstException();
+TaskBatchResult.BatchReport r = result.report();
+Map<TaskOutcome, Integer> counts = r.stateCounts();
+Throwable firstError = r.firstException();
 ```
 
 生产环境中，可以把 `reportString()` 打到日志里，配合 TaskListener 做监控告警。
@@ -165,7 +161,7 @@ Throwable firstError = r.getFirstException();
 
 ```java
 // 错误: 吞掉了异常，report 永远显示 SUCCESS:10
-par.map("pool", items, item -> {
+par.map( items, item -> {
     try {
         return riskyCall(item);
     } catch (Exception e) {
@@ -184,7 +180,7 @@ par.map("pool", items, item -> {
 
 ```java
 // 错误: 等于没有并发控制
-ParOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
+BatchOptions.timeout("bad", java.time.Duration.ofMillis(3000)).parallelism(Integer.MAX_VALUE);
 ```
 
 正确做法：设一个合理的值，匹配下游资源。
@@ -192,17 +188,19 @@ ParOptions.of("bad").parallelism(Integer.MAX_VALUE).build();
 **2. 不设超时**
 
 ```java
-// 错误: 任务可能永远挂起
-ParOptions.of("bad").build();  // timeout=0，依赖默认 60 秒
+// 错误: 根级调用必须显式声明超时 —— 两个工厂都不调用根本拿不到选项对象
+// BatchOptions.name("bad");            // 不存在这种写法
+BatchOptions.timeout("bad", Duration.ofSeconds(5));   // 正确：显式超时
+BatchOptions.inheritTimeout("nested");                // 正确：继承外层 scoped task 的 deadline
 ```
 
-正确做法：根据场景显式设超时。
+正确做法：根据场景在两个工厂之间显式二选一。根级调用不能选 `inheritTimeout`——没有外层 scoped task 时 `Par.map` 会抛 `IllegalArgumentException`。
 
 **3. 在 lambda 里 catch 异常返回 null**
 
 ```java
 // 错误: 隐藏失败，report 永远是 SUCCESS
-par.map("pool", items, item -> {
+par.map( items, item -> {
     try {
         return call(item);
     } catch (Exception e) {
@@ -216,4 +214,4 @@ par.map("pool", items, item -> {
 
 ---
 
-> 完整测试代码：[BatchBestPracticesTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/BatchBestPracticesTest.java)
+> 完整测试代码：[BatchBestPracticesTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/BatchBestPracticesTest.java)

@@ -1,17 +1,14 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,17 +16,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * G6. 数据库批量查询——分片并行
  *
- * <p>问题：单次 SELECT 查询 10000 条数据太慢，想分片并行但手动管理线程池、分片、
- * 结果合并代码量大且容易出错。
+ * <p>问题：单次 SELECT 查询 10000 条数据太慢，想分片并行但手动管理线程池、分片、 结果合并代码量大且容易出错。
  *
- * <p>解决：Par.map() 天然适合分片并行场景——把 ID 列表切片后交给 Par.map()，
- * 每片并行查询数据库，结果自动聚合，parallelism 控制并发度。
+ * <p>解决：Par.map() 天然适合分片并行场景——把 ID 列表切片后交给 Par.map()， 每片并行查询数据库，结果自动聚合，parallelism 控制并发度。
  */
 class G6_BatchDbQueryTest {
 
@@ -44,10 +41,11 @@ class G6_BatchDbQueryTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(8);
-        ParConfig config = ParConfig.builder()
-                .executor("db-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("db-pool"), pool)
+                .defaultPar(ParName.of("db-pool"))
                 .build();
-        par = new Par(config);
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -55,24 +53,17 @@ class G6_BatchDbQueryTest {
         pool.shutdownNow();
     }
 
-    /**
-     * 模拟数据库分片查询：给定一批 ID，返回对应的 User 对象。
-     * 内部使用 Thread.sleep 模拟数据库查询延迟。
-     */
+    /** 模拟数据库分片查询：给定一批 ID，返回对应的 User 对象。 内部使用 Thread.sleep 模拟数据库查询延迟。 */
     private List<User> simulateDbQuery(List<Long> ids) {
         try {
             Thread.sleep(SIMULATED_QUERY_MS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        return ids.stream()
-                .map(id -> new User(id, "user_" + id))
-                .collect(Collectors.toList());
+        return ids.stream().map(id -> new User(id, "user_" + id)).collect(Collectors.toList());
     }
 
-    /**
-     * 手动分片：将列表按指定大小切分。
-     */
+    /** 手动分片：将列表按指定大小切分。 */
     private <T> List<List<T>> partition(List<T> list, int size) {
         List<List<T>> partitions = new ArrayList<>();
         for (int i = 0; i < list.size(); i += size) {
@@ -84,15 +75,13 @@ class G6_BatchDbQueryTest {
     /**
      * 问题复现：串行分片查询，10 个分片依次执行，总耗时 = 10 * 50ms = ~500ms。
      *
-     * <p>每次调用 selectByIds 都是同步阻塞，分片之间没有任何并行。
-     * 当分片数量多、每片查询慢时，总耗时线性增长。
+     * <p>每次调用 selectByIds 都是同步阻塞，分片之间没有任何并行。 当分片数量多、每片查询慢时，总耗时线性增长。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void problem_sequentialShardQuery() {
-        List<Long> allIds = IntStream.rangeClosed(1, TOTAL_IDS)
-                .mapToObj(Long::valueOf)
-                .collect(Collectors.toList());
+        List<Long> allIds =
+                IntStream.rangeClosed(1, TOTAL_IDS).mapToObj(Long::valueOf).collect(Collectors.toList());
 
         List<List<Long>> shards = partition(allIds, SHARD_SIZE);
         assertThat(shards).hasSize(SHARD_COUNT);
@@ -112,45 +101,43 @@ class G6_BatchDbQueryTest {
 
         // 串行耗时 >= 10 * 50ms = 500ms
         assertThat(elapsed)
-                .as("串行分片查询耗时应 >= %dms（10 片 * %dms/片）",
-                        SHARD_COUNT * SIMULATED_QUERY_MS, SIMULATED_QUERY_MS)
+                .as("串行分片查询耗时应 >= %dms（10 片 * %dms/片）", SHARD_COUNT * SIMULATED_QUERY_MS, SIMULATED_QUERY_MS)
                 .isGreaterThanOrEqualTo(SHARD_COUNT * SIMULATED_QUERY_MS);
     }
 
     /**
      * 解决方案：Par.map() 分片并行查询，parallelism=5，最多 5 个分片同时执行。
      *
-     * <p>10 个分片通过 Par.map() 并行执行，parallelism=5 保证最多 5 个分片同时查询。
-     * 理论耗时 = ceil(10/5) * 50ms = ~100ms，相比串行的 ~500ms 提升约 5 倍。
+     * <p>10 个分片通过 Par.map() 并行执行，parallelism=5 保证最多 5 个分片同时查询。 理论耗时 = ceil(10/5) * 50ms =
+     * ~100ms，相比串行的 ~500ms 提升约 5 倍。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void solution_parMapParallelShardQuery() throws Exception {
         int parallelism = 5;
 
-        List<Long> allIds = IntStream.rangeClosed(1, TOTAL_IDS)
-                .mapToObj(Long::valueOf)
-                .collect(Collectors.toList());
+        List<Long> allIds =
+                IntStream.rangeClosed(1, TOTAL_IDS).mapToObj(Long::valueOf).collect(Collectors.toList());
 
         List<List<Long>> shards = partition(allIds, SHARD_SIZE);
         assertThat(shards).hasSize(SHARD_COUNT);
 
-        ParOptions options = ParOptions.ioTask("db-batch-query")
-                .parallelism(parallelism)
-                .timeout(30000)
-                .build();
+        BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
 
         long start = System.currentTimeMillis();
 
         // 并行查询：最多 parallelism 个分片同时执行
-        AsyncBatchResult<List<User>> result = par.map("db-pool", shards, shard -> {
-            return simulateDbQuery(shard);
-        }, options);
+        TaskBatchResult<List<User>> result = par.map(
+                shards,
+                shard -> {
+                    return simulateDbQuery(shard);
+                },
+                options);
 
         // 收集所有分片结果
         List<User> allUsers = new ArrayList<>();
-        for (int i = 0; i < result.getResults().size(); i++) {
-            allUsers.addAll(result.getResults().get(i).get(30, TimeUnit.SECONDS));
+        for (int i = 0; i < result.results().size(); i++) {
+            allUsers.addAll(result.results().get(i).get(30, TimeUnit.SECONDS));
         }
 
         long elapsed = System.currentTimeMillis() - start;
@@ -166,46 +153,41 @@ class G6_BatchDbQueryTest {
 
         // 验证 reportString 表示全部成功
         String report = result.reportString();
-        assertThat(report)
-                .as("所有分片查询应全部成功")
-                .contains("SUCCESS");
+        assertThat(report).as("所有分片查询应全部成功").contains("SUCCESS");
     }
 
-    /**
-     * 额外验证：parallelism 控制并发度，峰值并发不超过设定值。
-     */
+    /** 额外验证：parallelism 控制并发度，峰值并发不超过设定值。 */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void solution_concurrencyControlled() throws Exception {
         int parallelism = 3;
 
-        List<Long> allIds = IntStream.rangeClosed(1, TOTAL_IDS)
-                .mapToObj(Long::valueOf)
-                .collect(Collectors.toList());
+        List<Long> allIds =
+                IntStream.rangeClosed(1, TOTAL_IDS).mapToObj(Long::valueOf).collect(Collectors.toList());
 
         List<List<Long>> shards = partition(allIds, SHARD_SIZE);
 
         AtomicInteger concurrency = new AtomicInteger(0);
         AtomicInteger maxConcurrency = new AtomicInteger(0);
 
-        ParOptions options = ParOptions.ioTask("db-batch-query")
-                .parallelism(parallelism)
-                .timeout(30000)
-                .build();
+        BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
 
-        AsyncBatchResult<List<User>> result = par.map("db-pool", shards, shard -> {
-            int cur = concurrency.incrementAndGet();
-            maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
-            try {
-                return simulateDbQuery(shard);
-            } finally {
-                concurrency.decrementAndGet();
-            }
-        }, options);
+        TaskBatchResult<List<User>> result = par.map(
+                shards,
+                shard -> {
+                    int cur = concurrency.incrementAndGet();
+                    maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
+                    try {
+                        return simulateDbQuery(shard);
+                    } finally {
+                        concurrency.decrementAndGet();
+                    }
+                },
+                options);
 
         // 等待所有分片完成
-        for (int i = 0; i < result.getResults().size(); i++) {
-            result.getResults().get(i).get(30, TimeUnit.SECONDS);
+        for (int i = 0; i < result.results().size(); i++) {
+            result.results().get(i).get(30, TimeUnit.SECONDS);
         }
 
         // 并发峰值受控
@@ -214,9 +196,7 @@ class G6_BatchDbQueryTest {
                 .isLessThanOrEqualTo(parallelism + 1);
     }
 
-    /**
-     * 简单的 User 数据模型。
-     */
+    /** 简单的 User 数据模型。 */
     static class User {
         final long id;
         final String name;

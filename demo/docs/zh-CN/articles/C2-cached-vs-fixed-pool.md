@@ -59,27 +59,21 @@ for (int i = 0; i < 2; i++) {
 // CachedThreadPool：嵌套并行不会死锁
 ExecutorService cachedPool = Executors.newCachedThreadPool();
 
-ParConfig config = ParConfig.builder()
-        .executor("cached-pool", cachedPool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("cached-pool"), cachedPool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 外层任务
-ParOptions outerOpts = ParOptions.of("outer-task")
-        .parallelism(4)
-        .timeout(10_000)
-        .build();
+BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(4);
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
-AsyncBatchResult<String> result = par.map("cached-pool", items, item -> {
+TaskBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用同一个 CachedThreadPool，不会死锁
-    ParOptions innerOpts = ParOptions.of("inner-task")
-            .parallelism(2)
-            .timeout(5_000)
-            .build();
+    BatchOptions innerOpts = BatchOptions.timeout("inner-task", java.time.Duration.ofMillis(5_000)).parallelism(2);
 
     List<String> subItems = Arrays.asList("a", "b");
-    AsyncBatchResult<String> innerResult = par.map("cached-pool", subItems, sub -> {
+    TaskBatchResult<String> innerResult = par.map( subItems, sub -> {
         return item + "-" + sub;
     }, innerOpts);
 
@@ -92,4 +86,4 @@ AsyncBatchResult<String> result = par.map("cached-pool", items, item -> {
 
 ---
 
-> 📁 完整测试代码：[C2_CachedVsFixedPoolTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java)
+> 📁 完整测试代码：[C2_CachedVsFixedPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/C2_CachedVsFixedPoolTest.java)

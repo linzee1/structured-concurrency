@@ -24,37 +24,34 @@ System.out.println("10000 exceptions: " + elapsed / 1_000_000 + " ms");
 
 ## 解决方法
 
-`parallel-in-scope` 内部使用两种取消异常来平衡性能和可调试性：
+`parallel-in-scope` 对高频取消使用轻量异常，并直接复用 JDK 标准异常承载诊断堆栈：
 
 - **`LeanCancellationException`**：重写 `fillInStackTrace()` 为空操作（返回 `this`），同时通过 `setStackTrace(new StackTraceElement[0])` 清空栈追踪。构造开销接近于零，专为高频取消路径设计。
-- **`FatCancellationException`**：保留完整的栈追踪，用于调试阶段追踪取消来源。
+- **`CancellationException`**：保留完整的栈追踪，用于调试阶段追踪取消来源。
 
-`Par.map()` 配合 `ParOptions.timeout()` 使用时，框架内部自动使用轻量级异常处理取消流程。开发者无需关心异常类型的选择——超时取消的性能开销已经被框架内部优化到最低。
+`Par.map()` 配合 `BatchOptions.timeout()` 使用时，框架内部自动使用轻量级异常处理取消流程。开发者无需关心异常类型的选择——超时取消的性能开销已经被框架内部优化到最低。
 
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 设置选项：8 并发，200ms 超时
-ParOptions opts = ParOptions.of("fast-task")
-        .parallelism(8)
-        .timeout(200)
-        .build();
+BatchOptions opts = BatchOptions.timeout("fast-task", java.time.Duration.ofMillis(200)).parallelism(8);
 
 // 提交 100 个任务，大部分会超时被取消
 List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());
-AsyncBatchResult<String> result = par.map("my-pool", items, id -> {
+TaskBatchResult<String> result = par.map( items, id -> {
     // 模拟慢操作，超过 200ms 超时
     Thread.sleep(5000);
     return "done-" + id;
@@ -76,4 +73,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[A3_LeanVsFatExceptionTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java)
+> 📁 完整测试代码：[A3_LeanVsFatExceptionTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java)

@@ -59,7 +59,7 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 | 超时取消 | get 超时后任务继续跑 | 超时自动中断 + 协作式取消 |
 | Fail-fast | 无，等全部完成 | 首个失败即取消剩余任务 |
 | 上下文传播 | ThreadLocal 丢失 | TTL 自动传播（MDC、身份等） |
-| SPI 扩展 | 无 | TaskListener / LivelockListener / ExecutorResolver |
+| SPI 扩展 | 无 | TaskListener / DeadlockDetectionListener |
 | 依赖 | JDK 原生 | Guava + TTL（约 1.5MB） |
 
 ## 什么时候用哪个
@@ -70,25 +70,23 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 
 ```java
 // parallel-in-scope：并发控制 + 超时取消 + fail-fast + 上下文传播
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("batch-api")
+BatchOptions opts = BatchOptions.timeout("batch-api", java.time.Duration.ofMillis(5000))
         .parallelism(4)           // 最多 4 个并发
-        .timeout(5000)            // 5 秒超时
-        .taskType(TaskType.IO_BOUND)
-        .build();
+        .taskType(TaskType.IO_BOUND);
 
-AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     MDC.put("traceId", traceId); // TTL 自动传播到子线程
     return fetch(url);
 }, opts);
 
 System.out.println(result.reportString());
 // 成功时: SUCCESS:100
-// 部分失败时: SUCCESS:95 CANCELLED:3 FAILED:2
+// 部分失败时: SUCCESS:95 MEMBER_CANCELED:3 USER_FAILURE:2
 // 超时时: 全部取消，线程资源立即释放
 ```
 
@@ -96,4 +94,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 相关 demo：[G5_BatchHttpCallsTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)
+> 📁 相关 demo：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)

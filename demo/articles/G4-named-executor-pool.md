@@ -30,9 +30,9 @@ processReport(cpuPool);   // 错误：报表任务误用了计算池
 
 ## 解决方法
 
-`ParConfig.builder().executor("name", pool)` 把每个线程池注册为一个命名实体。提交任务时用 `par.map("name", ...)` 按名字引用，不再直接传递 `ExecutorService` 实例。
+`GlobalPar.builder().register(ParName.of("name"), pool)` 把每个线程池注册为一个命名实体。提交任务时用 `par.map( ...)` 按名字引用，不再直接传递 `ExecutorService` 实例。
 
-一个 `ParConfig` 可以注册多个池，统一管理生命周期。名字有业务语义——`"io-pool"`、`"cpu-pool"`、`"report-pool"`——代码自解释，不怕传错。
+一个 `GlobalPar` 可以注册多个池，统一管理生命周期。名字有业务语义——`"io-pool"`、`"cpu-pool"`、`"report-pool"`——代码自解释，不怕传错。
 
 ## 代码
 
@@ -41,40 +41,40 @@ ExecutorService ioPool = Executors.newFixedThreadPool(16);
 ExecutorService cpuPool = Executors.newFixedThreadPool(4);
 ExecutorService reportPool = Executors.newSingleThreadExecutor();
 
-// 命名注册：一个 ParConfig 统一管理所有线程池
-ParConfig config = ParConfig.builder()
-        .executor("io-pool", ioPool)
-        .executor("cpu-pool", cpuPool)
-        .executor("report-pool", reportPool)
+// 命名注册：一个 GlobalPar 统一管理所有线程池
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("io-pool"), ioPool)
+        .register(ParName.of("cpu-pool"), cpuPool)
+        .register(ParName.of("report-pool"), reportPool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 按名字引用，不可能传错
-ParOptions ioOpts = ParOptions.ioTask("fetch-orders").parallelism(8).timeout(5000).build();
-AsyncBatchResult<Order> orders = par.map("io-pool", orderIds, id -> {
+BatchOptions ioOpts = BatchOptions.timeout("fetch-orders", java.time.Duration.ofMillis(5000)).parallelism(8).taskType(TaskType.IO_BOUND);
+TaskBatchResult<Order> orders = par.map( orderIds, id -> {
     return orderService.fetch(id);  // IO 任务走 io-pool
 }, ioOpts);
 
-ParOptions cpuOpts = ParOptions.cpuTask("compute-score").parallelism(4).timeout(10000).build();
-AsyncBatchResult<Double> scores = par.map("cpu-pool", users, user -> {
+BatchOptions cpuOpts = BatchOptions.timeout("compute-score", java.time.Duration.ofMillis(10000)).parallelism(4).taskType(TaskType.CPU_BOUND);
+TaskBatchResult<Double> scores = par.map( users, user -> {
     return scoreEngine.compute(user);  // 计算任务走 cpu-pool
 }, cpuOpts);
 
-ParOptions reportOpts = ParOptions.of("gen-report").parallelism(1).timeout(60000).build();
-AsyncBatchResult<Report> reports = par.map("report-pool", months, month -> {
+BatchOptions reportOpts = BatchOptions.timeout("gen-report", java.time.Duration.ofMillis(60000)).parallelism(1);
+TaskBatchResult<Report> reports = par.map( months, month -> {
     return reportService.generate(month);  // 报表任务走 report-pool
 }, reportOpts);
 ```
 
 对比原生方式：
 
-| 维度 | 原生 ExecutorService 传递 | ParConfig 命名注册 |
+| 维度 | 原生 ExecutorService 传递 | GlobalPar 命名注册 |
 |------|-------------------------|------------------|
 | 池引用 | 方法参数，类型相同易混 | 按名字引用，语义明确 |
 | 传错风险 | 编译通过，运行时才发现 | 名字不匹配直接报错 |
-| 生命周期管理 | 散落各处，容易漏关 | 集中在 ParConfig，统一管理 |
-| 新增池 | 改方法签名，改调用方 | `.executor("new-pool", pool)` 一行注册 |
+| 生命周期管理 | 散落各处，容易漏关 | 集中在 GlobalPar，统一管理 |
+| 新增池 | 改方法签名，改调用方 | `.register(ParName.of("new-pool"), pool)` 一行注册 |
 
 ---
 
-> 📁 完整测试代码：[G4_NamedExecutorPoolTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java)
+> 📁 完整测试代码：[G4_NamedExecutorPoolTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java)

@@ -1,24 +1,22 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * 5 分钟快速上手——配套测试代码。
@@ -34,10 +32,11 @@ class QuickStartTest {
     void setUp() {
         // 步骤 1 的准备工作：创建线程池和 Par 实例
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder()
-                .executor("my-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("my-pool"), pool)
+                .defaultPar(ParName.of("my-pool"))
                 .build();
-        par = new Par(config);
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -51,39 +50,34 @@ class QuickStartTest {
         List<Integer> numbers = Arrays.asList(1, 2, 3);
 
         // ---- 步骤 2：最小示例 ----
-        ParOptions minimalOpts = ParOptions.of("square").build();
-        AsyncBatchResult<Integer> result1 = par.map("my-pool", numbers, n -> n * n, minimalOpts);
+        BatchOptions minimalOpts = BatchOptions.timeout("square", java.time.Duration.ofMillis(5000));
+        TaskBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
 
         // 验证：逐个获取结果
-        assertThat(result1.getResults()).hasSize(3);
-        assertThat(result1.getResults().get(0).get()).isEqualTo(1);
-        assertThat(result1.getResults().get(1).get()).isEqualTo(4);
-        assertThat(result1.getResults().get(2).get()).isEqualTo(9);
+        assertThat(result1.results()).hasSize(3);
+        assertThat(result1.results().get(0).get()).isEqualTo(1);
+        assertThat(result1.results().get(1).get()).isEqualTo(4);
+        assertThat(result1.results().get(2).get()).isEqualTo(9);
 
         // ---- 步骤 3：设置超时 ----
-        ParOptions timeoutOpts = ParOptions.of("square")
-                .timeout(500)
-                .build();
-        AsyncBatchResult<Integer> result2 = par.map("my-pool", numbers, n -> n * n, timeoutOpts);
+        BatchOptions timeoutOpts = BatchOptions.timeout("square", java.time.Duration.ofMillis(500));
+        TaskBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
 
         // 验证：超时设置下仍然能正常完成
-        for (Future<Integer> future : result2.getResults()) {
+        for (Future<Integer> future : result2.results()) {
             Integer value = future.get(5, TimeUnit.SECONDS);
             assertThat(value).isPositive();
         }
 
         // ---- 步骤 4：控制并发度 ----
-        ParOptions limitedOpts = ParOptions.of("process")
-                .parallelism(2)
-                .timeout(5000)
-                .build();
+        BatchOptions limitedOpts = BatchOptions.timeout("process", java.time.Duration.ofMillis(5000)).parallelism(2);
         List<Integer> bigList = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
-        AsyncBatchResult<Integer> result3 = par.map("my-pool", bigList, n -> n * 2, limitedOpts);
+        TaskBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
 
         // 验证：并发限制下所有结果正确
-        assertThat(result3.getResults()).hasSize(8);
+        assertThat(result3.results()).hasSize(8);
         for (int i = 0; i < bigList.size(); i++) {
-            assertThat(result3.getResults().get(i).get()).isEqualTo(bigList.get(i) * 2);
+            assertThat(result3.results().get(i).get()).isEqualTo(bigList.get(i) * 2);
         }
 
         // ---- 步骤 5：查看结果 ----
@@ -92,9 +86,8 @@ class QuickStartTest {
         assertThat(report).contains("SUCCESS:8");
 
         // report() 结构化报告
-        AsyncBatchResult.BatchReport batchReport = result3.report();
-        assertThat(batchReport.getStateCounts()).containsEntry(
-                io.github.huatalk.parallelinscope.internal.FutureState.SUCCESS, 8);
-        assertThat(batchReport.getFirstException()).isNull();
+        TaskBatchResult.BatchReport batchReport = result3.report();
+        assertThat(batchReport.stateCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS, 8);
+        assertThat(batchReport.firstException()).isNull();
     }
 }
