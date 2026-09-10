@@ -1,15 +1,13 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -17,14 +15,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * A3: 取消异常太重 — 轻量级取消异常 vs 标准异常
  *
- * <p>演示 Exception.fillInStackTrace() 的性能开销，
- * 以及 parallel-in-scope 内部使用轻量级异常处理高频取消的优化效果。
+ * <p>演示 Exception.fillInStackTrace() 的性能开销， 以及 parallel-in-scope 内部使用轻量级异常处理高频取消的优化效果。
  */
 public class A3_LeanVsFatExceptionTest {
 
@@ -34,10 +32,11 @@ public class A3_LeanVsFatExceptionTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        par = new Par(config);
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -101,25 +100,24 @@ public class A3_LeanVsFatExceptionTest {
     @Test
     void parMap_withShortTimeout_completesEfficiently() {
         // 解决方案：Par.map() 配合短超时，内部使用轻量级异常处理取消
-        ParOptions opts = ParOptions.of("lean-cancel-demo")
-                .parallelism(4)
-                .timeout(200)
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("lean-cancel-demo", java.time.Duration.ofMillis(200)).parallelism(4).taskType(TaskType.IO_BOUND);
 
         // 提交 100 个任务，大部分会在 200ms 后被取消
         List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());
 
         long start = System.currentTimeMillis();
-        AsyncBatchResult<String> result = par.map("test-pool", items, id -> {
-            try {
-                // 模拟慢操作，超过 200ms 超时
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return "done-" + id;
-        }, opts);
+        TaskBatchResult<String> result = par.map(
+                items,
+                id -> {
+                    try {
+                        // 模拟慢操作，超过 200ms 超时
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return "done-" + id;
+                },
+                opts);
 
         // 等待超时取消生效
         try {

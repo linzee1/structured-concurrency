@@ -40,7 +40,7 @@ for (int i = 0; i < taskCount; i++) {
 
 **大堂经理只安排前 4 桌入座。第 1 桌吃完走了，经理立刻安排第 5 桌坐下；第 2 桌走了，安排第 6 桌……始终保持 4 桮满座，门口有人等但餐厅内部不堵。**
 
-技术上：`ConcurrentLimitExecutor` 初始只提交 `parallelism` 个任务，每当有一个任务完成（`ExecutorCompletionService.take()`），才提交下一个。队列深度永远不超过并行度。
+技术上：`SlidingWindowSubmitter` 初始只提交 `parallelism` 个任务，每当内部 completion queue 收到一个完成事件，才提交下一个。队列深度永远不超过并行度。
 
 两个关键细节：
 
@@ -51,27 +51,24 @@ for (int i = 0; i < taskCount; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
 
 // 餐厅只有 4 张桌（4 线程）
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 并行度 2：一轮最多 2 桌同时就餐，队列深度最多 2
-ParOptions options = ParOptions.of("data-process")
-        .parallelism(2)
-        .timeout(30000)
-        .build();
+BatchOptions options = BatchOptions.timeout("data-process", java.time.Duration.ofMillis(30000)).parallelism(2);
 
 // 100 个任务——但队列深度始终 <= 2，餐厅内部不堵
 List<Data> items = loadLargeDataset();
-AsyncBatchResult<Result> result = par.map("my-pool", items, item -> {
+TaskBatchResult<Result> result = par.map( items, item -> {
     return process(item);
 }, options);
 
@@ -90,4 +87,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[E1_QueueFloodingTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E1_QueueFloodingTest.java)
+> 📁 完整测试代码：[E1_QueueFloodingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E1_QueueFloodingTest.java)

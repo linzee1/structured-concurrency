@@ -1,15 +1,13 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -18,14 +16,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * D1: get(timeout) 后任务还在跑
  *
- * <p>演示标准 Future.get(timeout) 超时后任务仍在运行的问题，
- * 以及 parallel-in-scope Par.map() 超时自动取消的解决方案。
+ * <p>演示标准 Future.get(timeout) 超时后任务仍在运行的问题， 以及 parallel-in-scope Par.map() 超时自动取消的解决方案。
  */
 public class D1_GetTimeoutStillRunningTest {
 
@@ -35,10 +33,11 @@ public class D1_GetTimeoutStillRunningTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(2);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        par = new Par(config);
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -105,28 +104,26 @@ public class D1_GetTimeoutStillRunningTest {
         AtomicBoolean task1Completed = new AtomicBoolean(false);
         AtomicBoolean task2Completed = new AtomicBoolean(false);
 
-        ParOptions opts = ParOptions.of("cancel-demo")
-                .parallelism(2)
-                .timeout(500)
-                .timeUnit(TimeUnit.MILLISECONDS)
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.IO_BOUND);
 
         List<Integer> input = Arrays.asList(1, 2);
-        AsyncBatchResult<Integer> result = par.map("test-pool", input, x -> {
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                // 被中断，记录状态后退出
-                if (x == 1) task1Completed.set(false);
-                else task2Completed.set(false);
-                throw new RuntimeException("Task cancelled", e);
-            }
-            if (x == 1) task1Completed.set(true);
-            else task2Completed.set(true);
-            return x;
-        }, opts);
+        TaskBatchResult<Integer> result = par.map(
+                input,
+                x -> {
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        // 被中断，记录状态后退出
+                        if (x == 1) task1Completed.set(false);
+                        else task2Completed.set(false);
+                        throw new RuntimeException("Task cancelled", e);
+                    }
+                    if (x == 1) task1Completed.set(true);
+                    else task2Completed.set(true);
+                    return x;
+                },
+                opts);
 
         // 等待超时取消生效
         Thread.sleep(2000);
@@ -137,7 +134,7 @@ public class D1_GetTimeoutStillRunningTest {
         assertThat(task2Completed.get()).isFalse();
 
         // 验证：所有 Future 都已取消
-        for (Future<Integer> future : result.getResults()) {
+        for (Future<Integer> future : result.results()) {
             assertThat(future.isCancelled() || future.isDone()).isTrue();
         }
     }

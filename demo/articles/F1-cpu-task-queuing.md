@@ -33,7 +33,7 @@ for (int i = 0; i < 20; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `ParOptions.cpuTask()` 来标记 CPU 密集任务。其核心机制是 `SmartBlockingQueue`：当检测到任务类型为 `CPU_BOUND` 时，`offer()` 方法直接返回 `false`，触发线程池的 `CallerRunsPolicy`。被拒绝的任务不会排队，而是在提交线程上立即执行——零队列延迟。
+`parallel-in-scope` 提供了 `BatchOptions` 的 `taskType(TaskType.CPU_BOUND)` 来标记 CPU 密集任务。其核心机制是 `SmartBlockingQueue`：当检测到任务类型为 `CPU_BOUND` 时，`offer()` 方法直接返回 `false`，触发线程池的 `CallerRunsPolicy`。被拒绝的任务不会排队，而是在提交线程上立即执行——零队列延迟。
 
 这意味着 CPU 任务总是尽可能快地得到执行：
 - 线程池有空闲线程？立即在池线程上执行
@@ -43,25 +43,23 @@ for (int i = 0; i < 20; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.TaskType;
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("cpu-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("cpu-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-// cpuTask() 标记 CPU 密集任务，触发 CallerRunsPolicy
-ParOptions options = ParOptions.cpuTask("heavy-computation")
-        .parallelism(2)
-        .timeout(10000)
-        .build();
+// taskType(CPU_BOUND) 标记 CPU 密集任务，触发 CallerRunsPolicy
+BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.CPU_BOUND);
 
 List<Data> items = loadDataset();
-AsyncBatchResult<Result> result = par.map("cpu-pool", items, item -> {
+TaskBatchResult<Result> result = par.map( items, item -> {
     // CPU 密集计算——不会在队列中白等
     return heavyComputation(item);
 }, options);
@@ -71,7 +69,7 @@ System.out.println(result.reportString());
 
 对比两种方式：
 
-| 维度 | 原生 FixedThreadPool | Par.map() + cpuTask() |
+| 维度 | 原生 FixedThreadPool | Par.map() + taskType(CPU_BOUND) |
 |------|---------------------|----------------------|
 | CPU 任务排队 | 必须排队等待 | 零队列延迟 |
 | 最后一个任务延迟 | O(n) 排队时间 | O(1) 立即执行 |
@@ -80,4 +78,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)
+> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)

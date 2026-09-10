@@ -48,18 +48,16 @@ pool.submit(() -> {
 
 // 仅 1 个线程的业务线程池
 ExecutorService pool = Executors.newFixedThreadPool(1);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
-ParOptions opts = ParOptions.of("offload-demo")
-        .parallelism(1)
-        .build();
+BatchOptions opts = BatchOptions.timeout("offload-demo", java.time.Duration.ofMillis(5000)).parallelism(1);
 
 // Par.map() 不会死锁——提交循环运行在 Par-Submitter 线程上
 List<Integer> input = Arrays.asList(1, 2, 3);
-AsyncBatchResult<Integer> result = par.map("my-pool", input, x -> {
+TaskBatchResult<Integer> result = par.map( input, x -> {
     Thread.sleep(100);
     return x * 2;
 }, opts);
@@ -69,4 +67,4 @@ AsyncBatchResult<Integer> result = par.map("my-pool", input, x -> {
 
 ---
 
-> 📁 完整测试代码：[E2_SubmitterPoolOffloadingTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java)
+> 📁 完整测试代码：[E2_SubmitterPoolOffloadingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java)

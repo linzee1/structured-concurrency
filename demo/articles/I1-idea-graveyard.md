@@ -1,6 +1,6 @@
 # I1. 设计墓地——那些我们拒绝做的功能
 
-每个开源项目都有一个公开的路线图，告诉用户"我们要做什么"。但很少有项目告诉你"我们决定不做什么"。我们反其道而行之——parallel-in-scope 维护了一份 [IdeaGraveyard](https://github.com/huatalk/parallel-in-scope/blob/main/IdeaGraveyard.md)，记录每一个被认真考虑过、最终被拒绝的特性。
+每个开源项目都有一个公开的路线图，告诉用户"我们要做什么"。但很少有项目告诉你"我们决定不做什么"。我们反其道而行之——parallel-in-scope 维护了一份 [IdeaGraveyard](https://github.com/monadrome/parallel-in-scope/blob/main/IdeaGraveyard.md)，记录每一个被认真考虑过、最终被拒绝的特性。
 
 这篇文章挑选了 5 个最有代表性的"亡魂"，讲讲它们为什么被拒，以及你该用什么替代方案。
 
@@ -16,14 +16,14 @@
 
 ### 1. 重试机制
 
-**提议：** 内置 `ParOptions.retry(3).backoff(100, MILLISECONDS)`。
+**提议：** 内置 `BatchExecutionOptions.retry(3).backoff(100, MILLISECONDS)`。
 
 **为什么拒绝：** 重试看起来只有一行配置，背后却是一个策略密集型问题。重试哪些异常？指数退避还是固定间隔？重试时占不占并发窗口？幂等性怎么保证？更致命的是，**重试和 fail-fast 语义冲突**——我们承诺"任一任务失败立即取消整批"，如果引入重试，这两个语义会打架。
 
 **替代方案：** 在任务函数内部自己做重试，或者用 Resilience4j、Guava Retryer 等专业库：
 
 ```java
-Par.map("io-pool", urls, url -> {
+par.map(urls, url -> {
     return retryOn(IOException.class, maxRetries(3), () -> httpClient.fetch(url));
 }, options);
 ```
@@ -36,7 +36,7 @@ Par.map("io-pool", urls, url -> {
 
 **提议：** 提供 `parallel-in-scope-spring-boot-starter`，自动注入线程池，用 `@Parallel` 注解声明并行任务。
 
-**为什么拒绝：** 三个原因。第一，我们核心依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，`ParConfig.registerExecutor("name", executor)` 一行代码就够，不值得为此搞一个 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
+**为什么拒绝：** 三个原因。第一，我们核心依赖只有 Guava 和 TTL，引入 Spring 意味着要维护 2.x/3.x 兼容矩阵，成本远高于核心功能本身。第二，`GlobalPar.registerExecutor("name", executor)` 一行代码就够，不值得为此搞一个 Starter。第三，也是最关键的——`@Parallel` 注解会隐藏并行度、超时、任务类型这些关键参数，让开发者在不理解底层行为的情况下使用并发工具，这和我们"显式优于隐式"的哲学相悖。
 
 **替代方案：** 在 Spring 项目里写一个约 10 行的 `@Configuration` 类：
 
@@ -45,9 +45,9 @@ Par.map("io-pool", urls, url -> {
 public CommandLineRunner registerExecutors(
         @Qualifier("ioPool") ExecutorService ioPool) {
     return args -> {
-        // ParConfig 构建时注册，运行时不可变
-        ParConfig config = ParConfig.builder()
-                .executor("io-pool", ioPool)
+        // GlobalPar 构建时注册，运行时不可变
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("io-pool"), ioPool)
                 .build();
         // 注入到 Spring 容器供全局使用
     };
@@ -60,7 +60,7 @@ public CommandLineRunner registerExecutors(
 
 **提议：** 用 `CompletableFuture` 替代 Guava `ListenableFuture` 作为 API 返回类型。
 
-**为什么拒绝：** `ListenableFuture` 是更好的并发原语——它的 `addListener(Runnable, Executor)` 强制指定回调线程池，避免了 `CompletableFuture` 默认用 `ForkJoinPool.commonPool()` 的坑。我们的内部实现（`ConcurrentLimitExecutor`、`FluentFuture.withTimeout`、`Futures.allAsList`）全部基于 Guava 原语，提供 CF 适配层意味着维护两套 Future 语义。
+**为什么拒绝：** `ListenableFuture` 是更好的并发原语——它的 `addListener(Runnable, Executor)` 强制指定回调线程池，避免了 `CompletableFuture` 默认用 `ForkJoinPool.commonPool()` 的坑。我们的内部实现（`SlidingWindowSubmitter`、`FluentFuture.withTimeout`、`Futures.allAsList`）全部基于 Guava 原语，提供 CF 适配层意味着维护两套 Future 语义。
 
 **替代方案：** 如果调用方确实需要 CF，一行代码转换：
 
@@ -84,7 +84,7 @@ Futures.addCallback(lf, new FutureCallback<String>() {
 **替代方案：** 在任务函数内部 catch 异常，返回包装类型：
 
 ```java
-Par.map("io-pool", urls, url -> {
+par.map(urls, url -> {
     try {
         return Optional.of(httpClient.fetch(url));
     } catch (Exception e) {
@@ -105,7 +105,7 @@ Par.map("io-pool", urls, url -> {
 
 ```java
 int concurrency = adaptiveLimiter.currentLimit();
-ParOptions opts = ParOptions.ioTask("fetch").parallelism(concurrency).build();
+BatchOptions opts = BatchOptions.timeout("fetch", java.time.Duration.ofMillis(5000)).parallelism(concurrency).taskType(TaskType.IO_BOUND);
 ```
 
 ---
@@ -120,4 +120,4 @@ ParOptions opts = ParOptions.ioTask("fetch").parallelism(concurrency).build();
 
 ---
 
-> 设计墓地完整版：[IdeaGraveyard.md](https://github.com/huatalk/parallel-in-scope/blob/main/IdeaGraveyard.md)
+> 设计墓地完整版：[IdeaGraveyard.md](https://github.com/monadrome/parallel-in-scope/blob/main/IdeaGraveyard.md)

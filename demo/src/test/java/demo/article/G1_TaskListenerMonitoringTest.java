@@ -1,16 +1,14 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
-import io.github.huatalk.parallelinscope.spi.TaskListener;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskCompletion;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,13 +18,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * G1: 任务执行看不见——接入监控
  *
  * <p>演示问题：标准 ExecutorService 没有任务监控钩子，只能在 lambda 里手动埋点。
+ *
  * <p>演示解决：Par.map() 配合 TaskListener SPI，零侵入地捕获每个任务的执行事件。
  */
 public class G1_TaskListenerMonitoringTest {
@@ -46,8 +46,7 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * 问题复现：标准 ExecutorService 没有监控钩子。
      *
-     * <p>只能在 lambda 内部手动埋点，且拿不到等待时间（提交到开始执行的间隔）。
-     * 监控逻辑和业务逻辑耦合，容易遗漏。
+     * <p>只能在 lambda 内部手动埋点，且拿不到等待时间（提交到开始执行的间隔）。 监控逻辑和业务逻辑耦合，容易遗漏。
      */
     @Test
     void vanillaExecutorService_hasNoMonitoringHook() throws Exception {
@@ -69,8 +68,7 @@ public class G1_TaskListenerMonitoringTest {
                     throw e;
                 } finally {
                     // 手动记录执行耗时——但拿不到等待时间！
-                    manualTimings.add(TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - start));
+                    manualTimings.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
                 }
             }));
         }
@@ -92,36 +90,37 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * 解决方法：Par.map() 配合 TaskListener，零侵入监控。
      *
-     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskEvent)，
-     * 包含 taskName、executionTime()、totalTime()、exception 等完整信息。
-     * 业务 lambda 无需任何监控代码。
+     * <p>注册 TaskListener 后，每个任务完成时自动回调 onTaskComplete(TaskCompletion)， 包含
+     * taskName、executionTime()、totalTime()、failure 等完整信息。 业务 lambda 无需任何监控代码。
      */
     @Test
     void parMap_withTaskListener_capturesSuccessfulTaskEvents() throws Exception {
         // 注册 TaskListener，收集所有事件
-        CopyOnWriteArrayList<TaskListener.TaskEvent> events = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
                 .taskListener(events::add)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
         // parallelism=5 确保所有任务同时启动，避免被取消
-        ParOptions opts = ParOptions.of("monitor-demo")
-                .parallelism(5)
-                .timeout(5000)
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("monitor-demo", java.time.Duration.ofMillis(5000)).parallelism(5).taskType(TaskType.IO_BOUND);
 
         // 业务代码：纯逻辑，不碰监控
-        AsyncBatchResult<String> result = par.map("test-pool", input, x -> {
-            // 模拟 50ms 业务计算（忙等待，不响应中断）
-            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
-            while (System.nanoTime() < deadline) { /* busy wait */ }
-            return "result-" + x;
-        }, opts);
+        TaskBatchResult<String> result = par.map(
+                input,
+                x -> {
+                    // 模拟 50ms 业务计算（忙等待，不响应中断）
+                    long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
+                    while (System.nanoTime() < deadline) {
+                        /* busy wait */
+                    }
+                    return "result-" + x;
+                },
+                opts);
 
         // 等待所有任务完成
         Thread.sleep(2000);
@@ -130,28 +129,28 @@ public class G1_TaskListenerMonitoringTest {
         assertThat(events).hasSize(5);
 
         // 验证：每个事件都有正确的 taskName
-        for (TaskListener.TaskEvent event : events) {
-            assertThat(event.getTaskName()).isEqualTo("monitor-demo");
+        for (TaskCompletion<?> event : events) {
+            assertThat(event.taskName()).isEqualTo("monitor-demo");
         }
 
         // 验证：执行耗时 >= 40ms（因为我们忙等了 50ms）
-        for (TaskListener.TaskEvent event : events) {
+        for (TaskCompletion<?> event : events) {
             assertThat(event.executionTime().toMillis())
-                    .as("Task %s execution time", event.getTaskName())
+                    .as("Task %s execution time", event.taskName())
                     .isGreaterThanOrEqualTo(40);
         }
 
         // 验证：总耗时 >= 执行耗时（total = wait + execution）
-        for (TaskListener.TaskEvent event : events) {
+        for (TaskCompletion<?> event : events) {
             assertThat(event.totalTime().toNanos())
-                    .as("Task %s total time >= execution time", event.getTaskName())
+                    .as("Task %s total time >= execution time", event.taskName())
                     .isGreaterThanOrEqualTo(event.executionTime().toNanos());
         }
 
         // 验证：所有任务成功，没有异常
-        for (TaskListener.TaskEvent event : events) {
-            assertThat(event.getException())
-                    .as("Task %s should not have exception", event.getTaskName())
+        for (TaskCompletion<?> event : events) {
+            assertThat(event.failure())
+                    .as("Task %s should not have exception", event.taskName())
                     .isNull();
         }
 
@@ -163,35 +162,36 @@ public class G1_TaskListenerMonitoringTest {
     /**
      * TaskListener 同样能捕获失败任务的异常信息。
      *
-     * <p>当任务抛出异常时，TaskEvent.getException() 返回对应的 Throwable，
-     * 无需在业务代码中手动 try-catch。
+     * <p>当任务抛出异常时，TaskEvent.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch。
      */
     @Test
     void parMap_withTaskListener_capturesFailedTaskException() throws Exception {
-        CopyOnWriteArrayList<TaskListener.TaskEvent> events = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<TaskCompletion<?>> events = new CopyOnWriteArrayList<>();
 
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
                 .taskListener(events::add)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
 
         // 只有 2 个任务，parallelism=2 确保同时启动
         List<Integer> input = Arrays.asList(1, 2);
-        ParOptions opts = ParOptions.of("fail-demo")
-                .parallelism(2)
-                .timeout(5000)
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("fail-demo", java.time.Duration.ofMillis(5000)).parallelism(2).taskType(TaskType.IO_BOUND);
 
-        AsyncBatchResult<String> result = par.map("test-pool", input, x -> {
-            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
-            while (System.nanoTime() < deadline) { /* busy wait */ }
-            if (x == 2) {
-                throw new RuntimeException("item " + x + " failed");
-            }
-            return "result-" + x;
-        }, opts);
+        TaskBatchResult<String> result = par.map(
+                input,
+                x -> {
+                    long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
+                    while (System.nanoTime() < deadline) {
+                        /* busy wait */
+                    }
+                    if (x == 2) {
+                        throw new RuntimeException("item " + x + " failed");
+                    }
+                    return "result-" + x;
+                },
+                opts);
 
         Thread.sleep(2000);
 
@@ -199,24 +199,22 @@ public class G1_TaskListenerMonitoringTest {
         assertThat(events).hasSize(2);
 
         // 验证：捕获到了失败任务的异常
-        TaskListener.TaskEvent failedEvent = events.stream()
-                .filter(e -> e.getException() != null)
+        TaskCompletion<?> failedEvent = events.stream()
+                .filter(e -> e.failure() != null)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));
-        assertThat(failedEvent.getException().getMessage()).contains("item 2 failed");
+        assertThat(failedEvent.failure().getMessage()).contains("item 2 failed");
 
         // 验证：失败事件也有 taskName
-        assertThat(failedEvent.getTaskName()).isEqualTo("fail-demo");
+        assertThat(failedEvent.taskName()).isEqualTo("fail-demo");
 
         // 验证：成功任务没有异常
-        long successCount = events.stream()
-                .filter(e -> e.getException() == null)
-                .count();
+        long successCount = events.stream().filter(e -> e.failure() == null).count();
         assertThat(successCount).isEqualTo(1);
 
         // 验证：report 确认结果
         String report = result.reportString();
         assertThat(report).contains("SUCCESS:1");
-        assertThat(report).contains("FAILED:1");
+        assertThat(report).contains("USER_FAILURE:1");
     }
 }

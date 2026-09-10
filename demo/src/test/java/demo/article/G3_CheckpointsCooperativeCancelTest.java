@@ -1,15 +1,13 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.cancel.Checkpoints;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.monadrome.parallelinscope.Checkpoints;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,18 +18,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * G3. 任务取消后还在算——显式检查点
  *
- * <p>问题：CPU 密集型任务不调用 sleep/wait/IO，中断信号打不进来。
- * cancel(true) 设置了中断标志，但紧密循环从不检查，任务继续算到自然结束。
+ * <p>问题：CPU 密集型任务不调用 sleep/wait/IO，中断信号打不进来。 cancel(true) 设置了中断标志，但紧密循环从不检查，任务继续算到自然结束。
  *
- * <p>解决方案概念：在 CPU 密集循环中插入 Checkpoints.check() 检查点，
- * 框架检查 CancellationToken 状态，已取消则立即抛出 LeanCancellationException。
- * 对于 IO 任务，Par.map() + timeout 配合 Thread.interrupt() 天然有效。
+ * <p>解决方案概念：在 CPU 密集循环中插入 Checkpoints.checkpoint(...) 检查点， 框架检查 CancellationToken 状态，已取消则立即抛出
+ * LeanCancellationException。 对于 IO 任务，Par.map() + timeout 配合 Thread.interrupt() 天然有效。
  */
 public class G3_CheckpointsCooperativeCancelTest {
 
@@ -41,10 +38,11 @@ public class G3_CheckpointsCooperativeCancelTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        par = new Par(config);
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -55,9 +53,8 @@ public class G3_CheckpointsCooperativeCancelTest {
     /**
      * 问题演示：CPU 密集循环忽略 Thread.interrupt()，cancel(true) 无效。
      *
-     * <p>提交 4 个忙等待任务（各 2 秒），立即调用 cancel(true)。
-     * 尽管 Future 被标记为已取消，所有任务仍然完成——中断信号从未被检查。
-     * 总耗时约 2 秒（4 个任务在 4 线程池上并行），而非立即停止。
+     * <p>提交 4 个忙等待任务（各 2 秒），立即调用 cancel(true)。 尽管 Future 被标记为已取消，所有任务仍然完成——中断信号从未被检查。 总耗时约 2 秒（4 个任务在
+     * 4 线程池上并行），而非立即停止。
      */
     @Test
     void problem_cpuIntensiveLoopIgnoresInterrupt() throws Exception {
@@ -115,44 +112,41 @@ public class G3_CheckpointsCooperativeCancelTest {
     /**
      * 解决方案演示：Par.map() + timeout 对 IO 任务（Thread.sleep）取消有效。
      *
-     * <p>4 个任务各 sleep 5 秒，设置 500ms 超时。
-     * 框架超时后调用 Future.cancel(true)，Thread.sleep 响应中断抛出 InterruptedException，
-     * 任务立即停止，总耗时远小于 4 * 5s = 20s。
+     * <p>4 个任务各 sleep 5 秒，设置 500ms 超时。 框架超时后调用 Future.cancel(true)，Thread.sleep 响应中断抛出
+     * InterruptedException， 任务立即停止，总耗时远小于 4 * 5s = 20s。
      */
     @Test
     void solution_parMapTimeoutCancelsIoTasks() throws Exception {
-        ParOptions opts = ParOptions.of("io-task")
-                .parallelism(4)
-                .timeout(500)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("io-task", java.time.Duration.ofMillis(500)).parallelism(4);
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();
 
-        AsyncBatchResult<String> result = par.map("test-pool", input, x -> {
-            // Thread.sleep 响应中断——cancel(true) 对 IO 操作天然有效
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Task interrupted", e);
-            }
-            return "result-" + x;
-        }, opts);
+        TaskBatchResult<String> result = par.map(
+                input,
+                x -> {
+                    // Thread.sleep 响应中断——cancel(true) 对 IO 操作天然有效
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Task interrupted", e);
+                    }
+                    return "result-" + x;
+                },
+                opts);
 
         // 等待超时取消生效
         Thread.sleep(2000);
         long elapsed = System.currentTimeMillis() - start;
 
         // 验证：总耗时远小于 4 * 5s = 20s
-        assertThat(elapsed)
-                .as("Par.map() 超时取消生效，耗时远小于 20 秒")
-                .isLessThan(5000);
+        assertThat(elapsed).as("Par.map() 超时取消生效，耗时远小于 20 秒").isLessThan(5000);
 
         // 验证：任务因中断而失败（CancellationException 或 ExecutionException）
         boolean anyFailedOrCancelled = false;
-        for (int i = 0; i < result.getResults().size(); i++) {
-            Future<String> future = result.getResults().get(i);
+        for (int i = 0; i < result.results().size(); i++) {
+            Future<String> future = result.results().get(i);
             if (future.isDone()) {
                 if (future.isCancelled()) {
                     anyFailedOrCancelled = true;
@@ -162,53 +156,46 @@ public class G3_CheckpointsCooperativeCancelTest {
                     } catch (ExecutionException e) {
                         // InterruptedException wrapped in RuntimeException
                         anyFailedOrCancelled = true;
-                        assertThat(e.getCause())
-                                .as("任务因中断而抛出异常")
-                                .isInstanceOf(RuntimeException.class);
+                        assertThat(e.getCause()).as("任务因中断而抛出异常").isInstanceOf(RuntimeException.class);
                     }
                 }
             }
         }
-        assertThat(anyFailedOrCancelled)
-                .as("至少有一个任务因超时取消而失败")
-                .isTrue();
+        assertThat(anyFailedOrCancelled).as("至少有一个任务因超时取消而失败").isTrue();
 
-        // reportString() 包含 FAILED 或 CANCELLED 状态
+        // reportString() 将 deadline 取消精确归因为 TIMEOUT
         String report = result.reportString();
-        assertThat(report)
-                .as("报告中应包含失败或取消状态")
-                .containsAnyOf("FAILED", "CANCELLED");
+        assertThat(report).as("报告中应包含超时状态").contains("TIMEOUT");
     }
 
     /**
-     * 核心解决方案：Checkpoints.check() 在 CPU 密集循环中实现协作式取消。
+     * 核心解决方案：Checkpoints.checkpoint(...) 在 CPU 密集循环中实现协作式取消。
      *
-     * <p>与 Test 1 的忙等待不同，这里在循环中插入 Checkpoints.check()。
-     * 框架超时后，下一次 check() 调用会立即抛出 LeanCancellationException，
-     * 任务立刻停止——不需要 Thread.interrupt()，不需要 sleep。
+     * <p>与 Test 1 的忙等待不同，这里在循环中插入 Checkpoints.checkpoint(...)。 框架超时后，下一次 checkpoint() 调用会立即抛出
+     * LeanCancellationException， 任务立刻停止——不需要 Thread.interrupt()，不需要 sleep。
      */
     @Test
     void solution_checkpointsCancelCpuIntensiveLoop() throws Exception {
-        ParOptions opts = ParOptions.of("cpu-checkpoint")
-                .parallelism(4)
-                .timeout(500)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("cpu-checkpoint", java.time.Duration.ofMillis(500)).parallelism(4);
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();
 
-        AsyncBatchResult<Integer> result = par.map("test-pool", input, x -> {
-            int iterations = 0;
-            long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(10); // 本应跑 10 秒
-            while (System.nanoTime() < end) {
-                iterations++;
-                // 每 10000 次迭代检查一次——几乎零开销
-                if (iterations % 10000 == 0) {
-                    Checkpoints.checkpoint("cpu-checkpoint", true); // 如果已取消，立即抛出 LeanCancellationException
-                }
-            }
-            return iterations;
-        }, opts);
+        TaskBatchResult<Integer> result = par.map(
+                input,
+                x -> {
+                    int iterations = 0;
+                    long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(10); // 本应跑 10 秒
+                    while (System.nanoTime() < end) {
+                        iterations++;
+                        // 每 10000 次迭代检查一次——几乎零开销
+                        if (iterations % 10000 == 0) {
+                            Checkpoints.checkpoint("cpu-checkpoint", true); // 如果已取消，立即抛出 LeanCancellationException
+                        }
+                    }
+                    return iterations;
+                },
+                opts);
 
         // 等待超时取消生效
         Thread.sleep(2000);
@@ -216,13 +203,11 @@ public class G3_CheckpointsCooperativeCancelTest {
 
         // 核心验证：总耗时远小于 4 * 10s = 40s
         assertThat(elapsed)
-                .as("Checkpoints.check() 在 500ms 超时后立即停止 CPU 循环")
+                .as("Checkpoints.checkpoint(...) 在 500ms 超时后立即停止 CPU 循环")
                 .isLessThan(5000);
 
-        // 验证有任务被取消或失败
+        // 验证 deadline 取消被精确归因为 TIMEOUT
         String report = result.reportString();
-        assertThat(report)
-                .as("报告中应包含失败或取消状态")
-                .containsAnyOf("FAILED", "CANCELLED");
+        assertThat(report).as("报告中应包含超时状态").contains("TIMEOUT");
     }
 }

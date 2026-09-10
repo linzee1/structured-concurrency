@@ -36,14 +36,14 @@ futures.forEach(f -> f.cancel(true));
 ```java
 // 在 CPU 密集循环中插入检查点
 for (int i = 0; i < 1_000_000; i++) {
-    Checkpoints.checkpoint("cpu-task", true); // 任务名必须与 ParOptions 一致
+    Checkpoints.checkpoint("cpu-task", true); // 任务名必须与 BatchOptions 一致
     result += heavyCompute(i);
 }
 ```
 
 此外，`Checkpoints.sleep(ms)` 替代 `Thread.sleep()`，自动将中断信号转化为协作式取消异常，统一了取消语义。
 
-配合 `ParOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.checkpoint(taskName, lean)` 即可及时响应取消。
+配合 `BatchOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.checkpoint(taskName, lean)` 即可及时响应取消。
 
 ## 代码
 
@@ -51,19 +51,16 @@ for (int i = 0; i < 1_000_000; i++) {
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // IO 任务：Thread.sleep 响应中断，超时取消自然生效
-ParOptions ioOpts = ParOptions.ioTask("api-call")
-        .parallelism(3)
-        .timeout(500)
-        .build();
+BatchOptions ioOpts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
 
 List<String> urls = Arrays.asList("url1", "url2", "url3");
-AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     Thread.sleep(5000);  // 响应中断，500ms 后被取消
     return fetchContent(url);
 }, ioOpts);
@@ -81,4 +78,4 @@ CPU 任务与 IO 任务的取消能力对比：
 
 ---
 
-> 📁 完整测试代码：[G3_CheckpointsCooperativeCancelTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java)
+> 📁 完整测试代码：[G3_CheckpointsCooperativeCancelTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java)

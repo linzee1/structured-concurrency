@@ -45,7 +45,7 @@ for (int i = 0; i < taskCount; i++) {
 
 `parallel-in-scope` 采用**先提交后绑定**（Late Binding）策略，核心思路是将"提交任务"和"绑定超时"拆分为两个独立的阶段：
 
-1. **提交阶段**：`ConcurrentLimitExecutor.submitAll()` 通过滑动窗口逐个提交任务，返回 `AsyncBatchResult`（包含所有 `ListenableFuture`）
+1. **提交阶段**：`SlidingWindowSubmitter.submitAll()` 通过滑动窗口逐个提交任务，返回 `TaskBatchResult`（包含所有 `ListenableFuture`）
 2. **绑定阶段**：所有任务提交完成后，`CancellationToken.lateBind()` 统一为整个任务批量设置超时
 
 这样，超时计时器的起算点是**所有任务提交完毕的时刻**，而非第一个任务提交的时刻。无论任务数量多少、滑动窗口如何调度，每个任务都能获得公平的超时窗口。
@@ -55,31 +55,27 @@ for (int i = 0; i < taskCount; i++) {
 ## 代码
 
 ```java
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.TaskType;
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 100 个任务，并行度 10，统一超时 5 秒
-ParOptions options = ParOptions.of("data-task")
-        .parallelism(10)
-        .timeout(5000)
-        .taskType(TaskType.IO_BOUND)
-        .build();
+BatchOptions options = BatchOptions.timeout("data-task", java.time.Duration.ofMillis(5000)).parallelism(10).taskType(TaskType.IO_BOUND);
 
 List<Data> items = loadLargeDataset(); // 100+ items
 
 // Par.map() 内部先通过滑动窗口提交所有任务，
 // 然后调用 lateBind() 统一绑定超时
-AsyncBatchResult<Result> result = par.map("my-pool", items, item -> {
+TaskBatchResult<Result> result = par.map( items, item -> {
     return process(item); // 每个任务公平享有 5 秒超时
 }, options);
 
@@ -89,4 +85,4 @@ AsyncBatchResult<Result> result = par.map("my-pool", items, item -> {
 
 ---
 
-> 📁 完整测试代码：[D2_LateBindRaceConditionTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java)
+> 📁 完整测试代码：[D2_LateBindRaceConditionTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java)

@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.huatalk</groupId>
+    <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope-demo</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <packaging>jar</packaging>
 
     <name>parallel-in-scope-demo</name>
@@ -18,7 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>8</maven.compiler.release>
-        <parallel-in-scope.version>0.1.0</parallel-in-scope.version>
+        <parallel-in-scope.version>0.2.0</parallel-in-scope.version>
         <junit-jupiter.version>5.14.4</junit-jupiter.version>
         <assertj.version>3.27.7</assertj.version>
     </properties>
@@ -26,7 +26,7 @@
     <dependencies>
         <!-- parallel-in-scope: published artifact from Maven Central -->
         <dependency>
-            <groupId>io.github.huatalk</groupId>
+            <groupId>io.github.monadrome</groupId>
             <artifactId>parallel-in-scope</artifactId>
             <version>${parallel-in-scope.version}</version>
         </dependency>
@@ -63,6 +63,19 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.5</version>
+            </plugin>
+            <!-- Code formatting: `mvn spotless:apply` formats all sources -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.44.5</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat>
+                            <version>2.97.0</version>
+                        </palantirJavaFormat>
+                    </java>
+                </configuration>
             </plugin>
             <!-- exec-maven-plugin for running demos -->
             <plugin>

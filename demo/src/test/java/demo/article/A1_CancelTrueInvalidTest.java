@@ -1,16 +1,14 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.cancel.Checkpoints;
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.monadrome.parallelinscope.Checkpoints;
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,14 +18,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * A1: cancel(true) 无效 — 协作式取消
  *
- * <p>演示标准 Future.cancel(true) 对非中断代码无效的问题，
- * 以及 parallel-in-scope Par.map() 超时取消的解决方案。
+ * <p>演示标准 Future.cancel(true) 对非中断代码无效的问题， 以及 parallel-in-scope Par.map() 超时取消的解决方案。
  */
 public class A1_CancelTrueInvalidTest {
 
@@ -37,10 +35,11 @@ public class A1_CancelTrueInvalidTest {
     @BeforeEach
     void setUp() {
         pool = Executors.newFixedThreadPool(4);
-        ParConfig config = ParConfig.builder()
-                .executor("test-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("test-pool"), pool)
+                .defaultPar(ParName.of("test-pool"))
                 .build();
-        par = new Par(config);
+        par = config.defaultPar();
     }
 
     @AfterEach
@@ -85,19 +84,18 @@ public class A1_CancelTrueInvalidTest {
     @Test
     void parMap_withTimeout_cancelsTasks() throws Exception {
         // 解决方案：Par.map() 配合超时自动取消
-        ParOptions opts = ParOptions.of("cancel-demo")
-                .parallelism(3)
-                .timeout(500)
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
 
         List<Integer> input = Arrays.asList(1, 2, 3);
         long start = System.currentTimeMillis();
-        AsyncBatchResult<Integer> result = par.map("test-pool", input, x -> {
-            // 使用 Checkpoints.sleep() 响应取消信号
-            Checkpoints.sleep(5000);
-            return x;
-        }, opts);
+        TaskBatchResult<Integer> result = par.map(
+                input,
+                x -> {
+                    // 使用 Checkpoints.sleep() 响应取消信号
+                    Checkpoints.sleep(5000);
+                    return x;
+                },
+                opts);
 
         // 等待超时取消生效
         Thread.sleep(2000);

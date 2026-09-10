@@ -26,9 +26,9 @@ futures.forEach(f -> f.cancel(true));
 
 ## 解决方法
 
-`parallel-in-scope` 的 `Par.map()` 提供批次级超时与协作式取消。`ParOptions.timeout()` 限制本次 `map` 调用的整体执行时间；超时后框架会取消该批次中所有未完成任务并尝试中断执行线程。任务仍需响应中断，或通过 `Checkpoints` 主动检查取消状态，才能及时退出。
+`parallel-in-scope` 的 `Par.map()` 提供批次级超时与协作式取消。`BatchOptions.timeout()` 限制本次 `map` 调用的整体执行时间；超时后框架会取消该批次中所有未完成任务并尝试中断执行线程。任务仍需响应中断，或通过 `Checkpoints` 主动检查取消状态，才能及时退出。
 
-配合 `ParOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
+配合 `BatchOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
 - `parallelism(3)` 限制最大并行数为 3，采用滑动窗口调度避免线程池过载
 - `taskType(TaskType.IO_BOUND)` 标记为 IO 密集型任务，影响调度策略
 - `timeout(500)` 设置本次批量调用的 500ms 超时，超时后取消未完成任务
@@ -39,21 +39,17 @@ futures.forEach(f -> f.cancel(true));
 
 // 配置线程池和 Par 实例
 ExecutorService pool = Executors.newFixedThreadPool(4);
-ParConfig config = ParConfig.builder()
-        .executor("my-pool", pool)
+GlobalPar config = GlobalPar.builder()
+        .register(ParName.of("my-pool"), pool)
         .build();
-Par par = new Par(config);
+Par par = config.defaultPar();
 
 // 设置选项：3 并发，500ms 超时
-ParOptions opts = ParOptions.of("http-call")
-        .parallelism(3)
-        .timeout(500)
-        .taskType(TaskType.IO_BOUND)
-        .build();
+BatchOptions opts = BatchOptions.timeout("http-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2", "url3");
-AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
+TaskBatchResult<String> result = par.map( urls, url -> {
     // 模拟 IO 操作（Checkpoints.sleep 响应框架取消信号）
     Checkpoints.sleep(5000);
     return fetchContent(url);
@@ -64,4 +60,4 @@ AsyncBatchResult<String> result = par.map("my-pool", urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/huatalk/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)
+> 📁 完整测试代码：[A1_CancelTrueInvalidTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java)

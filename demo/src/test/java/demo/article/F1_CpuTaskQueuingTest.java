@@ -1,14 +1,13 @@
 package demo.article;
 
-import io.github.huatalk.parallelinscope.scope.AsyncBatchResult;
-import io.github.huatalk.parallelinscope.scope.Par;
-import io.github.huatalk.parallelinscope.scope.ParConfig;
-import io.github.huatalk.parallelinscope.scope.ParOptions;
-import io.github.huatalk.parallelinscope.scope.TaskType;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-
+import io.github.monadrome.parallelinscope.GlobalPar;
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParName;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -19,17 +18,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * F1. CPU 密集任务排队白等
  *
- * <p>问题：CPU 密集任务在线程池队列中排队等待毫无意义——它们不需要等待外部资源，
- * 只需要 CPU 时间。排队只增加延迟，不提升吞吐。
+ * <p>问题：CPU 密集任务在线程池队列中排队等待毫无意义——它们不需要等待外部资源， 只需要 CPU 时间。排队只增加延迟，不提升吞吐。
  *
- * <p>解决：Par.map() + ParOptions.cpuTask() 通过滑动窗口调度控制并发度，
- * 并利用 CallerRunsPolicy 确保 CPU 任务不排队。
+ * <p>解决：Par.map() + BatchOptions.taskType(TaskType.CPU_BOUND) 通过滑动窗口调度控制并发度， 并利用 CallerRunsPolicy 确保 CPU 任务不排队。
  */
 class F1_CpuTaskQueuingTest {
 
@@ -37,9 +34,7 @@ class F1_CpuTaskQueuingTest {
     private static final int TASK_COUNT = 20;
     private static final int COMPUTE_ITERATIONS = 3000;
 
-    /**
-     * 模拟 CPU 密集计算：确定性哈希迭代。
-     */
+    /** 模拟 CPU 密集计算：确定性哈希迭代。 */
     private long cpuIntensiveWork(int input) {
         long hash = input;
         for (int i = 0; i < COMPUTE_ITERATIONS; i++) {
@@ -52,8 +47,7 @@ class F1_CpuTaskQueuingTest {
     /**
      * 问题复现：原生 FixedThreadPool 提交 CPU 任务，全部排队等待。
      *
-     * <p>2 个线程的固定池提交 20 个 CPU 任务，使用 CountDownLatch 模拟同时提交。
-     * 所有任务在 2 个池线程上轮流执行，18 个任务必须在队列中排队。
+     * <p>2 个线程的固定池提交 20 个 CPU 任务，使用 CountDownLatch 模拟同时提交。 所有任务在 2 个池线程上轮流执行，18 个任务必须在队列中排队。
      * 主线程不参与任务执行，证明任务全部排在队列中白等。
      */
     @Test
@@ -104,23 +98,18 @@ class F1_CpuTaskQueuingTest {
                 f.get(30, TimeUnit.SECONDS);
             }
 
-            assertThat(poolThreadTaskCount.get())
-                    .as("所有 CPU 任务都在池线程上排队执行")
-                    .isEqualTo(TASK_COUNT);
-            assertThat(mainThreadTaskCount.get())
-                    .as("主线程空等——CPU 任务全在队列里排队")
-                    .isZero();
+            assertThat(poolThreadTaskCount.get()).as("所有 CPU 任务都在池线程上排队执行").isEqualTo(TASK_COUNT);
+            assertThat(mainThreadTaskCount.get()).as("主线程空等——CPU 任务全在队列里排队").isZero();
         } finally {
             pool.shutdownNow();
         }
     }
 
     /**
-     * 解决方案：Par.map() + cpuTask()，滑动窗口控制并发，CPU 任务不排队。
+     * 解决方案：Par.map() + taskType(TaskType.CPU_BOUND)，滑动窗口控制并发，CPU 任务不排队。
      *
-     * <p>使用 ParOptions.cpuTask() 标记 CPU 密集任务。Par.map() 通过滑动窗口调度
-     * 确保只有 parallelism 个任务在执行中，其余任务等前一个完成后才提交。
-     * 当线程池满时，fallback 机制让 CPU 任务在提交线程上直接执行，避免排队。
+     * <p>使用 BatchOptions.taskType(TaskType.CPU_BOUND) 标记 CPU 密集任务。Par.map() 通过滑动窗口调度 确保只有 parallelism
+     * 个任务在执行中，其余任务等前一个完成后才提交。 当线程池满时，fallback 机制让 CPU 任务在提交线程上直接执行，避免排队。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -129,39 +118,38 @@ class F1_CpuTaskQueuingTest {
         int parallelism = 2;
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
-        ParConfig config = ParConfig.builder()
-                .executor("cpu-pool", pool)
+        GlobalPar config = GlobalPar.builder()
+                .register(ParName.of("cpu-pool"), pool)
+                .defaultPar(ParName.of("cpu-pool"))
                 .build();
-        Par par = new Par(config);
+        Par par = config.defaultPar();
 
         try {
             AtomicInteger concurrency = new AtomicInteger(0);
             AtomicInteger maxConcurrency = new AtomicInteger(0);
 
-            List<Integer> input = IntStream.range(0, TASK_COUNT)
-                    .boxed()
-                    .collect(Collectors.toList());
+            List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            // cpuTask() 标记 CPU 密集任务
-            ParOptions options = ParOptions.cpuTask("cpu-compute")
-                    .parallelism(parallelism)
-                    .timeout(30000)
-                    .build();
+            // taskType(TaskType.CPU_BOUND) 标记 CPU 密集任务
+            BatchOptions options = BatchOptions.timeout("cpu-compute", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.CPU_BOUND);
 
-            AsyncBatchResult<Long> result = par.map("cpu-pool", input, i -> {
-                int cur = concurrency.incrementAndGet();
-                // 记录峰值并发度
-                maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
-                try {
-                    return cpuIntensiveWork(i);
-                } finally {
-                    concurrency.decrementAndGet();
-                }
-            }, options);
+            TaskBatchResult<Long> result = par.map(
+                    input,
+                    i -> {
+                        int cur = concurrency.incrementAndGet();
+                        // 记录峰值并发度
+                        maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
+                        try {
+                            return cpuIntensiveWork(i);
+                        } finally {
+                            concurrency.decrementAndGet();
+                        }
+                    },
+                    options);
 
             // 等待所有任务完成
-            for (int i = 0; i < result.getResults().size(); i++) {
-                result.getResults().get(i).get(30, TimeUnit.SECONDS);
+            for (int i = 0; i < result.results().size(); i++) {
+                result.results().get(i).get(30, TimeUnit.SECONDS);
             }
 
             // 滑动窗口确保并发度受控
@@ -170,8 +158,8 @@ class F1_CpuTaskQueuingTest {
                     .isLessThanOrEqualTo(parallelism + 1);
 
             // 验证任务类型为 CPU_BOUND
-            assertThat(options.getTaskType())
-                    .as("cpuTask() 标记任务为 CPU_BOUND")
+            assertThat(options.taskType())
+                    .as("taskType(TaskType.CPU_BOUND) 标记任务为 CPU_BOUND")
                     .isEqualTo(TaskType.CPU_BOUND);
         } finally {
             pool.shutdownNow();
