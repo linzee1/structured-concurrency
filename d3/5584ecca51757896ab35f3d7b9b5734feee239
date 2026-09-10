@@ -1,0 +1,35 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_1eb6a805eb45e9::t_055386669d414d 146-157
+design/task-group-api-and-options.md
+  s_1eb6a805eb45e9::t_e7549e404fc20f 70,74,77
+  s_1eb6a805eb45e9::t_b097b383ab43a7 232-235
+  s_1eb6a805eb45e9::t_588e473ca9515c 97
+docs/zh/user-guide.md
+  s_1eb6a805eb45e9::t_f2de405ca45060 64
+  s_1eb6a805eb45e9::t_57c214dbbb010b 72
+CHANGELOG.md
+  s_1eb6a805eb45e9::t_b87244ccf23908 36-39
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_1eb6a805eb45e9::t_b0ffcfbf0c4b11 707-708
+  s_1eb6a805eb45e9::t_6a3b08c974e996 668-671,673-706,709-726
+  s_1eb6a805eb45e9::t_79ca98556cc8e3 672
+docs/en/user-guide.md
+  s_1eb6a805eb45e9::t_57c214dbbb010b 91
+  s_1eb6a805eb45e9::t_f2de405ca45060 75-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d35584ecca51757896ab35f3d7b9b5734feee239",
+  "prompts": {},
+  "sessions": {
+    "s_1eb6a805eb45e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d111c7d4-0e9d-40f5-85fa-7189e35da4c2",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
