@@ -1,0 +1,28 @@
+src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueTest.java
+  ai_agent 1-901
+src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueContractTest.java
+  ai_agent 1-547
+src/main/java/io/github/monadrome/parallelinscope/queue/package-info.java
+  ai_agent 1-16
+src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java
+  ai_agent 1-516
+src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueTest.java
+  ai_agent 1-803
+src/main/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueue.java
+  ai_agent 1-1642
+src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueCartesianTest.java
+  ai_agent 1-205
+src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueSignalTest.java
+  ai_agent 1-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1d8e1ce9a71c7306071614042d21566b5c84ede0",
+  "prompts": {},
+  "humans": {
+    "h_a991f50801869b": {
+      "author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
