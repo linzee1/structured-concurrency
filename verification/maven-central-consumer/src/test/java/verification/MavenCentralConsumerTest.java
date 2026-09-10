@@ -128,6 +128,7 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(4);
         CountDownLatch innerStarted = new CountDownLatch(2);
         CountDownLatch innerInterrupted = new CountDownLatch(2);
+        CountDownLatch releaseOuter = new CountDownLatch(1);
         AtomicReference<TaskBatchResult<Integer>> innerResult = new AtomicReference<>();
         GlobalPar global = GlobalPar.builder().register(CONSUMER, executor).build();
         try {
@@ -142,13 +143,10 @@ class MavenCentralConsumerTest {
                                         .parallelism(2)
                                         .taskType(TaskType.IO_BOUND));
                         innerResult.set(nested);
-                        try {
-                            for (int i = 0; i < nested.results().size(); i++) {
-                                nested.results().get(i).get();
-                            }
-                        } catch (Exception e) {
-                            throw new RuntimeException("nested task failed", e);
-                        }
+                        // Stay in the body until the test releases it, swallowing the interrupt the
+                        // deadline delivers: the outer element must end cancelled by the deadline,
+                        // not by the body racing it with an exception of its own.
+                        awaitUninterruptibly(releaseOuter);
                         return outerValue;
                     },
                     BatchOptions.timeout("outer-contract", Duration.ofMillis(300))
@@ -161,6 +159,7 @@ class MavenCentralConsumerTest {
             assertTrue(innerInterrupted.await(5, TimeUnit.SECONDS), "outer timeout did not interrupt nested tasks");
             assertTrue(innerResult.get().results().stream().allMatch(future -> future.isCancelled()));
         } finally {
+            releaseOuter.countDown();
             global.close();
             executor.shutdownNow();
         }
@@ -176,6 +175,21 @@ class MavenCentralConsumerTest {
             interrupted.countDown();
             Thread.currentThread().interrupt();
             throw new RuntimeException("task interrupted", e);
+        }
+    }
+
+    private static void awaitUninterruptibly(CountDownLatch latch) {
+        boolean interrupted = false;
+        while (true) {
+            try {
+                latch.await();
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 
