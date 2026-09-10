@@ -185,6 +185,7 @@ class TaskFutureTest {
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT));
 
             TaskFuture<String> element = batch.results().get(0);
+            await().atMost(2, TimeUnit.SECONDS).until(element::isDone);
             assertThat(element.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(element.failure()).isSameAs(boom);
             assertThatThrownBy(element::get)
