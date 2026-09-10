@@ -1,0 +1,36 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  s_1eb6a805eb45e9::t_d36a76b1611ae5 184
+  s_1eb6a805eb45e9::t_623a9e42c96925 177-182,185-197,210
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineTest.java
+  s_1eb6a805eb45e9::t_d36a76b1611ae5 50-56,190-191,196-197,266-267,286,315-322,342-343,348-349,359
+  s_1eb6a805eb45e9::t_6b3057861ab048 49,58,93-97,99,122-125,127,194,228-232,234,257,285,288,314,324,345,347,357-358
+  s_1eb6a805eb45e9::t_cf27dc0240ade3 366-380
+docs/en/user-guide.md
+  s_1eb6a805eb45e9::t_d3052c35332c4f 128-130,135-139,141,143
+CHANGELOG.md
+  s_1eb6a805eb45e9::t_c5be143fe09f07 33-34,39
+docs/zh/user-guide.md
+  s_1eb6a805eb45e9::t_d3052c35332c4f 91,94-98,100,102
+design/task-group-api-and-options.md
+  s_1eb6a805eb45e9::t_b131fcc9fe83da 177
+  s_1eb6a805eb45e9::t_512b7caf0a301f 103-111
+  s_1eb6a805eb45e9::t_d29c73e764fdbf 143-146
+design/task-group-terminal-combine.md
+  s_1eb6a805eb45e9::t_b131fcc9fe83da 56,58,61-63,69,96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "03479db3b02b43cab3f03031c62b98a360504ed3",
+  "prompts": {},
+  "sessions": {
+    "s_1eb6a805eb45e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d111c7d4-0e9d-40f5-85fa-7189e35da4c2",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
