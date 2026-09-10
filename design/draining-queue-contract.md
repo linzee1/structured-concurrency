@@ -118,8 +118,8 @@ DRAINING 且仍有存量时，`take()` 应立即返回真实元素；不应返�
 | `isShutdown()` | false | true | true |
 | `isDraining()` | false | true | false |
 | `isDrained()` | false | false(即使瞬间为空) | true |
-| `awaitDrained()` | 立即返回 | 阻塞等待 DRAINED | 立即返回 |
-| `awaitDrained(timeout, unit)` | 立即返回 true | 等待 DRAINED 或超时 | 立即返回 true |
+| `awaitDrained()` | 阻塞等待 DRAINED | 阻塞等待 DRAINED | 立即返回 |
+| `awaitDrained(timeout, unit)` | 等待 DRAINED 或超时 | 等待 DRAINED 或超时 | 立即返回 true |
 
 `isShutdown()`、`isDraining()` 与 `isDrained()` 分离是必要的：`isShutdown()` 告诉生产者"别再写了"，`isDraining()` 表示存量仍在排空，`isDrained()` 告诉消费者"真的结束了"。合并其中任意两个都会让调用方难以区分"暂时空"和"永久结束"。
 
