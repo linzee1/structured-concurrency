@@ -1,0 +1,26 @@
+docs/zh/migration-v0.3.md
+  s_512b1cd0783af7::t_79d47ca8841f51 36
+docs/zh/user-guide.md
+  s_512b1cd0783af7::t_77ed0b81eb6636 109
+  s_512b1cd0783af7::t_b7255c0bace172 221
+  s_512b1cd0783af7::t_1e988bf826e79b 165
+  s_512b1cd0783af7::t_851be00d17d07d 167
+docs/en/user-guide.md
+  s_512b1cd0783af7::t_2ff716d3461f3f 296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c9956865fe514a187946d08baf1efd949bd6cb03",
+  "prompts": {},
+  "sessions": {
+    "s_512b1cd0783af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20c8c92c-0a6f-4f35-9a42-f538907d1c20",
+        "model": "unknown"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
