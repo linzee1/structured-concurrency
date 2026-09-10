@@ -1,32 +1,29 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>parallel-in-scope | Java 并行批处理指南</title>
-<style>
-:root{--bg:#f4f0e8;--ink:#17252a;--muted:#63706d;--paper:#fffdf8;--line:#d9d4c9;--teal:#087f79;--teal2:#d8efea;--orange:#d76b36;--yellow:#f4d47d;--shadow:0 14px 34px #243b3a12}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.75 ui-sans-serif,system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;background-image:radial-gradient(#1a302d 0.7px,transparent .7px);background-size:12px 12px}.page{max-width:1240px;margin:auto;padding:22px 28px 72px}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:16px}.logo{font-weight:800;letter-spacing:-.03em}.logo b{color:var(--teal)}.top nav{display:flex;gap:18px}.top nav a{font-size:12px;color:var(--muted);text-decoration:none}.top nav a:hover{color:var(--teal)}.hero{padding:86px 0 74px;display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:end}.eyebrow{color:var(--teal);font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:700}.hero h1{font:500 clamp(46px,7vw,86px)/.96 Georgia,serif;letter-spacing:-.04em;margin:15px 0 25px}.hero h1 em{color:var(--orange);font-style:normal}.hero p{max-width:620px;color:var(--muted);font-size:17px}.hero-art{background:var(--teal);min-height:290px;padding:22px;position:relative;overflow:hidden;box-shadow:var(--shadow)}.hero-art:after{content:"PARALLEL / IN / SCOPE";position:absolute;right:-28px;bottom:23px;color:#ffffff2a;font:700 26px/1 monospace;transform:rotate(-90deg);transform-origin:right bottom}.orbit{height:100%;border:1px solid #ffffff55;position:relative;display:grid;place-items:center}.orbit:before,.orbit:after{content:"";position:absolute;border:1px solid #ffffff66;border-radius:50%;width:180px;height:180px}.orbit:after{width:100px;height:100px}.core{width:76px;height:76px;border-radius:50%;background:var(--yellow);color:var(--ink);display:grid;place-items:center;text-align:center;font-size:11px;font-weight:800;z-index:1}.dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#fff9}.d1{top:29px;left:32%}.d2{right:24px;top:50%}.d3{bottom:24px;left:42%}.btn{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;padding:11px 15px;border:0;text-decoration:none;font-size:13px;cursor:pointer}.btn:hover{background:var(--teal)}section{padding:66px 0;border-top:1px solid var(--line)}.section-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:26px}.section-title h2{font:500 34px/1.1 Georgia,serif;margin:0}.section-title span{color:var(--orange);font:700 11px monospace}.lead{color:var(--muted);max-width:760px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.card{background:var(--paper);border:1px solid var(--line);padding:20px;box-shadow:var(--shadow)}.card .icon{color:var(--teal);font-size:22px}.card h3{font-size:16px;margin:10px 0 7px}.card p{color:var(--muted);font-size:13px;margin:0}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{background:var(--paper);border:1px solid var(--line);padding:22px}.panel h3{margin:0 0 12px;font-size:16px}.steps{display:grid;gap:10px}.step{display:grid;grid-template-columns:36px 1fr;gap:12px;align-items:start}.num{width:28px;height:28px;border-radius:50%;background:var(--teal2);color:var(--teal);display:grid;place-items:center;font-weight:800;font-size:12px}.step strong{display:block;font-size:14px}.step p{color:var(--muted);font-size:13px;margin:2px 0 0}.code{background:#152427;color:#d8eee8;padding:18px;overflow:auto;font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;position:relative}.copy{position:absolute;right:10px;top:10px;background:#ffffff1a;color:#fff;border:1px solid #ffffff44;padding:5px 8px;font-size:11px;cursor:pointer}.decision{border-left:4px solid var(--orange);background:#fff8e9;padding:16px 18px;color:#6b4d2c;font-size:13px;margin-top:18px}.matrix{width:100%;border-collapse:collapse;background:var(--paper);font-size:13px}.matrix th,.matrix td{border-bottom:1px solid var(--line);padding:12px;text-align:left}.matrix th{color:var(--teal);font-size:12px}.matrix td{color:var(--muted)}.matrix td:first-child{color:var(--ink);font-weight:700}.faq{display:grid;grid-template-columns:1fr 1fr;gap:0 30px}.faq details{border-top:1px solid var(--line);padding:14px 0}.faq summary{cursor:pointer;font-weight:700;font-size:14px}.faq p{color:var(--muted);font-size:13px;margin:9px 0 0}.footer{padding-top:28px;display:flex;justify-content:space-between;color:var(--muted);font-size:11px}@media(max-width:850px){.hero{grid-template-columns:1fr;padding-top:54px}.hero-art{min-height:220px}.cards,.split,.faq{grid-template-columns:1fr}.top nav{gap:10px}.page{padding-inline:18px}}@media(max-width:520px){.top nav{display:none}.hero h1{font-size:52px}.section-title h2{font-size:28px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>parallel-in-scope v0.2 使用入口</title>
+  <style>
+    body { max-width: 760px; margin: 48px auto; padding: 0 24px; color: #1b242b; font: 16px/1.65 system-ui, sans-serif; }
+    h1 { margin-bottom: 8px; }
+    code { background: #edf2f5; padding: 2px 5px; }
+    a { color: #006b73; }
+    pre { overflow: auto; background: #102128; color: #eef6f4; padding: 18px; }
+  </style>
 </head>
-<body><div class="page">
-<header class="top"><div class="logo"><b>parallel</b>-in-scope</div><nav><a href="#start">开始使用</a><a href="#choose">怎么选择</a><a href="#behavior">运行行为</a><a href="#faq">常见问题</a></nav></header>
-<main>
-<section class="hero" style="border-top:0"><div><div class="eyebrow">Java 8+ · Structured Concurrency</div><h1>让一批任务<br>一起跑得<em>更可控</em></h1><p>parallel-in-scope 帮你处理批量并行任务中的超时、取消、失败和线程池压力。你只需要描述任务，框架负责把它们放进一个有边界的执行范围。</p><a class="btn" href="#start">开始接入 <span>↓</span></a></div><div class="hero-art" aria-hidden="true"><div class="orbit"><div class="core">TASK<br>SCOPE</div><i class="dot d1"></i><i class="dot d2"></i><i class="dot d3"></i></div></div></section>
-<section id="choose"><div class="section-title"><h2>它适合什么问题</h2><span>01 / WHY</span></div><p class="lead">当你有一组相互独立、需要并行执行的 IO 或计算任务，并且希望“出了问题就及时收手”，它会比手写线程池编排更简单。</p><div class="cards"><article class="card"><div class="icon">↗</div><h3>批量远程调用</h3><p>同时请求多个接口、查询多个数据源；每个任务都有统一超时，某个失败后其余任务会尽快停止。</p></article><article class="card"><div class="icon">◌</div><h3>批量计算</h3><p>把 CPU 任务分到有限的并行度，避免一次性把大量工作塞进队列。</p></article><article class="card"><div class="icon">⌁</div><h3>嵌套业务流程</h3><p>父任务取消时，子任务会收到同一个取消信号；请求级上下文也能跨线程保留。</p></article></div><div class="decision"><strong>不适合：</strong>需要响应式链式编排、内置重试策略，或希望失败后继续收集全部结果的场景。这里选择的是清晰的 fail-fast 语义。</div></section>
-<section id="start"><div class="section-title"><h2>5 分钟接入</h2><span>02 / START</span></div><div class="split"><div class="panel"><h3>① 添加依赖</h3><div class="code" id="dep">&lt;dependency&gt;
-  &lt;groupId&gt;io.github.huatalk&lt;/groupId&gt;
-  &lt;artifactId&gt;parallel-in-scope&lt;/artifactId&gt;
-  &lt;version&gt;0.1.0&lt;/version&gt;
-&lt;/dependency&gt;<button class="copy" data-copy="dep">复制</button></div><h3 style="margin-top:25px">② 注册线程池</h3><p style="color:var(--muted);font-size:13px">应用启动时注册一次。线程池名称会成为后续调用的稳定标识。</p></div><div class="panel"><h3>③ 并行处理列表</h3><div class="code" id="java">ParOptions options = ParOptions.ioTask("fetchData")
-    .parallelism(5)
-    .timeout(3000)
+<body>
+  <h1>v0.2 使用入口</h1>
+  <p>旧交互式页面使用了已移除的 <code>ParConfig</code> 和 <code>ParOptions</code>。当前 API 先构建 <code>GlobalPar</code>，再从其中取得已绑定执行器的 <code>Par</code>。</p>
+  <pre>ParName IO = ParName.of("io");
+
+GlobalPar global = GlobalPar.builder()
+    .register(IO, executor)
     .build();
 
-AsyncBatchResult&lt;String&gt; result = par.map(
-    "io-pool", urls,
-    url -&gt; httpClient.fetch(url),
-    options
-);<button class="copy" data-copy="java">复制</button></div><p style="color:var(--muted);font-size:13px;margin-top:13px">返回的是一组 Future。你可以逐个读取，也可以通过 <code>result.report()</code> 查看批次状态。</p></div></div></section>
-<section id="behavior"><div class="section-title"><h2>你需要知道的运行行为</h2><span>03 / BEHAVIOR</span></div><table class="matrix"><tr><th>你配置的内容</th><th>框架会做什么</th><th>你得到的结果</th></tr><tr><td>parallelism = 5</td><td>先运行 5 个；每完成一个才补下一个</td><td>线程池不会被整批任务淹没</td></tr><tr><td>timeout = 3000</td><td>超时后取消批次，并停止后续提交</td><td>调用方能更快结束等待</td></tr><tr><td>任务抛出异常</td><td>触发同批任务的 fail-fast 取消</td><td>错误尽快暴露，不继续浪费资源</td></tr><tr><td>父任务被取消</td><td>取消信号传到嵌套任务</td><td>不需要手工层层传递 token</td></tr><tr><td>CPU_BOUND</td><td>倾向拒绝排队，必要时回到调用线程执行</td><td>减少计算任务排队造成的延迟</td></tr></table><div class="split" style="margin-top:18px"><div class="panel"><h3>取消是协作式的</h3><p style="color:var(--muted);font-size:13px">框架不会强行终止 Java 线程。阻塞操作响应 interrupt；长时间 CPU 循环请在业务代码中调用检查点。</p><pre class="code">Checkpoints.checkpoint("compute", true);</pre></div><div class="panel"><h3>失败策略是显式的</h3><p style="color:var(--muted);font-size:13px">如果某个子任务允许失败，请在任务函数内部捕获异常并返回业务结果。框架本身保持 fail-fast，不替你猜测容错规则。</p></div></div></section>
-<section id="faq"><div class="section-title"><h2>常见问题</h2><span>04 / FAQ</span></div><div class="faq"><details open><summary>我应该选 IO_BOUND 还是 CPU_BOUND？</summary><p>等待网络、数据库、文件时选 IO_BOUND；大量计算、压缩、解析时选 CPU_BOUND。CPU 任务通常应把并行度设为 CPU 核数附近。</p></details><details><summary>调用 map 后任务已经执行完了吗？</summary><p>不一定。map 快速返回 AsyncBatchResult，真正的任务仍在执行。通过 Future.get、回调或 report() 观察完成状态。</p></details><details><summary>超时后正在运行的任务一定会立刻停止吗？</summary><p>不一定。取消是协作式的；阻塞操作通常能响应中断，纯 CPU 代码需要主动检查点。</p></details><details><summary>需要为每次请求创建 Par 吗？</summary><p>通常不需要。ParConfig 和 Par 可以在应用启动时创建并复用；每次调用只传入不同的任务列表和选项。</p></details><details><summary>能不能失败后继续处理其他元素？</summary><p>框架默认 fail-fast。如果业务需要容错，请在单个任务内部捕获异常，将成功或失败包装成统一结果。</p></details><details><summary>如何开始排查线程池嵌套问题？</summary><p>开启 livelock detection，并为执行器提供名称映射。框架会在请求结束时报告任务级或执行器级环路。</p></details></div></section>
-</main><footer class="footer"><span>parallel-in-scope · Java 8+</span><span>当前版本：0.1.0 · Pre-release</span></footer></div>
-<script>document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{const t=document.getElementById(b.dataset.copy).innerText.replace('复制','').trim();navigator.clipboard?.writeText(t);b.textContent='已复制';setTimeout(()=>b.textContent='复制',1200)}));</script></body></html>
+BatchOptions options = BatchOptions.timeout("fetch", Duration.ofSeconds(3)).parallelism(8);
+
+global.par(IO).map(items, client::fetch, options);</pre>
+  <p>请以 <a href="../user-guide.md">完整使用指南</a> 为准；从 `0.1.x` 升级请先查看 <a href="../migration-v0.2.md">v0.2 迁移指南</a>。</p>
+</body>
+</html>

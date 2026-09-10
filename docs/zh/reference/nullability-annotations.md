@@ -14,7 +14,7 @@ parallel-in-scope 使用混合空指针注解策略，在编译期和 IDE 中为
 | 下游用户熟悉度 | 最高（业界事实标准） | 中等 |
 | Guava 一致性 | Guava 老代码使用 | Guava 新代码方向 |
 
-**结论**：面向下游用户的 Public API 和 SPI 使用 JSR-305（最大兼容性），内部实现使用 Checker Framework（`TYPE_USE` 更精确）。
+**结论**：面向下游用户的 Public API 和回调使用 JSR-305（最大兼容性），内部实现使用 Checker Framework（`TYPE_USE` 更精确）。
 
 ### 为什么使用包级别默认 `@NonNull`？
 
@@ -31,7 +31,7 @@ parallel-in-scope 使用混合空指针注解策略，在编译期和 IDE 中为
 
 ```java
 @ParametersAreNonnullByDefault
-package io.github.huatalk.parallelinscope.scope;
+package io.github.monadrome.parallelinscope;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 ```
@@ -41,20 +41,20 @@ import javax.annotation.ParametersAreNonnullByDefault;
 | 类别 | 注解来源 | import 语句 |
 |------|---------|-------------|
 | Public API 类 | JSR-305 | `import javax.annotation.Nullable;` |
-| SPI 接口 | JSR-305 | `import javax.annotation.Nullable;` |
+| 回调接口 | JSR-305 | `import javax.annotation.Nullable;` |
 | Internal 类 | Checker Framework | `import org.checkerframework.checker.nullness.qual.Nullable;` |
 
-**Public API 类**：`Par`, `ParOptions`, `AsyncBatchResult`, `ParConfig`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationTokenState`
+**Public API 类**：`GlobalPar`, `Par`, `BatchOptions`, `TaskGroupOptions`, `TaskOptions`, `TaskBatchResult`, `Checkpoints`, `TaskType`, `CancellationToken`, `CancellationToken.State`
 
-**SPI 接口**：`TaskListener`, `ExecutorResolver`, `LivelockListener`
+**回调接口**：`TaskListener`, `TaskGroupListener`, `DeadlockDetectionListener`
 
 **Internal 类**：其余所有类
 
 ### 3. 什么时候需要标注 `@Nullable`
 
-- **返回值可能为 null**：如 `ParConfig.getExecutor(name)` 找不到时返回 null
+- **返回值可能为 null**：仅在 API 明确允许缺省值时标注
 - **参数显式接受 null**：如 `CancellationToken` 的 parent 构造参数可传 `null`
-- **构造器参数可选**：如 `AsyncBatchResult` 构造器的 `submitCanceller` 可以传 null
+- **构造器参数可选**：如 `CancellationToken` 的 parent 参数可以传 null
 
 ### 4. 什么时候不需要标注
 
@@ -68,16 +68,17 @@ Internal 类使用 Checker Framework 注解时，`@Nullable` 放在类型前面�
 
 ```java
 // Checker Framework 风格（Internal 类）
-public static @Nullable ScopedCallable<?> current() { ... }
-public static @Nullable Data data() { ... }
+static @Nullable TaskExecutionContext current() { ... }
 ```
 
-而 JSR-305 风格（Public API / SPI）放在方法声明前：
+这里只演示内部源码风格；`TaskExecutionContext` 不是公开 API。
+
+而 JSR-305 风格（Public API / 回调）放在方法声明前：
 
 ```java
-// JSR-305 风格（Public API / SPI）
+// JSR-305 风格（Public API / 回调）
 @Nullable
-public ExecutorResolver getExecutorResolver() { ... }
+public Throwable firstException() { ... }
 ```
 
 ## 依赖配置
