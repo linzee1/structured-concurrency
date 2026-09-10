@@ -1,0 +1,59 @@
+docs/zh/case-studies/ai-concurrency-review-false-positive.md
+  ai_agent 14,61
+README.en.md
+  ai_agent 5-8,10,12,18,20,24-25,27-31,34,36,38-39,42-47,50-56,62-64,71-75
+docs/en/migration-v0.2.md
+  ai_agent 1-263
+docs/zh/design/idea-graveyard.md
+  ai_agent 3-4,18,22,60,177,191
+docs/en/design/idea-graveyard.md
+  ai_agent 3-4,25
+docs/zh/design/philosophy.md
+  ai_agent 13,15-16,102,170,174-177,180,182,184-185,203,206,216,221,226-229,265,267,271,288,290,292,315,319,333,338-339,443
+docs/zh/migration-v0.2.md
+  ai_agent 1-195
+docs/zh/reference/nullability-annotations.md
+  ai_agent 17,34,44,47,49,55,57,71,74-76,79,81
+docs/zh/visuals/parallel-in-scope-architecture.html
+  ai_agent 1-27
+mkdocs/mkdocs.yml
+  ai_agent 3,6-7,22,24,30,104-112,137,139
+docs/zh/reference/cooperative-cancellation.md
+  ai_agent 20-33,47,49,62,65,118,134,156-159,175-176
+docs/en/user-guide.md
+  ai_agent 1,3,5,7-9,11,13,15-17,19-24,26,29,31,33,36-37,40,42,44,46-50,52-55,57-58,60,62,64,66-71,73-83,85-102,104-132,134-135,137-141,143-146,148-175,177-180,182-190,192-200,202-206,208-209,211-213,215,217,220-226,229,232-236,239-243,246-249,253,256-259,262,264,266,268-279,281,283,285,287-291,293,296,298,300-304
+docs/zh-CN/visuals/parallel-in-scope-architecture.html
+  ai_agent 6-8,11
+docs/en/design/philosophy.md
+  ai_agent 17,21,23,25-31
+docs/zh/model-selection-pareto-analysis.md
+  ai_agent 1,3,5,7,9,11-14,16,18,20,22-26,28,30,32,34,36-39,41,43,45,47-68,70-77,79,81,83,85,87,89-124,126,128,130,132-138,140,142,144-147
+docs/zh/user-guide.md
+  ai_agent 1,3,5,7,9,11-13,15-20,22,25,27,29,32-33,36,38,40,42-46,48-51,53-54,56,58,60,62,64,66-83,85,87,89,91,93-94,96-100,102-105,107,109,111,113-119,121,123-131,133,135,137,139,141,143,146-152,155,158-162,165-169,172-174,178,181-184,187,189,191,193-204,206,208,210,212-216,218,221,223,225-229
+docs/en/reference/nullability-annotations.md
+  ai_agent 15-16,21-24,33,36-37,42
+docs/en/testing/task-batch-result-report-test-design.md
+  ai_agent 1-31
+docs/en/reference/cooperative-cancellation.md
+  ai_agent 13-22,29,31,42,58,69,75-78
+docs/zh/index.md
+  ai_agent 10-13,35
+README.md
+  ai_agent 5-8,10,12,20,22,27,29-30,33-36,54
+docs/zh/visuals/parallel-in-scope-user-guide.html
+  ai_agent 4-13,15-21,24-29
+README.zh-CN.md
+  ai_agent 5-8,10,12,18,20,24-25,27-31,34,36,38-39,42-47,50-56,62-64
+docs/en/index.md
+  ai_agent 10-12,32
+CHANGELOG.md
+  ai_agent 3-72,87-88
+docs/zh-CN/visuals/parallel-in-scope-user-guide.html
+  ai_agent 6-8,11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6d25a65e765a095ad61b8aecebac25b57a45e234",
+  "prompts": {}
+}

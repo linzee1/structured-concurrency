@@ -1,0 +1,19 @@
+reports/concurrent-limit-executor-inline-fallback-deadlock.html
+  ai_agent 1-143
+guava-monitor-code-reading-report.html
+  ai_agent 1-547
+reports/mutation-testing-2026-08-21.md
+  ai_agent 1-85
+reports/recent-update-analysis.html
+  ai_agent 260
+reports/timer-holder-execution-analysis.html
+  ai_agent 1-974
+wiki/ai-concurrency-review-false-positive.md
+  ai_agent 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7621c57a7655b9c20c5944c1c01b193f594e32a7",
+  "prompts": {}
+}
