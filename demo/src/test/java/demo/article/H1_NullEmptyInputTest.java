@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -74,9 +74,7 @@ public class H1_NullEmptyInputTest {
     /** 解决方案：Par.map() 对 null 列表做了防御处理，直接返回空的 TaskBatchResult。 调用方无需任何 null 检查，不会 NPE，不会提交任何任务。 */
     @Test
     void parMap_nullList_returnsEmptyResult() {
-        MultiTaskOptions opts = MultiTaskOptions.of("null-demo")
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("null-demo", java.time.Duration.ofMillis(5000));
 
         List<String> nullList = null;
         TaskBatchResult<String> result = par.map(nullList, item -> item.toUpperCase(), opts);
@@ -90,9 +88,7 @@ public class H1_NullEmptyInputTest {
     /** 解决方案：Par.map() 对空列表同样安全返回，零开销。 */
     @Test
     void parMap_emptyList_returnsEmptyResult() {
-        MultiTaskOptions opts = MultiTaskOptions.of("empty-demo")
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("empty-demo", java.time.Duration.ofMillis(5000));
 
         List<String> emptyList = Collections.emptyList();
         TaskBatchResult<String> result = par.map(emptyList, item -> item.toUpperCase(), opts);
@@ -104,9 +100,7 @@ public class H1_NullEmptyInputTest {
     /** 正常输入不受影响：Par.map() 对非空列表正常并行执行。 */
     @Test
     void parMap_normalList_worksAsExpected() {
-        MultiTaskOptions opts = MultiTaskOptions.of("normal-demo")
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("normal-demo", java.time.Duration.ofMillis(5000));
 
         List<String> input = Arrays.asList("hello", "world", "java");
         TaskBatchResult<String> result = par.map(input, item -> item.toUpperCase(), opts);

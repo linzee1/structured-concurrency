@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -50,9 +50,7 @@ class QuickStartTest {
         List<Integer> numbers = Arrays.asList(1, 2, 3);
 
         // ---- 步骤 2：最小示例 ----
-        MultiTaskOptions minimalOpts = MultiTaskOptions.of("square")
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions minimalOpts = BatchOptions.timeout("square", java.time.Duration.ofMillis(5000));
         TaskBatchResult<Integer> result1 = par.map(numbers, n -> n * n, minimalOpts);
 
         // 验证：逐个获取结果
@@ -62,9 +60,7 @@ class QuickStartTest {
         assertThat(result1.results().get(2).get()).isEqualTo(9);
 
         // ---- 步骤 3：设置超时 ----
-        MultiTaskOptions timeoutOpts = MultiTaskOptions.of("square")
-                .timeout(java.time.Duration.ofMillis(500))
-                .build();
+        BatchOptions timeoutOpts = BatchOptions.timeout("square", java.time.Duration.ofMillis(500));
         TaskBatchResult<Integer> result2 = par.map(numbers, n -> n * n, timeoutOpts);
 
         // 验证：超时设置下仍然能正常完成
@@ -74,10 +70,7 @@ class QuickStartTest {
         }
 
         // ---- 步骤 4：控制并发度 ----
-        MultiTaskOptions limitedOpts = MultiTaskOptions.of("process")
-                .parallelism(2)
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions limitedOpts = BatchOptions.timeout("process", java.time.Duration.ofMillis(5000)).parallelism(2);
         List<Integer> bigList = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
         TaskBatchResult<Integer> result3 = par.map(bigList, n -> n * 2, limitedOpts);
 

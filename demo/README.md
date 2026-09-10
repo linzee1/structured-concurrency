@@ -63,7 +63,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.monadrome.parallelinscope` (GlobalPar, Par, MultiTaskOptions, TaskBatchResult, listeners)
+- `io.github.monadrome.parallelinscope` (GlobalPar, Par, BatchOptions, TaskBatchResult, listeners)
 - `io.github.monadrome.parallelinscope.queue` (independent general-purpose queues)
 
 Cancellation, context, graph, and scheduling internals are package-private in the root package, so

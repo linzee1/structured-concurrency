@@ -52,7 +52,7 @@ for (int i = 0; i < taskCount; i++) {
 
 ```java
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.GlobalPar;
 
@@ -64,10 +64,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 并行度 2：一轮最多 2 桌同时就餐，队列深度最多 2
-MultiTaskOptions options = MultiTaskOptions.of("data-process")
-        .parallelism(2)
-        .timeout(java.time.Duration.ofMillis(30000))
-        .build();
+BatchOptions options = BatchOptions.timeout("data-process", java.time.Duration.ofMillis(30000)).parallelism(2);
 
 // 100 个任务——但队列深度始终 <= 2，餐厅内部不堵
 List<Data> items = loadLargeDataset();

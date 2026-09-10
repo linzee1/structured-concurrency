@@ -30,10 +30,7 @@ GlobalPar execution = GlobalPar.builder()
         .register(IO, Executors.newFixedThreadPool(8))
         .build();
 
-MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
-        .parallelism(4)
-        .timeout(Duration.ofSeconds(3))
-        .build();
+BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3)).parallelism(4);
 
 TaskBatchResult<User> result = execution.par(IO)
         .map(userIds, userService::findById, options);

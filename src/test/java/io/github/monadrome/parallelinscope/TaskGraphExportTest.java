@@ -184,18 +184,14 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                MultiTaskOptions.of("inner")
-                                                        .timeout(Duration.ofSeconds(30))
-                                                        .build());
+                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
                                 try {
                                     return inner.results().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            MultiTaskOptions.of("outer")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
@@ -243,18 +239,14 @@ class TaskGraphExportTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                MultiTaskOptions.of("inner")
-                                                        .timeout(Duration.ofSeconds(30))
-                                                        .build());
+                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
                                 try {
                                     return inner.results().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            MultiTaskOptions.of("outer")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
 
@@ -287,9 +279,7 @@ class TaskGraphExportTest {
                     .map(
                             Collections.singletonList(1),
                             value -> value + 1,
-                            MultiTaskOptions.of("direct")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("direct", Duration.ofSeconds(30)));
 
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
 

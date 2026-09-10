@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -117,10 +117,7 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_parMapTimeoutCancelsIoTasks() throws Exception {
-        MultiTaskOptions opts = MultiTaskOptions.of("io-task")
-                .parallelism(4)
-                .timeout(java.time.Duration.ofMillis(500))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("io-task", java.time.Duration.ofMillis(500)).parallelism(4);
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();
@@ -179,10 +176,7 @@ public class G3_CheckpointsCooperativeCancelTest {
      */
     @Test
     void solution_checkpointsCancelCpuIntensiveLoop() throws Exception {
-        MultiTaskOptions opts = MultiTaskOptions.of("cpu-checkpoint")
-                .parallelism(4)
-                .timeout(java.time.Duration.ofMillis(500))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("cpu-checkpoint", java.time.Duration.ofMillis(500)).parallelism(4);
 
         List<Integer> input = Arrays.asList(1, 2, 3, 4);
         long start = System.currentTimeMillis();

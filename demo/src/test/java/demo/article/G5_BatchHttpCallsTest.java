@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>演示问题：CompletableFuture.allOf() 没有并发控制、没有 fail-fast、超时后任务还在跑。
  *
- * <p>演示解决：Par.map() + MultiTaskOptions 一行搞定 parallelism + timeout + fail-fast。
+ * <p>演示解决：Par.map() + BatchOptions 一行搞定 parallelism + timeout + fail-fast。
  */
 public class G5_BatchHttpCallsTest {
 
@@ -112,7 +112,7 @@ public class G5_BatchHttpCallsTest {
     }
 
     /**
-     * 解决方法：Par.map() + MultiTaskOptions，并发控制 + fail-fast。
+     * 解决方法：Par.map() + BatchOptions，并发控制 + fail-fast。
      *
      * <p>parallelism=4 限制最多 4 个并发，滑动窗口调度。
      *
@@ -141,11 +141,7 @@ public class G5_BatchHttpCallsTest {
                 "recommendation",
                 "analytics");
 
-        MultiTaskOptions opts = MultiTaskOptions.of("batch-http")
-                .parallelism(4)
-                .timeout(java.time.Duration.ofMillis(5000))
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(5000)).parallelism(4).taskType(TaskType.IO_BOUND);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 

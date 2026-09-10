@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
  * pipeline:
  *
  * <ul>
- *   <li>Resolution of {@link MultiTaskOptions} into a batch context
+ *   <li>Resolution of {@link BatchOptions} into a batch context
  *   <li>Scoped task preparation via {@link io.github.monadrome.parallelinscope.TaskSubmissions}
  *   <li>Concurrency-limited submission via {@link SlidingWindowSubmitter}
  *   <li>Parent-child {@link CancellationToken} chaining
@@ -91,13 +91,13 @@ public final class Par {
      * @throws IllegalStateException if the owning GlobalPar has begun shutdown
      */
     public <T, R> TaskBatchResult<R> map(
-            @Nullable List<T> list, Function<? super T, ? extends R> function, MultiTaskOptions options) {
+            @Nullable List<T> list, Function<? super T, ? extends R> function, BatchOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
         return globalPar.whileOpen(() -> mapWhileOpen(list, function, options));
     }
 
     private <T, R> TaskBatchResult<R> mapWhileOpen(
-            @Nullable List<T> list, Function<? super T, ? extends R> function, MultiTaskOptions options) {
+            @Nullable List<T> list, Function<? super T, ? extends R> function, BatchOptions options) {
         int taskCount = list == null ? 0 : list.size();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         if (!options.timeout().isPresent() && currentTask == null) {
@@ -112,8 +112,8 @@ public final class Par {
                 : parent == null && currentObservation != null && currentObservation.owner() == globalPar
                         ? currentObservation
                         : null;
-        MultiTaskContext unit =
-                MultiTaskContext.resolve(options, taskCount, parent, observation, runtime.identity(), name.value());
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                options.spec(), taskCount, parent, observation, runtime.identity(), name.value());
         return executeGlobal(list, item -> () -> function.apply(item), unit);
     }
 

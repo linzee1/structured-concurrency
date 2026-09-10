@@ -341,7 +341,7 @@ ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 | 承诺传播任意 `ThreadLocal`/MDC | 传播集合封闭（A3） |
 | `WrapperChain`/`Wrapper` 组合类型 | `List<TaskDecorator>` 顺序应用已足够；新概念不消除任何一类错误（判据 2） |
 | 可选的 Listening 包装 | `ListenableFuture` 是内部实现细节；对外契约是 `TaskBatchResult`/`TaskGroupResult` |
-| `MultiTaskOptions.taskDecorator(...)` | 把行为塞进纯执行参数，且组内每个成员重复配置；按 Par 注册一次即可 |
+| `TaskOptions.taskDecorator(...)` | 把行为塞进纯执行参数，且组内每个成员重复配置；按 Par 注册一次即可 |
 | `TaskDecorator<T>` + 通配列表 | 堆污染（P14） |
 
 ## 10. 落地顺序

@@ -31,11 +31,9 @@ GlobalPar global = GlobalPar.builder()
         .defaultPar(IO)
         .build();
 
-MultiTaskOptions options = MultiTaskOptions.of("fetch-user")
-        .taskType(TaskType.IO_BOUND)
+BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
         .parallelism(4)
-        .timeout(Duration.ofSeconds(3))
-        .build();
+        .taskType(TaskType.IO_BOUND);
 
 TaskBatchResult<User> result = global.par(IO)
         .map(userIds, userService::findById, options);
@@ -45,12 +43,12 @@ TaskBatchResult<User> result = global.par(IO)
 
 ## v0.2 迁移
 
-`ParConfig`、`ParOptions`、`GlobalParConfig`、`Par.getInstance()`、`new Par(...)` 和 `Par.map(executorName, ...)` 均已移除。请改用 `GlobalPar`、`MultiTaskOptions` 与 `global.par(name).map(...)`。升级既有应用前请阅读 [v0.2 迁移指南](docs/zh/migration-v0.2.md)。
+`ParConfig`、`ParOptions`、`GlobalParConfig`、`Par.getInstance()`、`new Par(...)` 和 `Par.map(executorName, ...)` 均已移除。请改用 `GlobalPar`、`BatchOptions`（任务组用 `TaskGroupOptions` 与 `TaskOptions`）与 `global.par(name).map(...)`。升级既有应用前请阅读 [v0.2 迁移指南](docs/zh/migration-v0.2.md)。
 
 ## 核心能力
 
 - 管理多个具名、构建期绑定执行器的不可变 `GlobalPar`
-- 每次调用的 `MultiTaskOptions` 解析为 `MultiTaskContext`
+- 每次调用的选项解析为 `MultiTaskContext`
 - 快速失败、超时、手动取消和父子批次协作式取消
 - 滑动窗口提交；未提交任务也会获得终态结果
 - 跨 `Par` 的嵌套调用及以执行器 identity 为基础的任务图记录

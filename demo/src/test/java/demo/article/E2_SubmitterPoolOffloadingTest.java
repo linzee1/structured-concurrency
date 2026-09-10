@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -81,10 +81,7 @@ public class E2_SubmitterPoolOffloadingTest {
                     .build();
             Par par = config.defaultPar();
 
-            MultiTaskOptions opts = MultiTaskOptions.of("offload-demo")
-                    .parallelism(1)
-                    .timeout(java.time.Duration.ofMillis(5000))
-                    .build();
+            BatchOptions opts = BatchOptions.timeout("offload-demo", java.time.Duration.ofMillis(5000)).parallelism(1);
 
             List<Integer> input = Arrays.asList(1, 2, 3);
 

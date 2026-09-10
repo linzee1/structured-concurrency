@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -103,11 +103,7 @@ class E1_QueueFloodingTest {
 
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            MultiTaskOptions options = MultiTaskOptions.of("queue-flood-test")
-                    .parallelism(parallelism)
-                    .timeout(java.time.Duration.ofMillis(30000))
-                    .taskType(TaskType.IO_BOUND)
-                    .build();
+            BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.IO_BOUND);
 
             TaskBatchResult<Void> result = par.map(
                     input,

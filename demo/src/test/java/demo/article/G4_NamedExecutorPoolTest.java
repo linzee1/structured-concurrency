@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -114,11 +114,7 @@ class G4_NamedExecutorPoolTest {
             List<String> items = Arrays.asList("a", "b", "c", "d", "e");
 
             // IO 任务：按名引用 io-pool
-            MultiTaskOptions ioOpts = MultiTaskOptions.of("fetch-data")
-                    .taskType(TaskType.IO_BOUND)
-                    .parallelism(4)
-                    .timeout(java.time.Duration.ofMillis(5000))
-                    .build();
+            BatchOptions ioOpts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000)).parallelism(4).taskType(TaskType.IO_BOUND);
             TaskBatchResult<String> ioResult = par.map(
                     items,
                     item -> {
@@ -127,11 +123,7 @@ class G4_NamedExecutorPoolTest {
                     ioOpts);
 
             // CPU 任务：按名引用 cpu-pool
-            MultiTaskOptions cpuOpts = MultiTaskOptions.of("compute")
-                    .taskType(TaskType.CPU_BOUND)
-                    .parallelism(4)
-                    .timeout(java.time.Duration.ofMillis(5000))
-                    .build();
+            BatchOptions cpuOpts = BatchOptions.timeout("compute", java.time.Duration.ofMillis(5000)).parallelism(4).taskType(TaskType.CPU_BOUND);
             TaskBatchResult<String> cpuResult = cpuPar.map(
                     items,
                     item -> {

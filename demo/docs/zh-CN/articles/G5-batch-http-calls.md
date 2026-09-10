@@ -32,7 +32,7 @@ try {
 
 ## 解决方法
 
-`Par.map()` + `MultiTaskOptions` 一行搞定：
+`Par.map()` + `BatchOptions` 一行搞定：
 - `parallelism(4)` — 最多 4 个并发，滑动窗口调度，队列深度始终受控
 - `timeout(3000)` — 本次批量调用最多执行 3 秒，超时后取消所有未完成任务
 - fail-fast — 首个任务失败即取消剩余未完成任务
@@ -47,11 +47,9 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-MultiTaskOptions opts = MultiTaskOptions.of("batch-http")
+BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
         .parallelism(4)           // 最多 4 个并发
-        .timeout(java.time.Duration.ofMillis(3000))            // 3 秒超时
-        .taskType(TaskType.IO_BOUND)
-        .build();
+        .taskType(TaskType.IO_BOUND);
 
 TaskBatchResult<String> result = par.map( services, svc -> {
     return callService(svc);  // 纯业务逻辑

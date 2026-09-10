@@ -85,10 +85,11 @@ executorIdentity / executorLabel = member Par 的绑定
 
 `TaskKey.name` 是成员身份的单一事实来源：它同时作为 Group 内唯一键、组级结果键，以及
 `MultiTaskContext.name` 所承载的任务执行、checkpoint、TaskListener 和 graph label 诊断名称。
-成员 options 的 name 不参与这些路径。
+成员选项 `TaskOptions` 不含 name，成员身份只能来自 key。
 
-成员 options 中的 `parallelism` 不产生多个执行实例：成员是单任务，解析时被截断为 1，且
-没有任何代码读取它。
+成员是单任务，没有扇出：`TaskOptions` 不含 `parallelism`，内核按 `requestedParallelism = 1`
+解析，因此不存在"配置了并发上限却无人读取"的字段（见
+[API 与选项 §3.2](task-group-api-and-options.md)）。
 
 ### 4.5 TaskExecutionContext
 
@@ -148,12 +149,14 @@ try {
 2. cancellation token parent；
 3. deadline ceiling。
 
-Group member 证明这三者不总是同一个对象。`MultiTaskContext` 提供一个包可见重载，使三者可独立传入：
+Group member 证明这三者不总是同一个对象。`MultiTaskContext` 提供一个包可见重载，使三者可独立传入。
+该重载接收包私有载体 `UnitSpec`（name、requestedParallelism、timeout、taskType、
+rejectEnqueue），MUST NOT 接收公共选项类型：公共类型各自提供包私有适配方法把选项折叠成载体，
+batch 与成员因此仍走同一条解析路径，成员传入 `requestedParallelism = 1`：
 
 ```java
 static MultiTaskContext resolve(
-        MultiTaskOptions options,
-        String name,
+        UnitSpec spec,
         int taskCount,
         @Nullable MultiTaskContext structuralParent,
         @Nullable CancellationToken cancellationParent,
@@ -164,7 +167,8 @@ static MultiTaskContext resolve(
         @Nullable String executorLabel);
 ```
 
-语义不可合并回虚假 parent。
+语义不可合并回虚假 parent。选项类型拆分不改变本节任何解析结果：`UnitSpec` 只改变"值从哪里来"，
+不改变"值如何被解析"（新建子 token、`min(自己请求, 上限)`、溢出饱和、单次解析不缓存）。
 
 ### 5.1 Group 在普通请求线程创建
 

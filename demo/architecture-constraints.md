@@ -93,7 +93,7 @@ mvn test
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │          根包：公共 API + callbacks             │   │
-│  │  GlobalPar, Par, MultiTaskOptions, TaskGroup,        │   │
+│  │  GlobalPar, Par, BatchOptions, TaskGroup,        │   │
 │  │  TaskBatchResult, CancellationToken, listeners...   │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
@@ -130,7 +130,7 @@ package io.github.monadrome.parallelinscope.demo;  // 应该是 demo.basic
 ```java
 // 正确 1: 只访问公共 API
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 
 // 正确 2: 使用独立包名
 package demo.basic;

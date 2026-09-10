@@ -16,7 +16,7 @@ public; no compatibility shims are retained during the `0.x` phase.
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(ParName.of(name), executor)` |
 | `new Par(config)` | `global.par(ParName.of(name))` |
-| `ParOptions` | `MultiTaskOptions` |
+| `ParOptions` | `BatchOptions` (batch) / `TaskGroupOptions` (group) / `TaskOptions` (member and combine) |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` timeout/listener defaults | `GlobalPar.Builder.taskListener(...)` (timeouts stay per-call) |
 | `ParConfig` livelock settings | `GlobalParDeadlockPolicy` |
@@ -24,34 +24,35 @@ public; no compatibility shims are retained during the `0.x` phase.
 | executor-name resolution at call time | executor binding at `GlobalPar` build time |
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` scope |
 
-The public/runtime split is intentional: `MultiTaskOptions` is caller input, while the package-private
+The public/runtime split is intentional: the option types are caller input, while the package-private
 `MultiTaskContext` is per-invocation runtime state. Cancellation, deadline, and executor identity flow
 through parent-child contexts, including nested calls across named `Par` entries. Applications should
-configure these semantics through `MultiTaskOptions` and must not construct or cache runtime contexts.
+configure these semantics through the option types and must not construct or cache runtime contexts.
 
 Executor lookup keys are now the value type `ParName` instead of bare `String`. Every place that named a `Par` takes a `ParName`: `GlobalPar.Builder.register` / `defaultPar` / `parTaskListener`, `GlobalPar.par` / `find` / `taskListenersFor`, `GlobalPar.pars()`, and `TaskGroupDefinition.Builder.task` / `combine`. Construction validates once (never null, never blank) and the value is used verbatim — no trimming or lower-casing — so existing keys keep their exact meaning. `ParName` is a logical lookup key, not a resource identity: it must never replace `ExecutorIdentity`, which stays the reference-equality key for deadlock detection and purge. A well-formed `ParName` still says nothing about whether the name is registered; unknown names are rejected at `GlobalPar.Builder.build()` and `TaskGroup.submit` exactly as before.
 
-Earlier `0.2.x` snapshots named this type `ExecutionOptions` and then `BatchExecutionOptions`. Rename imports, variable declarations, and `Par.map` arguments to `MultiTaskOptions`; no compatibility alias is retained during the `0.x` phase.
+Earlier `0.2.x` snapshots named the batch option type `ExecutionOptions`, then `BatchExecutionOptions`, and briefly unified every role into the superset type `MultiTaskOptions`. The final API splits it by scope into three types: `BatchOptions` for `Par.map`, `TaskGroupOptions` for `TaskGroupDefinition.builder`, and `TaskOptions` for `TaskGroupDefinition.Builder.task` / `combine`. Rename imports, variable declarations, and arguments to the type of their scope; no compatibility alias is retained during the `0.x` phase.
 
 Earlier `0.2.x` snapshots renamed the internal `BatchExecutionContext` to `MultiTaskContext` because it
 backs both `Par.map` batches and task-group members. The final API hides that runtime context and its
 `resolve(...)` methods completely. Remove any imports or direct construction of `MultiTaskContext`,
-`SubmissionScope`, and `TaskExecutionContext`; configure calls with `MultiTaskOptions` and observe
+`SubmissionScope`, and `TaskExecutionContext`; configure calls with the option type of the scope and observe
 completed work through `TaskCompletion`. The former read-only `TaskContext` view was removed, with its
 publicly useful identity and timing fields flattened into `TaskCompletion` as described below.
 
-Batch and task-group option types are unified into the single `MultiTaskOptions`; the earlier
-`BatchExecutionOptions` and `TaskGroupOptions` types are removed. The `taskName()`/`groupName()`
-accessors and the matching builder methods converge on `name()`; every other builder method keeps
-its name. A batch reads name/parallelism/timeout/taskType/rejectEnqueue; a group reads
-name/timeout/listeners, with member execution strategy supplied per `TaskGroupDefinition.Builder.task`
-call.
+Option types map one-to-one onto scopes, and each type declares only the fields its consumer reads.
+`BatchOptions` declares name/parallelism/timeout/taskType/rejectEnqueue; `TaskGroupOptions` declares
+only name/timeout/listeners; `TaskOptions` declares only timeout/taskType/rejectEnqueue. Identity is
+not an option — a member's name comes from its `TaskKey` — and concurrency belongs to fan-out, so a
+single task has nothing to limit. The `taskName()`/`groupName()` accessors and the matching builder
+methods converge on `name()`; the `TaskGroupDefinition.Builder.task` / `combine` arguments narrow
+from the superset type to `TaskOptions`.
 
-`MultiTaskOptions.timeout` is a forced explicit choice between two mutually exclusive builder
-declarations: `timeout(Duration)` sets an explicit positive timeout, and `inheritTimeout()`
-declares that the enclosing scope's deadline is inherited. `build()` rejects a builder that
-declares neither (`IllegalArgumentException`: call `timeout(Duration)` or `inheritTimeout()`) or
-both. The accessor changed from `Duration timeout()` to `Optional<Duration> timeout()`; an empty
+The timeout is now a forced explicit choice between two mutually exclusive static factories:
+`timeout(name, Duration)` sets an explicit positive timeout, and `inheritTimeout(name)` declares
+that the enclosing scope's deadline is inherited. There is no builder and no third state: omitting
+the choice is a compile error rather than a runtime one, and both declarations cannot coexist. The
+`TaskOptions` factories take no name. The accessor changed from `Duration timeout()` to `Optional<Duration> timeout()`; an empty
 value means inherit. The former global default timeout is removed so no silent global
 default remains. Deadline resolution is now entirely owned by the execution kernel.
 
@@ -171,9 +172,9 @@ cancellation propagated from an enclosing scope, and `MEMBER_CANCELED` when the 
 originated from a member.
 
 A task-group member or terminal combine now takes its execution-time diagnostic name from its
-`TaskKey`, rather than from `MultiTaskOptions.name()`. This aligns checkpoints, task-listener events,
-and task-graph labels with the name used to retrieve the future and result snapshot. Member/combine
-option names are ignored. Because the failure source may also be the terminal combine,
+`TaskKey`, rather than from an option name. This aligns checkpoints, task-listener events, and
+task-graph labels with the name used to retrieve the future and result snapshot. Member and combine
+options are `TaskOptions`, which has no name field to be ignored. Because the failure source may also be the terminal combine,
 `TaskGroupResult.failedMemberName()` is renamed to `failedTaskName()`.
 
 `CancellationToken.State` values are renamed onto the same vocabulary: `FAIL_FAST_CANCELED` →

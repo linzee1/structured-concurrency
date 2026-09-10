@@ -37,7 +37,7 @@ import java.util.function.Supplier;
  * timer, submission, and maintenance services; registered executors are borrowed and are never
  * shut down by this object.
  *
- * <p>{@link #close()} immediately rejects all new {@link Par#map(List, Function, MultiTaskOptions)}
+ * <p>{@link #close()} immediately rejects all new {@link Par#map(List, Function, BatchOptions)}
  * calls. Batches admitted before closing retain their submission, timeout, and cancellation
  * processing while the framework-owned services drain; {@code close()} itself does not wait for
  * those batches to finish.
@@ -226,7 +226,7 @@ public final class GlobalPar implements AutoCloseable {
      * Rejects new work and begins releasing framework-owned resources.
      *
      * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
-     * a {@link Par#map(List, Function, MultiTaskOptions)} call already setting up a batch, so that
+     * a {@link Par#map(List, Function, BatchOptions)} call already setting up a batch, so that
      * call either completes setup and returns its result or is rejected before any task is
      * submitted. Services drain batches admitted before shutdown; this method does not wait for
      * their task bodies to finish.

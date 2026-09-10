@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -96,10 +96,7 @@ public class B1_MdcContextLostTest {
     @Test
     void parMap_executesAllTasksWithCleanResult() throws Exception {
         // 设置并行选项
-        MultiTaskOptions opts = MultiTaskOptions.of("mdc-demo")
-                .parallelism(3)
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("mdc-demo", java.time.Duration.ofMillis(5000)).parallelism(3);
 
         // 准备数据
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104, 105);
@@ -152,10 +149,7 @@ public class B1_MdcContextLostTest {
      */
     @Test
     void parMap_frameworkContextAutoPropagated() throws Exception {
-        MultiTaskOptions opts = MultiTaskOptions.of("ttl-verify")
-                .parallelism(3)
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("ttl-verify", java.time.Duration.ofMillis(5000)).parallelism(3);
 
         List<Integer> orderIds = Arrays.asList(1, 2, 3, 4, 5);
 

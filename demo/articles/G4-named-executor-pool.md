@@ -50,17 +50,17 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 按名字引用，不可能传错
-MultiTaskOptions ioOpts = MultiTaskOptions.of("fetch-orders").taskType(TaskType.IO_BOUND).parallelism(8).timeout(java.time.Duration.ofMillis(5000)).build();
+BatchOptions ioOpts = BatchOptions.timeout("fetch-orders", java.time.Duration.ofMillis(5000)).parallelism(8).taskType(TaskType.IO_BOUND);
 TaskBatchResult<Order> orders = par.map( orderIds, id -> {
     return orderService.fetch(id);  // IO 任务走 io-pool
 }, ioOpts);
 
-MultiTaskOptions cpuOpts = MultiTaskOptions.of("compute-score").taskType(TaskType.CPU_BOUND).parallelism(4).timeout(java.time.Duration.ofMillis(10000)).build();
+BatchOptions cpuOpts = BatchOptions.timeout("compute-score", java.time.Duration.ofMillis(10000)).parallelism(4).taskType(TaskType.CPU_BOUND);
 TaskBatchResult<Double> scores = par.map( users, user -> {
     return scoreEngine.compute(user);  // 计算任务走 cpu-pool
 }, cpuOpts);
 
-MultiTaskOptions reportOpts = MultiTaskOptions.of("gen-report").parallelism(1).timeout(java.time.Duration.ofMillis(60000)).build();
+BatchOptions reportOpts = BatchOptions.timeout("gen-report", java.time.Duration.ofMillis(60000)).parallelism(1);
 TaskBatchResult<Report> reports = par.map( months, month -> {
     return reportService.generate(month);  // 报表任务走 report-pool
 }, reportOpts);

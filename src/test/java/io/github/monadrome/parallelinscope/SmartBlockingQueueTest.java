@@ -61,11 +61,10 @@ class SmartBlockingQueueTest {
 
     private static MultiTaskContext context(TaskType taskType, boolean rejectEnqueue) {
         return MultiTaskContext.resolve(
-                MultiTaskOptions.of("queue")
+                BatchOptions.timeout("queue", Duration.ofSeconds(30))
                         .taskType(taskType)
                         .rejectEnqueue(rejectEnqueue)
-                        .timeout(Duration.ofSeconds(30))
-                        .build(),
+                        .spec(),
                 1,
                 null);
     }

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -84,11 +84,7 @@ public class A1_CancelTrueInvalidTest {
     @Test
     void parMap_withTimeout_cancelsTasks() throws Exception {
         // 解决方案：Par.map() 配合超时自动取消
-        MultiTaskOptions opts = MultiTaskOptions.of("cancel-demo")
-                .parallelism(3)
-                .timeout(java.time.Duration.ofMillis(500))
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
 
         List<Integer> input = Arrays.asList(1, 2, 3);
         long start = System.currentTimeMillis();

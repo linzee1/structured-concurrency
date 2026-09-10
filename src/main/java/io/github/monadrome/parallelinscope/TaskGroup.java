@@ -430,9 +430,9 @@ public final class TaskGroup implements AutoCloseable {
      * Builds a group from the definition and submits all of its members at one boundary.
      *
      * <p>The structural parent, graph observation, and group deadline are resolved from the calling
-     * thread at submit time, so a {@link TaskGroupDefinition} may be reused across submissions. A group
-     * options timeout of {@link MultiTaskOptions.Builder#inheritTimeout()} requires an enclosing
-     * scoped task; without one this method throws {@link IllegalArgumentException}.
+     * thread at submit time, so a {@link TaskGroupDefinition} may be reused across submissions. Group
+     * options declaring {@link TaskGroupOptions#inheritTimeout(String)} require an enclosing scoped
+     * task; without one this method throws {@link IllegalArgumentException}.
      *
      * @throws IllegalArgumentException if a member references an unregistered executor name, or if
      *     the group inherits a deadline that does not exist
@@ -448,7 +448,7 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     private static TaskGroup buildWhileOpen(GlobalPar env, TaskGroupDefinition definition) {
-        MultiTaskOptions options = definition.groupOptions();
+        TaskGroupOptions options = definition.groupOptions();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         MultiTaskContext structuralParent = currentTask == null ? null : currentTask.multiTaskContext();
         TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
@@ -482,8 +482,7 @@ public final class TaskGroup implements AutoCloseable {
                 Par par = env.par(member.parName());
                 memberPars.add(par);
                 MultiTaskContext unit = MultiTaskContext.resolve(
-                        member.options(),
-                        member.name(),
+                        member.options().spec(member.name()),
                         1,
                         structuralParent,
                         groupToken,
@@ -522,8 +521,7 @@ public final class TaskGroup implements AutoCloseable {
                 // callback thread.
                 Par par = env.par(combineDefinition.parName());
                 MultiTaskContext unit = MultiTaskContext.resolve(
-                        combineDefinition.options(),
-                        combineDefinition.name(),
+                        combineDefinition.options().spec(combineDefinition.name()),
                         1,
                         structuralParent,
                         groupToken,

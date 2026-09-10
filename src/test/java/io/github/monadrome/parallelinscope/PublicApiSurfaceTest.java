@@ -18,6 +18,7 @@ class PublicApiSurfaceTest {
     private static final String BASE_PACKAGE = "io.github.monadrome.parallelinscope";
 
     private static final Set<String> EXPECTED_PUBLIC_TYPES = new TreeSet<>(Arrays.asList(
+            BASE_PACKAGE + ".BatchOptions",
             BASE_PACKAGE + ".CancellationToken",
             BASE_PACKAGE + ".Checkpoints",
             BASE_PACKAGE + ".CombineFunction",
@@ -27,7 +28,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".GlobalParDeadlockPolicy",
             BASE_PACKAGE + ".GlobalParPurgePolicy",
             BASE_PACKAGE + ".LeanCancellationException",
-            BASE_PACKAGE + ".MultiTaskOptions",
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".ParName",
             BASE_PACKAGE + ".SmartBlockingQueue",
@@ -36,10 +36,12 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskGraphObservationScope",
             BASE_PACKAGE + ".TaskGroup",
             BASE_PACKAGE + ".TaskGroupDefinition",
+            BASE_PACKAGE + ".TaskGroupOptions",
             BASE_PACKAGE + ".TaskGroupListener",
             BASE_PACKAGE + ".TaskGroupResult",
             BASE_PACKAGE + ".TaskKey",
             BASE_PACKAGE + ".TaskListener",
+            BASE_PACKAGE + ".TaskOptions",
             BASE_PACKAGE + ".TaskOutcome",
             BASE_PACKAGE + ".TaskType",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue",

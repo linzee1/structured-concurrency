@@ -33,7 +33,7 @@ Future<String> future = pool.submit(() -> {
 
 `TaskCompletion` 包含完整的任务生命周期信息：
 - `taskContext()` — 当前 task 的只读上下文，包含 batch、taskIndex 和计时
-- `taskName()` — 任务名称（来自 `MultiTaskOptions.of("taskName")`）
+- `taskName()` — 任务名称（来自传给 `Par.map` 的 `BatchOptions.name()`）
 - `successful()` / `result()` — 成功状态和任务返回值
 - `executionTime()` — 实际执行耗时，返回 `Duration`
 - `waitTime()` — 等待耗时（从提交到开始执行的间隔），返回 `Duration`
@@ -67,7 +67,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 业务代码无需任何监控逻辑
-MultiTaskOptions opts = MultiTaskOptions.of("order-query").parallelism(5).timeout(java.time.Duration.ofMillis(3000)).build();
+BatchOptions opts = BatchOptions.timeout("order-query", java.time.Duration.ofMillis(3000)).parallelism(5);
 TaskBatchResult<Order> result = par.map( orderIds, id -> {
     return orderService.query(id);  // 纯业务逻辑，不碰监控
 }, opts);

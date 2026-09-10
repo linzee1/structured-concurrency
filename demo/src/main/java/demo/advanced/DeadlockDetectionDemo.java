@@ -2,7 +2,7 @@ package demo.advanced;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -55,11 +55,7 @@ public class DeadlockDetectionDemo {
             System.out.println("每个 task-A 子任务内部调用 task-B，需要同一个池分配线程");
             System.out.println("→ 循环等待，死锁！\n");
 
-            MultiTaskOptions optionsA = MultiTaskOptions.of("task-A")
-                    .parallelism(4)
-                    .timeout(java.time.Duration.ofSeconds(5))
-                    .taskType(TaskType.IO_BOUND)
-                    .build();
+            BatchOptions optionsA = BatchOptions.timeout("task-A", java.time.Duration.ofSeconds(5)).parallelism(4).taskType(TaskType.IO_BOUND);
 
             long start = System.currentTimeMillis();
 
@@ -103,11 +99,7 @@ public class DeadlockDetectionDemo {
 
     /** task-B：从 task-A 内部调用，向同一个线程池提交任务 → 死锁 */
     private static void callTaskB(Par par, int parentItem) {
-        MultiTaskOptions optionsB = MultiTaskOptions.of("task-B")
-                .parallelism(2)
-                .timeout(java.time.Duration.ofSeconds(5))
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions optionsB = BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5)).parallelism(2).taskType(TaskType.IO_BOUND);
 
         List<String> items = Arrays.asList("x", "y");
         TaskBatchResult<String> resultB = par.map(

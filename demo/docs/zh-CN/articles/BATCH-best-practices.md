@@ -22,10 +22,9 @@ List<String> services = Arrays.asList(
         "order", "user", "payment", "inventory", "notification",
         "billing", "shipping", "review", "recommendation", "analytics");
 
-MultiTaskOptions opts = MultiTaskOptions.of("batch-http").taskType(TaskType.IO_BOUND)
-        .parallelism(5)        // 最多 5 个并发，保护下游
-        .timeout(java.time.Duration.ofMillis(3000))         // 3 秒超时
-        .build();
+BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
+        .taskType(TaskType.IO_BOUND)
+        .parallelism(5);       // 最多 5 个并发，保护下游
 
 TaskBatchResult<String> result = par.map( services, svc -> {
     return callDownstream(svc);  // 你的 HTTP 调用逻辑
@@ -60,10 +59,9 @@ for (int i = 0; i < allIds.size(); i += 1000) {
 }
 // shards.size() == 10
 
-MultiTaskOptions opts = MultiTaskOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
-        .parallelism(3)        // DB 连接池就 3 个，别超了
-        .timeout(java.time.Duration.ofMillis(30000))        // 查询可能慢，30 秒超时
-        .build();
+BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
+        .taskType(TaskType.IO_BOUND)
+        .parallelism(3);       // DB 连接池就 3 个，别超了
 
 TaskBatchResult<List<User>> result = par.map( shards, shard -> {
     return userMapper.selectByIds(shard);  // 你的 DAO 调用
@@ -89,9 +87,7 @@ System.out.println("查询到 " + allUsers.size() + " 条记录");
 一个请求需要同时调 HTTP、查 DB、读缓存，三种 IO 混在一个批次里：
 
 ```java
-MultiTaskOptions opts = MultiTaskOptions.of("mixed-io").taskType(TaskType.IO_BOUND)
-        .parallelism(6)
-        .timeout(java.time.Duration.ofMillis(5000))         // 统一 5 秒超时
+BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000)).parallelism(6).taskType(TaskType.IO_BOUND)         // 统一 5 秒超时
         .build();
 
 TaskBatchResult<Object> result = par.map( tasks, task -> {
@@ -109,10 +105,10 @@ Thread.sleep(5500);
 String report = result.reportString();
 ```
 
-关于超时：用统一的 `MultiTaskOptions.timeout` 即可，不需要每个任务设不同超时。原因：
+关于超时：用统一的 `BatchOptions.timeout` 即可，不需要每个任务设不同超时。原因：
 - 框架级超时是"兜底"，防止任务永远挂起
 - 如果某个调用需要更细粒度的超时，在任务内部自己处理（比如 HTTP client 的 connectTimeout/readTimeout）
-- 这样保持 `MultiTaskOptions` 简洁，任务逻辑自包含
+- 这样保持 `BatchOptions` 简洁，任务逻辑自包含
 
 ---
 
@@ -124,13 +120,13 @@ String report = result.reportString();
 
 ```java
 // 快速 HTTP 调用
-MultiTaskOptions.of("http").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(3000)).build();
+BatchOptions.timeout("http", java.time.Duration.ofMillis(3000)).taskType(TaskType.IO_BOUND);
 
 // 数据库查询
-MultiTaskOptions.of("db").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(30000)).build();
+BatchOptions.timeout("db", java.time.Duration.ofMillis(30000)).taskType(TaskType.IO_BOUND);
 
 // 文件处理
-MultiTaskOptions.of("file").taskType(TaskType.IO_BOUND).timeout(java.time.Duration.ofMillis(120000)).build();
+BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskType.IO_BOUND);
 ```
 
 ### 2. 并行度要匹配资源
@@ -184,8 +180,7 @@ par.map( items, item -> {
 
 ```java
 // 错误: 等于没有并发控制
-MultiTaskOptions.of("bad").parallelism(Integer.MAX_VALUE)
-        .timeout(java.time.Duration.ofMillis(3000)).build();
+BatchOptions.timeout("bad", java.time.Duration.ofMillis(3000)).parallelism(Integer.MAX_VALUE);
 ```
 
 正确做法：设一个合理的值，匹配下游资源。
@@ -193,11 +188,13 @@ MultiTaskOptions.of("bad").parallelism(Integer.MAX_VALUE)
 **2. 不设超时**
 
 ```java
-// 错误: 根级调用必须显式声明超时
-MultiTaskOptions.of("bad").build();  // 直接抛 IllegalArgumentException：timeout(...) 与 inheritTimeout() 二选一
+// 错误: 根级调用必须显式声明超时 —— 两个工厂都不调用根本拿不到选项对象
+// BatchOptions.name("bad");            // 不存在这种写法
+BatchOptions.timeout("bad", Duration.ofSeconds(5));   // 正确：显式超时
+BatchOptions.inheritTimeout("nested");                // 正确：继承外层 scoped task 的 deadline
 ```
 
-正确做法：根据场景显式设超时。
+正确做法：根据场景在两个工厂之间显式二选一。根级调用不能选 `inheritTimeout`——没有外层 scoped task 时 `Par.map` 会抛 `IllegalArgumentException`。
 
 **3. 在 lambda 里 catch 异常返回 null**
 

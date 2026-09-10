@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>问题：CPU 密集任务在线程池队列中排队等待毫无意义——它们不需要等待外部资源， 只需要 CPU 时间。排队只增加延迟，不提升吞吐。
  *
- * <p>解决：Par.map() + MultiTaskOptions.taskType(TaskType.CPU_BOUND) 通过滑动窗口调度控制并发度， 并利用 CallerRunsPolicy 确保 CPU 任务不排队。
+ * <p>解决：Par.map() + BatchOptions.taskType(TaskType.CPU_BOUND) 通过滑动窗口调度控制并发度， 并利用 CallerRunsPolicy 确保 CPU 任务不排队。
  */
 class F1_CpuTaskQueuingTest {
 
@@ -108,7 +108,7 @@ class F1_CpuTaskQueuingTest {
     /**
      * 解决方案：Par.map() + taskType(TaskType.CPU_BOUND)，滑动窗口控制并发，CPU 任务不排队。
      *
-     * <p>使用 MultiTaskOptions.taskType(TaskType.CPU_BOUND) 标记 CPU 密集任务。Par.map() 通过滑动窗口调度 确保只有 parallelism
+     * <p>使用 BatchOptions.taskType(TaskType.CPU_BOUND) 标记 CPU 密集任务。Par.map() 通过滑动窗口调度 确保只有 parallelism
      * 个任务在执行中，其余任务等前一个完成后才提交。 当线程池满时，fallback 机制让 CPU 任务在提交线程上直接执行，避免排队。
      */
     @Test
@@ -131,11 +131,7 @@ class F1_CpuTaskQueuingTest {
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
             // taskType(TaskType.CPU_BOUND) 标记 CPU 密集任务
-            MultiTaskOptions options = MultiTaskOptions.of("cpu-compute")
-                    .taskType(TaskType.CPU_BOUND)
-                    .parallelism(parallelism)
-                    .timeout(java.time.Duration.ofMillis(30000))
-                    .build();
+            BatchOptions options = BatchOptions.timeout("cpu-compute", java.time.Duration.ofMillis(30000)).parallelism(parallelism).taskType(TaskType.CPU_BOUND);
 
             TaskBatchResult<Long> result = par.map(
                     input,

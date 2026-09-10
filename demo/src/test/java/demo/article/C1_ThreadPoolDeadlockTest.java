@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -80,21 +80,14 @@ class C1_ThreadPoolDeadlockTest {
             Par innerPar = config.par(ParName.of("inner-pool"));
 
             // 外层：4 个任务，滑动窗口并行度 2
-            MultiTaskOptions outerOpts = MultiTaskOptions.of("outer-task")
-                    .parallelism(2)
-                    .timeout(java.time.Duration.ofMillis(10_000))
-                    .taskType(TaskType.IO_BOUND)
-                    .build();
+            BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(2).taskType(TaskType.IO_BOUND);
 
             List<Integer> items = Arrays.asList(1, 2, 3, 4);
             TaskBatchResult<String> result = par.map(
                     items,
                     item -> {
                         // 内层：使用独立的 inner-pool，不会和外层死锁
-                        MultiTaskOptions innerOpts = MultiTaskOptions.of("inner-task")
-                                .parallelism(2)
-                                .timeout(java.time.Duration.ofMillis(5_000))
-                                .build();
+                        BatchOptions innerOpts = BatchOptions.timeout("inner-task", java.time.Duration.ofMillis(5_000)).parallelism(2);
 
                         List<String> subItems = Arrays.asList("a", "b");
                         TaskBatchResult<String> innerResult = innerPar.map(

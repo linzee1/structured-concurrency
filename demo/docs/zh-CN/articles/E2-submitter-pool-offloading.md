@@ -53,10 +53,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-MultiTaskOptions opts = MultiTaskOptions.of("offload-demo")
-        .parallelism(1)
-        .timeout(java.time.Duration.ofMillis(5000))
-        .build();
+BatchOptions opts = BatchOptions.timeout("offload-demo", java.time.Duration.ofMillis(5000)).parallelism(1);
 
 // Par.map() 不会死锁——提交循环运行在 Par-Submitter 线程上
 List<Integer> input = Arrays.asList(1, 2, 3);

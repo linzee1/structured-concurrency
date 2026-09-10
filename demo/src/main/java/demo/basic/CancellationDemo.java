@@ -3,7 +3,7 @@ package demo.basic;
 import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>使用 {@link Checkpoints#sleep(long)} 替代 Thread.sleep — 可被取消中断
- *   <li>配置 {@link MultiTaskOptions} 超时时间触发取消
+ *   <li>配置 {@link BatchOptions} 超时时间触发取消
  *   <li>被取消的任务抛出 {@code LeanCancellationException}
  *   <li>通过 {@code reportString()} 查看最终状态
  * </ul>
@@ -43,10 +43,7 @@ public class CancellationDemo {
             List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
             // 1. 配置并行选项（设置超时）
-            MultiTaskOptions options = MultiTaskOptions.of("cancel-demo")
-                    .parallelism(3)
-                    .timeout(java.time.Duration.ofMillis(2000))
-                    .build();
+            BatchOptions options = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(2000)).parallelism(3);
 
             System.out.println("开始并行处理（2秒超时）...");
             System.out.println("并行度: " + options.parallelism());

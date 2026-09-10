@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -104,11 +104,7 @@ public class D1_GetTimeoutStillRunningTest {
         AtomicBoolean task1Completed = new AtomicBoolean(false);
         AtomicBoolean task2Completed = new AtomicBoolean(false);
 
-        MultiTaskOptions opts = MultiTaskOptions.of("cancel-demo")
-                .parallelism(2)
-                .timeout(java.time.Duration.ofMillis(500))
-                .taskType(TaskType.IO_BOUND)
-                .build();
+        BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.IO_BOUND);
 
         List<Integer> input = Arrays.asList(1, 2);
         TaskBatchResult<Integer> result = par.map(

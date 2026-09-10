@@ -11,14 +11,14 @@ import javax.annotation.Nullable;
 /**
  * Immutable, reusable, pure-data description of one heterogeneous task group.
  *
- * <p>A definition captures only configuration: the group-level {@link MultiTaskOptions} (of which the
- * group reads name, timeout, and listeners), the ordered member definitions, and an optional terminal
+ * <p>A definition captures only configuration: the group-level {@link TaskGroupOptions}, the ordered
+ * member definitions each carrying its own {@link TaskOptions}, and an optional terminal
  * combine. It binds no thread context, executor, or deadline; those are resolved from the submitting
  * environment at each {@link TaskGroup#submit(GlobalPar, TaskGroupDefinition)} call, so one definition
  * can be submitted repeatedly.
  */
 public final class TaskGroupDefinition {
-    private final MultiTaskOptions groupOptions;
+    private final TaskGroupOptions groupOptions;
     private final List<TaskDefinition<?>> tasks;
     private final @Nullable CombineDefinition<?> combine;
 
@@ -28,12 +28,12 @@ public final class TaskGroupDefinition {
         this.combine = builder.combine;
     }
 
-    public static Builder builder(MultiTaskOptions groupOptions) {
+    public static Builder builder(TaskGroupOptions groupOptions) {
         return new Builder(groupOptions);
     }
 
     /** Group-level options; the group reads name, timeout, and listeners. */
-    public MultiTaskOptions groupOptions() {
+    public TaskGroupOptions groupOptions() {
         return groupOptions;
     }
 
@@ -52,9 +52,9 @@ public final class TaskGroupDefinition {
         private final TaskKey<T> key;
         private final ParName parName;
         private final Callable<T> callable;
-        private final MultiTaskOptions options;
+        private final TaskOptions options;
 
-        private TaskDefinition(TaskKey<T> key, ParName parName, Callable<T> callable, MultiTaskOptions options) {
+        private TaskDefinition(TaskKey<T> key, ParName parName, Callable<T> callable, TaskOptions options) {
             this.key = key;
             this.parName = parName;
             this.callable = callable;
@@ -85,7 +85,7 @@ public final class TaskGroupDefinition {
             return callable;
         }
 
-        public MultiTaskOptions options() {
+        public TaskOptions options() {
             return options;
         }
     }
@@ -99,10 +99,9 @@ public final class TaskGroupDefinition {
         private final TaskKey<R> key;
         private final ParName parName;
         private final CombineFunction<R> function;
-        private final MultiTaskOptions options;
+        private final TaskOptions options;
 
-        private CombineDefinition(
-                TaskKey<R> key, ParName parName, CombineFunction<R> function, MultiTaskOptions options) {
+        private CombineDefinition(TaskKey<R> key, ParName parName, CombineFunction<R> function, TaskOptions options) {
             this.key = key;
             this.parName = parName;
             this.function = function;
@@ -128,18 +127,18 @@ public final class TaskGroupDefinition {
             return function;
         }
 
-        public MultiTaskOptions options() {
+        public TaskOptions options() {
             return options;
         }
     }
 
     /** Configuration builder; each {@link #task} call is validated immediately. */
     public static final class Builder {
-        private final MultiTaskOptions groupOptions;
+        private final TaskGroupOptions groupOptions;
         private final LinkedHashMap<String, TaskDefinition<?>> tasks = new LinkedHashMap<>();
         private @Nullable CombineDefinition<?> combine;
 
-        private Builder(MultiTaskOptions groupOptions) {
+        private Builder(TaskGroupOptions groupOptions) {
             this.groupOptions = Objects.requireNonNull(groupOptions, "groupOptions cannot be null");
         }
 
@@ -149,7 +148,7 @@ public final class TaskGroupDefinition {
          * duplicate name is rejected here. The {@code parName} is validated by {@link
          * ParName#of(String)} and resolved against the submitting {@link GlobalPar} at submit time.
          */
-        public <T> TaskKey<T> task(TaskKey<T> key, ParName parName, Callable<T> callable, MultiTaskOptions options) {
+        public <T> TaskKey<T> task(TaskKey<T> key, ParName parName, Callable<T> callable, TaskOptions options) {
             Objects.requireNonNull(key, "key cannot be null");
             Objects.requireNonNull(parName, "parName cannot be null");
             Objects.requireNonNull(callable, "callable cannot be null");
@@ -168,7 +167,7 @@ public final class TaskGroupDefinition {
          * accepts at most one combine; its name must not collide with any member name.
          */
         public <R> TaskKey<R> combine(
-                TaskKey<R> key, ParName parName, CombineFunction<R> function, MultiTaskOptions options) {
+                TaskKey<R> key, ParName parName, CombineFunction<R> function, TaskOptions options) {
             Objects.requireNonNull(key, "key cannot be null");
             Objects.requireNonNull(parName, "parName cannot be null");
             Objects.requireNonNull(function, "function cannot be null");

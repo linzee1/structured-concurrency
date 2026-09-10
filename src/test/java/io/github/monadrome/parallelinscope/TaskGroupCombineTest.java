@@ -18,8 +18,12 @@ import org.junit.jupiter.api.Test;
 
 class TaskGroupCombineTest {
 
-    private static MultiTaskOptions options(String name) {
-        return MultiTaskOptions.of(name).timeout(Duration.ofSeconds(30)).build();
+    private static TaskGroupOptions groupOptions(String name) {
+        return TaskGroupOptions.timeout(name, Duration.ofSeconds(30));
+    }
+
+    private static TaskOptions memberOptions() {
+        return TaskOptions.timeout(Duration.ofSeconds(30));
     }
 
     @Test
@@ -34,14 +38,14 @@ class TaskGroupCombineTest {
             AtomicInteger combineRuns = new AtomicInteger();
             AtomicReference<String> combineThread = new AtomicReference<>();
             AtomicReference<String> combineTask = new AtomicReference<>();
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
             TaskKey<String> user =
-                    definition.task(new TaskKey<>("user") {}, ParName.of("io"), () -> "alice", options("user"));
+                    definition.task(new TaskKey<>("user") {}, ParName.of("io"), () -> "alice", memberOptions());
             TaskKey<List<String>> orders = definition.task(
                     new TaskKey<List<String>>("orders") {},
                     ParName.of("io"),
                     () -> java.util.Collections.singletonList("order-1"),
-                    options("orders"));
+                    memberOptions());
             TaskKey<String> page = definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("cpu"),
@@ -53,7 +57,7 @@ class TaskGroupCombineTest {
                                 .name());
                         return values.value(user) + ":" + values.value(orders).get(0);
                     },
-                    options("assemble-options"));
+                    memberOptions());
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -82,14 +86,14 @@ class TaskGroupCombineTest {
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
             definition.task(
                     new TaskKey<>("failure") {},
                     ParName.of("worker"),
                     () -> {
                         throw new IllegalStateException("boom");
                     },
-                    options("failure"));
+                    memberOptions());
             TaskKey<String> page = definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("worker"),
@@ -97,7 +101,7 @@ class TaskGroupCombineTest {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     },
-                    options("assemble"));
+                    memberOptions());
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -120,15 +124,15 @@ class TaskGroupCombineTest {
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+            definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", memberOptions());
             TaskKey<String> page = definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("worker"),
                     values -> {
                         throw new java.io.IOException("assemble failed");
                     },
-                    options("assemble"));
+                    memberOptions());
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
             TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -191,8 +195,8 @@ class TaskGroupCombineTest {
                 .build();
         try {
             AtomicInteger combineRuns = new AtomicInteger();
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+            definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", memberOptions());
             definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("rejecting"),
@@ -200,7 +204,7 @@ class TaskGroupCombineTest {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     },
-                    options("assemble"));
+                    memberOptions());
 
             TaskGroupResult result = TaskGroup.submit(global, definition.build())
                     .completionFuture()
@@ -225,7 +229,7 @@ class TaskGroupCombineTest {
         CountDownLatch running = new CountDownLatch(1);
         try {
             AtomicInteger combineRuns = new AtomicInteger();
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
             definition.task(
                     new TaskKey<>("slow") {},
                     ParName.of("worker"),
@@ -234,7 +238,7 @@ class TaskGroupCombineTest {
                         Thread.sleep(10_000);
                         return 1;
                     },
-                    options("slow"));
+                    memberOptions());
             TaskKey<String> page = definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("worker"),
@@ -242,7 +246,7 @@ class TaskGroupCombineTest {
                         combineRuns.incrementAndGet();
                         return "unreachable";
                     },
-                    options("assemble"));
+                    memberOptions());
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
             running.await(2, TimeUnit.SECONDS);
@@ -265,8 +269,8 @@ class TaskGroupCombineTest {
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-            definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+            definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", memberOptions());
             definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("worker"),
@@ -274,9 +278,7 @@ class TaskGroupCombineTest {
                         Thread.sleep(10_000);
                         return "unreachable";
                     },
-                    MultiTaskOptions.of("assemble")
-                            .timeout(Duration.ofMillis(100))
-                            .build());
+                    TaskOptions.timeout(Duration.ofMillis(100)));
 
             TaskGroupResult result = TaskGroup.submit(global, definition.build())
                     .completionFuture()
@@ -297,9 +299,9 @@ class TaskGroupCombineTest {
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("empty"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("empty"));
             TaskKey<String> page = definition.combine(
-                    new TaskKey<>("assemble") {}, ParName.of("worker"), values -> "assembled", options("assemble"));
+                    new TaskKey<>("assemble") {}, ParName.of("worker"), values -> "assembled", memberOptions());
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -323,10 +325,10 @@ class TaskGroupCombineTest {
             AtomicReference<Throwable> unknownRef = new AtomicReference<>();
             AtomicReference<Throwable> selfRef = new AtomicReference<>();
             AtomicReference<Throwable> wrongType = new AtomicReference<>();
-            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
             TaskKey<String> user =
-                    definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> null, options("user"));
-            definition.task(new TaskKey<>("count") {}, ParName.of("worker"), () -> 41, options("count"));
+                    definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> null, memberOptions());
+            definition.task(new TaskKey<>("count") {}, ParName.of("worker"), () -> 41, memberOptions());
             TaskKey<String> page = definition.combine(
                     new TaskKey<>("assemble") {},
                     ParName.of("worker"),
@@ -339,7 +341,7 @@ class TaskGroupCombineTest {
                         wrongType.set(catchIllegal(() -> values.value(new TaskKey<StringBuilder>("count") {})));
                         return "ok";
                     },
-                    options("assemble"));
+                    memberOptions());
 
             TaskGroup group = TaskGroup.submit(global, definition.build());
 
@@ -355,27 +357,27 @@ class TaskGroupCombineTest {
 
     @Test
     void combineConfigurationIsValidatedEarly() {
-        TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(options("page"));
-        definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", options("user"));
+        TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+        definition.task(new TaskKey<>("user") {}, ParName.of("worker"), () -> "alice", memberOptions());
         TaskKey<String> page = new TaskKey<>("assemble") {};
 
         assertThatThrownBy(() -> definition.combine(
-                        new TaskKey<>("user") {}, ParName.of("worker"), values -> "x", options("dup")))
+                        new TaskKey<>("user") {}, ParName.of("worker"), values -> "x", memberOptions()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> definition.combine(null, ParName.of("worker"), values -> "x", options("null")))
+        assertThatThrownBy(() -> definition.combine(null, ParName.of("worker"), values -> "x", memberOptions()))
                 .isInstanceOf(NullPointerException.class);
-        definition.combine(page, ParName.of("worker"), values -> "x", options("assemble"));
+        definition.combine(page, ParName.of("worker"), values -> "x", memberOptions());
         assertThatThrownBy(() -> definition.combine(
-                        new TaskKey<>("second") {}, ParName.of("worker"), values -> "y", options("second")))
+                        new TaskKey<>("second") {}, ParName.of("worker"), values -> "y", memberOptions()))
                 .isInstanceOf(IllegalArgumentException.class);
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =
                 GlobalPar.builder().register(ParName.of("worker"), executor).build();
         try {
-            TaskGroupDefinition.Builder unknownExecutor = TaskGroupDefinition.builder(options("page"));
+            TaskGroupDefinition.Builder unknownExecutor = TaskGroupDefinition.builder(groupOptions("page"));
             unknownExecutor.combine(
-                    new TaskKey<>("assemble") {}, ParName.of("missing"), values -> "x", options("assemble"));
+                    new TaskKey<>("assemble") {}, ParName.of("missing"), values -> "x", memberOptions());
             assertThatThrownBy(() -> TaskGroup.submit(global, unknownExecutor.build()))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {

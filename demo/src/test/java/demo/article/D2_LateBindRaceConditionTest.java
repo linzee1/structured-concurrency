@@ -7,7 +7,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -153,11 +153,7 @@ class D2_LateBindRaceConditionTest {
         try {
             List<Integer> items = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
-            MultiTaskOptions options = MultiTaskOptions.of("late-bind-test")
-                    .parallelism(PARALLELISM)
-                    .timeout(java.time.Duration.ofMillis(batchTimeoutMs))
-                    .taskType(TaskType.IO_BOUND)
-                    .build();
+            BatchOptions options = BatchOptions.timeout("late-bind-test", java.time.Duration.ofMillis(batchTimeoutMs)).parallelism(PARALLELISM).taskType(TaskType.IO_BOUND);
 
             long startTime = System.currentTimeMillis();
 

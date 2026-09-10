@@ -59,9 +59,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-MultiTaskOptions opts = MultiTaskOptions.of("user-query")
-        .timeout(java.time.Duration.ofMillis(5000))
-        .build();
+BatchOptions opts = BatchOptions.timeout("user-query", java.time.Duration.ofMillis(5000));
 
 // 无需防御，null 列表安全返回
 List<String> nullList = null;

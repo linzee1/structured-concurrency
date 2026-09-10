@@ -28,8 +28,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 2. 定义任务选项
-MultiTaskOptions options = MultiTaskOptions.of("square")
-        .timeout(java.time.Duration.ofMillis(5000))  // 必须显式声明超时（或嵌套任务内用 inheritTimeout()）
+BatchOptions options = BatchOptions.timeout("square", java.time.Duration.ofMillis(5000))  // 必须显式声明超时（或嵌套任务内用 inheritTimeout()）
         .build();
 
 // 3. 并行执行
@@ -49,8 +48,7 @@ for (Future<Integer> future : result.results()) {
 生产环境必须设置超时，防止任务无限挂起。新 API 强制要求 `.timeout(Duration)` 与 `.inheritTimeout()` 二选一——根级调用必须显式给出 `.timeout()`，缺省 `.build()` 会直接抛异常：
 
 ```java
-MultiTaskOptions options = MultiTaskOptions.of("square")
-        .timeout(java.time.Duration.ofMillis(500))   // 500ms 超时
+BatchOptions options = BatchOptions.timeout("square", java.time.Duration.ofMillis(500))   // 500ms 超时
         .build();
 
 TaskBatchResult<Integer> result = par.map( numbers, n -> {
@@ -67,10 +65,8 @@ TaskBatchResult<Integer> result = par.map( numbers, n -> {
 当任务数量很大或下游服务有速率限制时，通过 `.parallelism()` 控制同时执行的任务数：
 
 ```java
-MultiTaskOptions options = MultiTaskOptions.of("process")
-        .parallelism(2)   // 最多同时执行 2 个任务
-        .timeout(java.time.Duration.ofMillis(5000))
-        .build();
+BatchOptions options = BatchOptions.timeout("process", java.time.Duration.ofMillis(5000))
+        .parallelism(2);  // 最多同时执行 2 个任务
 
 List<Integer> bigList = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
 TaskBatchResult<Integer> result = par.map( bigList, n -> n * 2, options);
@@ -103,7 +99,7 @@ Throwable firstError = batchReport.firstException();          // null if all suc
 
 ## 下一步
 
-- **TaskType**：通过 `MultiTaskOptions.of("name").taskType(TaskType.IO_BOUND)`（或 `TaskType.CPU_BOUND`）区分 IO/CPU 任务，框架会自动选择最优调度策略
+- **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.IO_BOUND)`（或 `TaskType.CPU_BOUND`）区分 IO/CPU 任务，框架会自动选择最优调度策略
 - **TaskListener**：注册 SPI 监听器，获取每个任务的执行时间、排队时间等指标
 - **Checkpoints**：在长任务中插入 `Checkpoints.checkpoint(taskName, true)`，实现细粒度的协作式取消
 - **嵌套并行**：`par.map()` 支持嵌套调用，`CancellationToken` 会自动从外层传播到内层

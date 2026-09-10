@@ -12,7 +12,7 @@ Every package declares `@ParametersAreNonnullByDefault` in `package-info.java`. 
 
 | Area | Annotation source | Examples |
 |---|---|---|
-| Public API | JSR-305 | `GlobalPar`, `Par`, `MultiTaskOptions`, `TaskBatchResult`, `Checkpoints` |
+| Public API | JSR-305 | `GlobalPar`, `Par`, `BatchOptions`, `TaskGroupOptions`, `TaskOptions`, `TaskBatchResult`, `Checkpoints` |
 | Callbacks | JSR-305 | `TaskListener`, `TaskGroupListener`, `DeadlockDetectionListener` |
 | Internal implementation | Checker Framework | Executor, queue, context, and graph internals |
 

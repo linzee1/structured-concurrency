@@ -31,10 +31,7 @@ class GlobalParTest {
                     .map(
                             java.util.Arrays.asList(1, 2),
                             ignored -> context.get(),
-                            MultiTaskOptions.of("ttl")
-                                    .parallelism(1)
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("ttl", Duration.ofSeconds(30)).parallelism(1));
 
             assertThat(result.results())
                     .extracting(future -> future.get(2, TimeUnit.SECONDS))
@@ -103,9 +100,7 @@ class GlobalParTest {
                     .map(
                             Collections.singletonList(2),
                             value -> value + 1,
-                            MultiTaskOptions.of("increment")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("increment", Duration.ofSeconds(30)));
 
             assertThat(result.results().get(0).get()).isEqualTo(3);
         } finally {
@@ -124,9 +119,7 @@ class GlobalParTest {
                                 .map(
                                         Collections.singletonList(1),
                                         value -> value + 1,
-                                        MultiTaskOptions.of("orphan")
-                                                .inheritTimeout()
-                                                .build()))
+                                        BatchOptions.inheritTimeout("orphan")))
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessageContaining("no enclosing deadline to inherit");
             } finally {
@@ -145,21 +138,14 @@ class GlobalParTest {
                     GlobalPar.builder().register(ParName.of("io"), executor).build();
 
             assertThat(global.par(ParName.of("io"))
-                            .map(
-                                    null,
-                                    value -> value,
-                                    MultiTaskOptions.of("empty")
-                                            .timeout(Duration.ofSeconds(30))
-                                            .build())
+                            .map(null, value -> value, BatchOptions.timeout("empty", Duration.ofSeconds(30)))
                             .results())
                     .isEmpty();
             assertThat(global.par(ParName.of("io"))
                             .map(
                                     Collections.<Integer>emptyList(),
                                     value -> value,
-                                    MultiTaskOptions.of("empty")
-                                            .timeout(Duration.ofSeconds(30))
-                                            .build())
+                                    BatchOptions.timeout("empty", Duration.ofSeconds(30)))
                             .results())
                     .isEmpty();
             global.close();
@@ -186,18 +172,14 @@ class GlobalParTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                MultiTaskOptions.of("inner")
-                                                        .timeout(Duration.ofSeconds(30))
-                                                        .build());
+                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
                                 try {
                                     return inner.results().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            MultiTaskOptions.of("outer")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(TaskGraphObservationScope.data()).isSameAs(expectedGraph);
@@ -231,18 +213,14 @@ class GlobalParTest {
                                         .map(
                                                 Collections.singletonList(value),
                                                 item -> item + 1,
-                                                MultiTaskOptions.of("inner")
-                                                        .timeout(Duration.ofSeconds(30))
-                                                        .build());
+                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
                                 try {
                                     return inner.results().get(0).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            MultiTaskOptions.of("outer")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
 
             assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
             assertThat(graphOnOuterWorker.get()).isSameAs(expectedGraph);
@@ -271,20 +249,16 @@ class GlobalParTest {
                                         .map(
                                                 java.util.Arrays.asList(1, 2),
                                                 value -> value + 1,
-                                                MultiTaskOptions.of("inner")
-                                                        .parallelism(1)
-                                                        .timeout(Duration.ofSeconds(30))
-                                                        .build());
+                                                BatchOptions.timeout("inner", Duration.ofSeconds(30))
+                                                        .parallelism(1));
                                 try {
                                     return inner.results().get(1).get(2, TimeUnit.SECONDS);
                                 } catch (Exception failure) {
                                     throw new RuntimeException(failure);
                                 }
                             },
-                            MultiTaskOptions.of("outer")
-                                    .parallelism(1)
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("outer", Duration.ofSeconds(30))
+                                    .parallelism(1));
 
             assertThat(outer.results().get(0).get(3, TimeUnit.SECONDS)).isEqualTo(3);
         } finally {
@@ -309,10 +283,7 @@ class GlobalParTest {
                                 global.close();
                                 return value + 1;
                             },
-                            MultiTaskOptions.of("cpu")
-                                    .taskType(TaskType.CPU_BOUND)
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND));
 
             assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(global.closed()).isTrue();
@@ -391,9 +362,7 @@ class GlobalParTest {
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
-                                    MultiTaskOptions.of("closed")
-                                            .timeout(Duration.ofSeconds(30))
-                                            .build()))
+                                    BatchOptions.timeout("closed", Duration.ofSeconds(30))))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("GlobalPar is closed");
         } finally {
@@ -434,9 +403,7 @@ class GlobalParTest {
                             .map(
                                     Collections.singletonList(1),
                                     value -> value + 1,
-                                    MultiTaskOptions.of("closed")
-                                            .timeout(Duration.ofSeconds(30))
-                                            .build()))
+                                    BatchOptions.timeout("closed", Duration.ofSeconds(30))))
                     .isInstanceOf(IllegalStateException.class);
         } finally {
             releaseSetup.countDown();
@@ -464,10 +431,8 @@ class GlobalParTest {
                                 }
                                 return value + 1;
                             },
-                            MultiTaskOptions.of("drain")
-                                    .parallelism(1)
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build());
+                            BatchOptions.timeout("drain", Duration.ofSeconds(30))
+                                    .parallelism(1));
             assertThat(firstTaskStarted.await(5, TimeUnit.SECONDS)).isTrue();
 
             global.close();
@@ -593,9 +558,7 @@ class GlobalParTest {
                                 }
                                 return ignored;
                             },
-                            MultiTaskOptions.of("timeout-batch")
-                                    .timeout(Duration.ofMillis(100))
-                                    .build());
+                            BatchOptions.timeout("timeout-batch", Duration.ofMillis(100)));
 
             for (Future<Integer> future : result.results()) {
                 assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS))

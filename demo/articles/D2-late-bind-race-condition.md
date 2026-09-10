@@ -56,7 +56,7 @@ for (int i = 0; i < taskCount; i++) {
 
 ```java
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -69,11 +69,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 100 个任务，并行度 10，统一超时 5 秒
-MultiTaskOptions options = MultiTaskOptions.of("data-task")
-        .parallelism(10)
-        .timeout(java.time.Duration.ofMillis(5000))
-        .taskType(TaskType.IO_BOUND)
-        .build();
+BatchOptions options = BatchOptions.timeout("data-task", java.time.Duration.ofMillis(5000)).parallelism(10).taskType(TaskType.IO_BOUND);
 
 List<Data> items = loadLargeDataset(); // 100+ items
 

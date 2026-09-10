@@ -289,6 +289,6 @@ class CheckpointsTest {
 
     private static MultiTaskContext context(String taskName) {
         return MultiTaskContext.resolve(
-                MultiTaskOptions.of(taskName).timeout(Duration.ofSeconds(30)).build(), 1, null);
+                BatchOptions.timeout(taskName, Duration.ofSeconds(30)).spec(), 1, null);
     }
 }

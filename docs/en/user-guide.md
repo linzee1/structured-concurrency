@@ -41,15 +41,13 @@ Prefer explicit injection in tests and libraries. `installGlobal` is one-time an
 
 ## Execute a batch
 
-`MultiTaskOptions` is immutable input for one call. The library resolves it with the item count, any parent batch, and the bound executor identity into an internal `MultiTaskContext`.
+`BatchOptions` is the immutable input of one batch call. Option types map one-to-one onto scopes: a batch declares `BatchOptions`, a group declares `TaskGroupOptions`, and a single member or combine declares `TaskOptions`. The library resolves a scope's name, concurrency, and execution policy together with the item count, any parent batch, and the bound executor identity into an internal `MultiTaskContext`.
 
 ```java
-MultiTaskOptions options = MultiTaskOptions.of("fetch-account")
-        .taskType(TaskType.IO_BOUND)
+BatchOptions options = BatchOptions.timeout("fetch-account", Duration.ofSeconds(5))
         .parallelism(16)
-        .timeout(Duration.ofSeconds(5))
-        .rejectEnqueue(false)
-        .build();
+        .taskType(TaskType.IO_BOUND)
+        .rejectEnqueue(false);
 
 TaskBatchResult<Account> result = httpPar.map(
         accountIds,
@@ -59,7 +57,7 @@ TaskBatchResult<Account> result = httpPar.map(
 List<ListenableFuture<Account>> futures = result.results();
 ```
 
-`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice: call `timeout(Duration)` for an explicit positive bound, or `inheritTimeout()` to adopt the enclosing scope's deadline — `build()` rejects a builder that declares neither or both. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
+`parallelism` limits this batch's active submission window. A negative value leaves the effective limit to policy resolution. The timeout is a forced explicit choice between two mutually exclusive factories: `BatchOptions.timeout(name, Duration)` sets an explicit positive bound, `BatchOptions.inheritTimeout(name)` adopts the enclosing scope's deadline — there is no third state, so omitting the choice does not compile. An explicit timeout is capped by any enclosing deadline; an inherited timeout with no enclosing scoped task is rejected at the entry point. `TaskType.CPU_BOUND` and `TaskType.IO_BOUND` describe scheduling intent. `rejectEnqueue` controls whether the batch rejects queueing when the bound executor supports that behavior.
 
 The returned futures remain in input order. If failure, timeout, cancellation, submitter interruption, or rejection stops the window, the never-submitted placeholders are completed or cancelled so aggregate futures do not remain live indefinitely.
 
@@ -72,29 +70,28 @@ it does not create execution contexts, capture TTL values, start timers, or subm
 `TaskGroup.submit(global, definition)` resolves the calling thread's context at submission time,
 freezes the complete member set, prepares every member, and then submits them.
 
-Groups and batches share one option type, `MultiTaskOptions`: the group reads name, timeout,
-and listeners, while each member reads the execution subset (task type, enqueue policy, timeout).
-A member is a single task, so its `parallelism` is resolved but never read — nested work submitted
-inside a member reads the parallelism of that nested submission's own options. Members typically
-declare `inheritTimeout()` so they run under the group deadline; an explicit member timeout is
-capped by it. A group that declares `inheritTimeout()` must be submitted from inside a scoped
-task, otherwise `submit` is rejected. A member's diagnostic name is always its `TaskKey` name;
-the name and listeners in its options are ignored.
+A group scope declares `TaskGroupOptions`: the group name, the group deadline, and the group's
+convergence listeners. A group is not a task execution, so it has no concurrency, task type, or
+enqueue policy. Each member and combine declares `TaskOptions`: only that execution's timeout, task
+type, and enqueue policy. A member is a single task with no fan-out, so no parallelism field exists
+in its options — nested work submitted inside a member reads that nested submission's own options.
+Identity is not an option either: a member's diagnostic name is always its `TaskKey` name. Members
+typically declare `TaskOptions.inheritTimeout()` so they run under the group deadline; an explicit
+member timeout is capped by it. A group that declares `inheritTimeout` must be submitted from
+inside a scoped task, otherwise `submit` is rejected.
 
 ```java
 TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
-        MultiTaskOptions.of("account-page")
-                .timeout(Duration.ofSeconds(3))
-                .build());
+        TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3)));
 
 TaskKey<User> user = definition.task(
         new TaskKey<User>("user") {},
         DATABASE, userRepository::load,
-        MultiTaskOptions.builder().inheritTimeout().build());
+        TaskOptions.inheritTimeout());
 TaskKey<List<Order>> orders = definition.task(
         new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,
-        MultiTaskOptions.builder().taskType(TaskType.IO_BOUND).inheritTimeout().build());
+        TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -137,7 +134,7 @@ TaskKey<AccountPage> page = definition.combine(
         new TaskKey<AccountPage>("assemble-page") {},
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
-        MultiTaskOptions.builder().inheritTimeout().build());
+        TaskOptions.inheritTimeout());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     AccountPage accountPage = group.future(page).get();

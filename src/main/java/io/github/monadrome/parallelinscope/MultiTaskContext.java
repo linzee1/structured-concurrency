@@ -10,7 +10,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Immutable resolved state for one multi-task unit — a {@code Par.map} batch or one task-group
  * member; never cached by a {@code Par} or {@code GlobalPar}.
  *
- * <p>Resolution is the only place where user options become executable values: requested
+ * <p>Resolution is the only place where a {@link UnitSpec} becomes executable values: requested
  * parallelism is capped by task count, an explicit timeout uses the earlier of its own and any
  * parent deadline, and an inherited timeout resolves to the enclosing deadline (rejected when there
  * is none). The cancellation token is always a new child token, so cancellation propagates downward
@@ -57,19 +57,19 @@ final class MultiTaskContext {
     }
 
     /**
-     * Resolves public options without binding a concrete {@code Par}. This overload is intended for
-     * compatibility and tests; normal execution uses the identity-aware overload below.
+     * Resolves a unit nested directly under an enclosing scoped task, without binding a concrete
+     * {@code Par}.
      */
-    public static MultiTaskContext resolve(MultiTaskOptions options, int taskCount, @Nullable MultiTaskContext parent) {
-        return resolve(options, taskCount, parent, null);
+    static MultiTaskContext resolve(UnitSpec spec, int taskCount, @Nullable MultiTaskContext parent) {
+        return resolve(spec, taskCount, parent, null);
     }
 
-    public static MultiTaskContext resolve(
-            MultiTaskOptions options,
+    static MultiTaskContext resolve(
+            UnitSpec spec,
             int taskCount,
             @Nullable MultiTaskContext parent,
             @Nullable TaskGraphObservationScope taskGraphObservationScope) {
-        return resolve(options, taskCount, parent, taskGraphObservationScope, null, null);
+        return resolve(spec, taskCount, parent, taskGraphObservationScope, null, null);
     }
 
     /**
@@ -77,23 +77,22 @@ final class MultiTaskContext {
      * identity is diagnostic and graph state, not a submission target; actual submission is owned by
      * the corresponding internal executor runtime.
      */
-    public static MultiTaskContext resolve(
-            MultiTaskOptions options,
+    static MultiTaskContext resolve(
+            UnitSpec spec,
             int taskCount,
             @Nullable MultiTaskContext parent,
             @Nullable TaskGraphObservationScope taskGraphObservationScope,
             @Nullable ExecutorIdentity executorIdentity,
             @Nullable String parLabel) {
-        Objects.requireNonNull(options, "options cannot be null");
-        if (!options.timeout().isPresent() && parent == null) {
+        Objects.requireNonNull(spec, "spec cannot be null");
+        if (!spec.timeout().isPresent() && parent == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
         TaskGraphObservationScope effectiveObservation = taskGraphObservationScope != null
                 ? taskGraphObservationScope
                 : parent == null ? null : parent.taskGraphObservationScope;
         return resolve(
-                options,
-                options.name(),
+                spec,
                 taskCount,
                 parent,
                 parent == null ? null : parent.cancellationToken,
@@ -110,8 +109,7 @@ final class MultiTaskContext {
      * parent and the group deadline is not necessarily the structural parent's deadline.
      */
     static MultiTaskContext resolve(
-            MultiTaskOptions options,
-            String name,
+            UnitSpec spec,
             int taskCount,
             @Nullable MultiTaskContext structuralParent,
             @Nullable CancellationToken cancellationParent,
@@ -120,14 +118,13 @@ final class MultiTaskContext {
             @Nullable TaskGraphObservationScope taskGraphObservationScope,
             @Nullable ExecutorIdentity executorIdentity,
             @Nullable String parLabel) {
-        Objects.requireNonNull(options, "options cannot be null");
-        Objects.requireNonNull(name, "name cannot be null");
+        Objects.requireNonNull(spec, "spec cannot be null");
         if (taskCount < 0) throw new IllegalArgumentException("taskCount must not be negative");
-        int requested = options.parallelism();
+        int requested = spec.requestedParallelism();
         int effective = requested <= 0 ? taskCount : Math.min(requested, taskCount);
-        long deadline = resolveDeadlineNanos(options.timeout(), deadlineCeilingNanos, resolutionTimeNanos);
+        long deadline = resolveDeadlineNanos(spec.timeout(), deadlineCeilingNanos, resolutionTimeNanos);
         return new MultiTaskContext(
-                name,
+                spec.name(),
                 taskCount,
                 effective,
                 deadline,
@@ -136,8 +133,8 @@ final class MultiTaskContext {
                 taskGraphObservationScope,
                 executorIdentity,
                 parLabel,
-                options.taskType(),
-                options.rejectEnqueue());
+                spec.taskType(),
+                spec.rejectEnqueue());
     }
 
     /**

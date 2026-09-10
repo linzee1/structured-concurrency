@@ -15,7 +15,7 @@
 |---|---|
 | `ParConfig.builder().executor(name, executor)` | `GlobalPar.builder().register(ParName.of(name), executor)` |
 | `new Par(config)` | `global.par(ParName.of(name))` |
-| `ParOptions` | `MultiTaskOptions` |
+| `ParOptions` | `BatchOptions`（批次）/ `TaskGroupOptions`（组）/ `TaskOptions`（成员与 combine） |
 | `par.map(name, items, fn, options)` | `par.map(items, fn, options)` |
 | `ParConfig` 的 timeout/listener 默认值 | `GlobalPar.Builder.taskListener(...)`（timeout 仍按调用声明） |
 | `ParConfig` 的 livelock 设置 | `GlobalParDeadlockPolicy` |
@@ -23,29 +23,30 @@
 | 调用时按名称解析执行器 | `GlobalPar` 构建期绑定执行器 |
 | `TaskGraph.destroyAfterRequest(config)` | `global.openTaskGraphObservation()` 作用域 |
 
-公开面与运行时的边界是刻意设计：`MultiTaskOptions` 是调用方输入，包私有的
+公开面与运行时的边界是刻意设计：选项类型是调用方输入，包私有的
 `MultiTaskContext` 是单次调用的运行时状态。取消、deadline 和执行器 identity 仍通过父子上下文
-传播，但应用只应通过 `MultiTaskOptions` 配置语义，不应构造或缓存运行时 context。
+传播，但应用只应通过选项类型配置语义，不应构造或缓存运行时 context。
 
 执行器查找键由裸 `String` 改为值类型 `ParName`。所有表示 `Par` 名称的位置都接收 `ParName`：`GlobalPar.Builder.register`/`defaultPar`/`parTaskListener`、`GlobalPar.par`/`find`/`taskListenersFor`、`GlobalPar.pars()`，以及 `TaskGroupDefinition.Builder.task`/`combine`。构造时一次性校验（非 null、非空白），值按原样使用——不做 trim 或小写规范化——因此既有键的语义不变。`ParName` 是逻辑查找键，不是资源身份：它不能替代 `ExecutorIdentity`，后者仍是 deadlock 检测和 purge 所依据的引用相等键。格式合法的 `ParName` 也不代表名称已注册；未注册名称仍分别在 `GlobalPar.Builder.build()` 和 `TaskGroup.submit` 被拒绝。
 
-早期 `0.2.x` 快照曾将该类型命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`。请将 import、变量声明和 `Par.map` 参数统一改为 `MultiTaskOptions`；在 `0.x` 阶段不保留兼容别名。
+早期 `0.2.x` 快照曾把批次选项命名为 `ExecutionOptions`，随后改为 `BatchExecutionOptions`，再短暂统一为超集类型 `MultiTaskOptions`。最终按作用域拆分为三个类型：`BatchOptions`（`Par.map`）、`TaskGroupOptions`（`TaskGroupDefinition.builder`）、`TaskOptions`（`TaskGroupDefinition.Builder.task`/`combine`）。请将 import、变量声明和实参改为对应作用域的类型；在 `0.x` 阶段不保留兼容别名。
 
 早期 `0.2.x` 快照曾将内部 `BatchExecutionContext` 改名为 `MultiTaskContext`，因为它同时支撑
 `Par.map` 批次与任务组成员。最终 API 完全隐藏该运行时 context 及其 `resolve(...)` 方法。
 删除对 `MultiTaskContext`、`SubmissionScope` 和 `TaskExecutionContext` 的 import 或直接构造；
-调用配置使用 `MultiTaskOptions`，已完成任务通过 `TaskCompletion` 观测。原先的只读
+调用配置使用批次或成员自己的选项类型，已完成任务通过 `TaskCompletion` 观测。原先的只读
 `TaskContext` 视图也已移除，其对用户有用的身份和计时字段已打平到 `TaskCompletion`。
 
-批次与任务组的选项类型已统一为单一的 `MultiTaskOptions`；原先的 `BatchExecutionOptions`
-和 `TaskGroupOptions` 已删除。`taskName()`/`groupName()` 访问器及对应的 builder 方法统一为
-`name()`；其余 builder 方法名称不变。批次读取 name/parallelism/timeout/taskType/rejectEnqueue；
-任务组读取 name/timeout/listeners，成员的执行策略按 `TaskGroupDefinition.Builder.task` 逐个传入。
+选项类型与作用域一一对应，每种类型只声明其消费者读取的字段：`BatchOptions` 声明
+name/parallelism/timeout/taskType/rejectEnqueue；`TaskGroupOptions` 只声明 name/timeout/listeners；
+`TaskOptions` 只声明 timeout/taskType/rejectEnqueue。身份不属于选项——成员名来自 `TaskKey`；
+并发度属于扇出——单任务没有可限流的对象。`taskName()`/`groupName()` 访问器及对应方法统一为
+`name()`；`TaskGroupDefinition.Builder.task`/`combine` 的实参由超集类型收窄为 `TaskOptions`。
 
-`MultiTaskOptions.timeout` 现在必须在两个互斥的 builder 声明中显式二选一：
-`timeout(Duration)` 设置正数显式超时，`inheritTimeout()` 声明继承外层作用域的 deadline。
-两者都未声明或同时声明时 `build()` 抛出 `IllegalArgumentException`。访问器由
-`Duration timeout()` 改为 `Optional<Duration> timeout()`；空值表示继承。
+timeout 现在必须在两个互斥的静态工厂里显式二选一：`timeout(name, Duration)` 设置正数显式
+超时，`inheritTimeout(name)` 声明继承外层作用域的 deadline。没有 Builder，也没有第三种状态：
+遗漏声明不是运行时异常而是编译错误，两个声明也不可能同时出现。`TaskOptions` 的两个工厂不带
+name。访问器仍是 `Optional<Duration> timeout()`；空值表示继承。
 原先的全局默认超时已删除，不再存在隐式的全局默认超时；deadline 解析现由执行内核完全负责。
 
 deadline 解析遵循统一规则：显式 timeout 取自身上限与外层硬 deadline 的较早者；继承时解析为
@@ -101,8 +102,8 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 `MEMBER_CANCELED`。
 
 任务组成员或终端 combine 的执行期诊断名现在取自其 `TaskKey`，不再取自
-`MultiTaskOptions.name()`。checkpoint、任务监听器事件和任务图 label 因此与取 future 和结果快照
-时使用的名称一致；成员/combine options 中的 name 被忽略。由于失败源也可能是终端 combine，
+选项的 name。checkpoint、任务监听器事件和任务图 label 因此与取 future 和结果快照时使用的名称
+一致；成员与 combine 的 `TaskOptions` 不含 name 字段，不存在被忽略的配置。由于失败源也可能是终端 combine，
 `TaskGroupResult.failedMemberName()` 同步改名为 `failedTaskName()`。
 
 `CancellationToken.State` 值名对齐同一词汇：`FAIL_FAST_CANCELED` → `FAIL_FAST`，

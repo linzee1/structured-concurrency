@@ -135,12 +135,8 @@ class ScopedTaskContractTest {
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
-            MultiTaskOptions options = MultiTaskOptions.of("task")
-                    .taskType(TaskType.CPU_BOUND)
-                    .timeout(Duration.ofSeconds(30))
-                    .build();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", options, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, () -> {
                 executions.incrementAndGet();
                 return "inline";
             });
@@ -165,12 +161,8 @@ class ScopedTaskContractTest {
         try {
             observePhases(global, phases);
             AtomicInteger executions = new AtomicInteger();
-            MultiTaskOptions options = MultiTaskOptions.of("task")
-                    .taskType(TaskType.IO_BOUND)
-                    .timeout(Duration.ofSeconds(30))
-                    .build();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", options, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.IO_BOUND, () -> {
                 executions.incrementAndGet();
                 return "never";
             });
@@ -205,31 +197,24 @@ class ScopedTaskContractTest {
                         .map(
                                 java.util.Arrays.asList("blocker", "queued"),
                                 item -> callUnchecked(() -> runUnlessQueued(item, release, queuedRuns)),
-                                MultiTaskOptions.of("cancel")
-                                        .parallelism(2)
-                                        .timeout(Duration.ofSeconds(30))
-                                        .build())
+                                BatchOptions.timeout("cancel", Duration.ofSeconds(30))
+                                        .parallelism(2))
                         .results()
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(MultiTaskOptions.of("cancel")
-                        .timeout(Duration.ofSeconds(30))
-                        .build());
+                TaskGroupDefinition.Builder definition =
+                        TaskGroupDefinition.builder(TaskGroupOptions.timeout("cancel", Duration.ofSeconds(30)));
                 definition.task(
                         new TaskKey<>("blocker") {},
                         ParName.of("worker"),
                         () -> runUnlessQueued("blocker", release, queuedRuns),
-                        MultiTaskOptions.of("blocker")
-                                .timeout(Duration.ofSeconds(30))
-                                .build());
+                        TaskOptions.timeout(Duration.ofSeconds(30)));
                 TaskKey<Object> queued = definition.task(
                         new TaskKey<>("queued") {},
                         ParName.of("worker"),
                         () -> runUnlessQueued("queued", release, queuedRuns),
-                        MultiTaskOptions.of("queued")
-                                .timeout(Duration.ofSeconds(30))
-                                .build());
+                        TaskOptions.timeout(Duration.ofSeconds(30)));
                 TaskGroup group = TaskGroup.submit(global, definition.build());
                 assertThat(group.future(queued).cancel(true)).isTrue();
                 TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -265,9 +250,7 @@ class ScopedTaskContractTest {
                                         throw new IllegalStateException(e);
                                     }
                                 },
-                                MultiTaskOptions.of("outer")
-                                        .timeout(Duration.ofSeconds(30))
-                                        .build())
+                                BatchOptions.timeout("outer", Duration.ofSeconds(30)))
                         .results()
                         .get(0)
                         .get(2, TimeUnit.SECONDS);
@@ -294,25 +277,32 @@ class ScopedTaskContractTest {
 
     private static ListenableFuture<Object> submitSingle(
             GlobalPar global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(
-                global,
-                entry,
-                name,
-                MultiTaskOptions.of(name).timeout(Duration.ofSeconds(30)).build(),
-                task);
+        return submitSingle(global, entry, name, TaskType.CPU_BOUND, task);
     }
 
+    /**
+     * Submits one task through the batch or the group path. The two entry points declare their own
+     * option types — a batch its {@link BatchOptions}, a group member its {@link TaskOptions} — so
+     * the shared task type is the only parameter they can share.
+     */
     private static ListenableFuture<Object> submitSingle(
-            GlobalPar global, Entry entry, String name, MultiTaskOptions options, Callable<Object> task) {
+            GlobalPar global, Entry entry, String name, TaskType taskType, Callable<Object> task) {
         if (entry == Entry.BATCH) {
             return global.par(ParName.of("worker"))
-                    .map(Collections.singletonList("item"), item -> callUnchecked(task), options)
+                    .map(
+                            Collections.singletonList("item"),
+                            item -> callUnchecked(task),
+                            BatchOptions.timeout(name, Duration.ofSeconds(30)).taskType(taskType))
                     .results()
                     .get(0);
         }
-        TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
-                MultiTaskOptions.of("contract").timeout(Duration.ofSeconds(30)).build());
-        TaskKey<Object> key = definition.task(new TaskKey<>(name) {}, ParName.of("worker"), task, options);
+        TaskGroupDefinition.Builder definition =
+                TaskGroupDefinition.builder(TaskGroupOptions.timeout("contract", Duration.ofSeconds(30)));
+        TaskKey<Object> key = definition.task(
+                new TaskKey<>(name) {},
+                ParName.of("worker"),
+                task,
+                TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType));
         TaskGroup group = TaskGroup.submit(global, definition.build());
         LAST_GROUP.set(group);
         return group.future(key);

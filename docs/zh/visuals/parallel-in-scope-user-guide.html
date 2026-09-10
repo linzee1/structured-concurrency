@@ -21,10 +21,7 @@ GlobalPar global = GlobalPar.builder()
     .register(IO, executor)
     .build();
 
-MultiTaskOptions options = MultiTaskOptions.of("fetch")
-    .parallelism(8)
-    .timeout(Duration.ofSeconds(3))
-    .build();
+BatchOptions options = BatchOptions.timeout("fetch", Duration.ofSeconds(3)).parallelism(8);
 
 global.par(IO).map(items, client::fetch, options);</pre>
   <p>请以 <a href="../user-guide.md">完整使用指南</a> 为准；从 `0.1.x` 升级请先查看 <a href="../migration-v0.2.md">v0.2 迁移指南</a>。</p>

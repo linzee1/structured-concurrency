@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -113,10 +113,7 @@ public class B2_FunctionSignatureBloatTest {
     @Test
     void parMap_cleanSignature_onlyBusinessParam() throws Exception {
         // 解决方案：Par.map() 隐式传播上下文，lambda 只需业务参数
-        MultiTaskOptions opts = MultiTaskOptions.of("fetch-data")
-                .parallelism(3)
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000)).parallelism(3);
 
         List<String> urls = Arrays.asList(
                 "http://api.example.com/users", "http://api.example.com/orders", "http://api.example.com/products");
@@ -149,10 +146,7 @@ public class B2_FunctionSignatureBloatTest {
         // 验证：即使有多种上下文需求，Par.map() 的 lambda 签名依然干净
         AtomicInteger processedCount = new AtomicInteger(0);
 
-        MultiTaskOptions opts = MultiTaskOptions.of("complex-task")
-                .parallelism(2)
-                .timeout(java.time.Duration.ofMillis(3000))
-                .build();
+        BatchOptions opts = BatchOptions.timeout("complex-task", java.time.Duration.ofMillis(3000)).parallelism(2);
 
         List<Integer> orderIds = Arrays.asList(101, 102, 103, 104);
 

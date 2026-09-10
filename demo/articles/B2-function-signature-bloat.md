@@ -42,7 +42,7 @@ List<String> results = urls.parallelStream()
 
 ```java
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 
@@ -54,10 +54,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 并行选项：框架自动管理超时和取消
-MultiTaskOptions opts = MultiTaskOptions.of("fetch-data")
-        .parallelism(5)
-        .timeout(java.time.Duration.ofMillis(3000))
-        .build();
+BatchOptions opts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(3000)).parallelism(5);
 
 // 函数签名只保留业务参数，零基础设施噪音
 List<String> urls = Arrays.asList("url1", "url2", "url3", "url4", "url5");

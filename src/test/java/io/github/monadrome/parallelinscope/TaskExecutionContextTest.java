@@ -11,7 +11,7 @@ class TaskExecutionContextTest {
     @Test
     void siblingTasksShareBatchButKeepIndependentIdentityAndTiming() {
         MultiTaskContext batch = MultiTaskContext.resolve(
-                MultiTaskOptions.of("batch").timeout(Duration.ofSeconds(30)).build(), 3, null);
+                BatchOptions.timeout("batch", Duration.ofSeconds(30)).spec(), 3, null);
         TaskExecutionContext first = new TaskExecutionContext(batch, 0, 10L);
         TaskExecutionContext second = new TaskExecutionContext(batch, 1, 20L);
 
@@ -35,7 +35,7 @@ class TaskExecutionContextTest {
     @Test
     void rejectsNegativeTaskIndex() {
         MultiTaskContext batch = MultiTaskContext.resolve(
-                MultiTaskOptions.of("batch").timeout(Duration.ofSeconds(30)).build(), 1, null);
+                BatchOptions.timeout("batch", Duration.ofSeconds(30)).spec(), 1, null);
 
         assertThatIllegalArgumentException().isThrownBy(() -> new TaskExecutionContext(batch, -1, 0L));
     }
@@ -43,7 +43,7 @@ class TaskExecutionContextTest {
     @Test
     void installAndRestorePreserveNestedCurrentTask() {
         MultiTaskContext batch = MultiTaskContext.resolve(
-                MultiTaskOptions.of("batch").timeout(Duration.ofSeconds(30)).build(), 2, null);
+                BatchOptions.timeout("batch", Duration.ofSeconds(30)).spec(), 2, null);
         TaskExecutionContext outer = new TaskExecutionContext(batch, 0, 0L);
         TaskExecutionContext inner = new TaskExecutionContext(batch, 1, 0L);
 

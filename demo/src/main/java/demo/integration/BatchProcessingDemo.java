@@ -1,7 +1,7 @@
 package demo.integration;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -42,10 +42,7 @@ public class BatchProcessingDemo {
 
         try {
             // 2. 配置批处理参数
-            MultiTaskOptions options = MultiTaskOptions.of("batch-demo")
-                    .parallelism(4)
-                    .timeout(java.time.Duration.ofMillis(30000))
-                    .build();
+            BatchOptions options = BatchOptions.timeout("batch-demo", java.time.Duration.ofMillis(30000)).parallelism(4);
 
             System.out.println("并行度: " + options.parallelism());
             System.out.println("超时: 30秒\n");

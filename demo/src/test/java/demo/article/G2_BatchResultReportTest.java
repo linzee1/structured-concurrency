@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -94,11 +94,8 @@ class G2_BatchResultReportTest {
                 .contains("firstException=root failure");
     }
 
-    private static MultiTaskOptions options(String taskName, int parallelism) {
-        return MultiTaskOptions.of(taskName)
-                .parallelism(parallelism)
-                .timeout(java.time.Duration.ofMillis(5000))
-                .build();
+    private static BatchOptions options(String taskName, int parallelism) {
+        return BatchOptions.timeout(taskName, java.time.Duration.ofMillis(5000)).parallelism(parallelism);
     }
 
     private static void awaitStartedSibling(CountDownLatch siblingStarted) {

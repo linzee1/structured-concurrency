@@ -42,13 +42,13 @@ for (int i = 0; i < 1_000_000; i++) {
 
 此外，`Checkpoints.sleep(ms)` 替代 `Thread.sleep()`，自动将中断信号转化为协作式取消异常，统一了取消语义。
 
-配合 `MultiTaskOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.checkpoint(taskName, true)` 即可实现同样的及时取消效果。
+配合 `BatchOptions.timeout()` 设置任务超时，框架在超时后自动触发取消。对于 IO 任务（`Thread.sleep`、阻塞读写），中断机制天然有效；对于 CPU 任务，在循环体内插入 `Checkpoints.checkpoint(taskName, true)` 即可实现同样的及时取消效果。
 
 ## 代码
 
 ```java
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -61,10 +61,7 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // IO 任务：Thread.sleep 响应中断，超时取消自然生效
-MultiTaskOptions ioOpts = MultiTaskOptions.of("api-call").taskType(TaskType.IO_BOUND)
-        .parallelism(3)
-        .timeout(java.time.Duration.ofMillis(500))
-        .build();
+BatchOptions ioOpts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.IO_BOUND);
 
 List<String> urls = Arrays.asList("url1", "url2", "url3");
 TaskBatchResult<String> result = par.map( urls, url -> {

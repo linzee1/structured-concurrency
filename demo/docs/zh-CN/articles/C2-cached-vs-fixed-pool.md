@@ -65,18 +65,12 @@ GlobalPar config = GlobalPar.builder()
 Par par = config.defaultPar();
 
 // 外层任务
-MultiTaskOptions outerOpts = MultiTaskOptions.of("outer-task")
-        .parallelism(4)
-        .timeout(java.time.Duration.ofMillis(10_000))
-        .build();
+BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000)).parallelism(4);
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
 TaskBatchResult<String> result = par.map( items, item -> {
     // 内层任务使用同一个 CachedThreadPool，不会死锁
-    MultiTaskOptions innerOpts = MultiTaskOptions.of("inner-task")
-            .parallelism(2)
-            .timeout(java.time.Duration.ofMillis(5_000))
-            .build();
+    BatchOptions innerOpts = BatchOptions.timeout("inner-task", java.time.Duration.ofMillis(5_000)).parallelism(2);
 
     List<String> subItems = Arrays.asList("a", "b");
     TaskBatchResult<String> innerResult = par.map( subItems, sub -> {

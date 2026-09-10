@@ -44,10 +44,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 ### 基本用法
 
 ```java
-MultiTaskOptions options = MultiTaskOptions.of("my-task")
-        .parallelism(4)
-        .timeout(Duration.ofSeconds(5))
-        .build();
+BatchOptions options = BatchOptions.timeout("my-task", Duration.ofSeconds(5)).parallelism(4);
 
 global.par(ParName.of("myExecutor")).map(dataList, item -> {
     for (int i = 0; i < 1_000_000; i++) {
@@ -62,7 +59,7 @@ global.par(ParName.of("myExecutor")).map(dataList, item -> {
 ```
 
 关键规则：
-- **第一个参数必须与 `MultiTaskOptions.of(taskName)` 中的 taskName 一致**。这是一个安全守卫——checkpoint 只在 taskName 匹配时才生效，防止被不相关的代码误触发。
+- **第一个参数必须与传给 `Par.map` 的 `BatchOptions.name()` 一致**。这是一个安全守卫——checkpoint 只在 taskName 匹配时才生效，防止被不相关的代码误触发。
 - **第二个参数 `lean`** 控制抛出的异常类型：
   - `true` → `LeanCancellationException`：无堆栈跟踪，零额外开销，适合生产环境。
   - `false` → 标准 `CancellationException`：完整堆栈跟踪，适合调试定位取消发生位置。
@@ -157,7 +154,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 | 触发源 | Token 状态 | 说明 |
 |---|---|---|
 | 兄弟任务失败 | `FAIL_FAST` | 同一批次中某个任务抛异常，其余任务被取消 |
-| 超时 | `TIMEOUT` | 超过 `MultiTaskOptions` 指定的超时时间 |
+| 超时 | `TIMEOUT` | 超过 `BatchOptions` 指定的超时时间 |
 | 手动取消 | `CANCELED` | 代码调用了 `CancellationToken.cancel()` |
 | 父作用域取消 | `PROPAGATED_CANCELED` | 嵌套场景下，外层作用域取消，自动传播到内层 |
 

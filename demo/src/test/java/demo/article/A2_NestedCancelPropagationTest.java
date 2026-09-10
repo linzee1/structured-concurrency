@@ -3,7 +3,7 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -104,10 +104,7 @@ class A2_NestedCancelPropagationTest {
 
         try {
             // 外层配置：500ms 超时
-            MultiTaskOptions outerOptions = MultiTaskOptions.of("outer")
-                    .parallelism(2)
-                    .timeout(java.time.Duration.ofMillis(500))
-                    .build();
+            BatchOptions outerOptions = BatchOptions.timeout("outer", java.time.Duration.ofMillis(500)).parallelism(2);
 
             List<Integer> items = Arrays.asList(1, 2);
 
@@ -115,10 +112,7 @@ class A2_NestedCancelPropagationTest {
                     items,
                     outerItem -> {
                         // 内层并行处理
-                        MultiTaskOptions innerOptions = MultiTaskOptions.of("inner")
-                                .parallelism(3)
-                                .inheritTimeout()
-                                .build();
+                        BatchOptions innerOptions = BatchOptions.inheritTimeout("inner").parallelism(3);
 
                         List<Integer> innerItems = Arrays.asList(10, 20, 30);
                         TaskBatchResult<Integer> innerResult = par.map(

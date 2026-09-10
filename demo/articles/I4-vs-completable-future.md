@@ -75,11 +75,9 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-MultiTaskOptions opts = MultiTaskOptions.of("batch-api")
+BatchOptions opts = BatchOptions.timeout("batch-api", java.time.Duration.ofMillis(5000))
         .parallelism(4)           // 最多 4 个并发
-        .timeout(java.time.Duration.ofMillis(5000))            // 5 秒超时
-        .taskType(TaskType.IO_BOUND)
-        .build();
+        .taskType(TaskType.IO_BOUND);
 
 TaskBatchResult<String> result = par.map( urls, url -> {
     MDC.put("traceId", traceId); // TTL 自动传播到子线程

@@ -127,11 +127,11 @@ class ScopePrimitivesTest {
     // ==================== MultiTaskContext.resolve ====================
 
     private static MultiTaskContext resolve(int parallelism, Duration timeout, int taskCount, MultiTaskContext parent) {
-        MultiTaskOptions.Builder options = MultiTaskOptions.of("batch").timeout(timeout);
+        BatchOptions options = BatchOptions.timeout("batch", timeout);
         if (parallelism > 0) {
-            options.parallelism(parallelism);
+            options = options.parallelism(parallelism);
         }
-        return MultiTaskContext.resolve(options.build(), taskCount, parent);
+        return MultiTaskContext.resolve(options.spec(), taskCount, parent);
     }
 
     @Test
@@ -209,18 +209,13 @@ class ScopePrimitivesTest {
         try {
             ExecutorIdentity identity = new ExecutorIdentity(supplied);
             MultiTaskContext labelled = MultiTaskContext.resolve(
-                    MultiTaskOptions.of("n").timeout(Duration.ofSeconds(30)).build(),
-                    1,
-                    null,
-                    null,
-                    identity,
-                    "par-label");
+                    BatchOptions.timeout("n", Duration.ofSeconds(30)).spec(), 1, null, null, identity, "par-label");
             ScopedCallable<String> labelledCall =
                     new ScopedCallable<>(task(labelled, 0), () -> "ok", java.util.Collections.emptyList());
             assertThat(labelledCall.executorName()).isEqualTo("par-label");
 
             MultiTaskContext anonymous = MultiTaskContext.resolve(
-                    MultiTaskOptions.of("n").timeout(Duration.ofSeconds(30)).build(), 1, null, null, identity, null);
+                    BatchOptions.timeout("n", Duration.ofSeconds(30)).spec(), 1, null, null, identity, null);
             ScopedCallable<String> anonymousCall =
                     new ScopedCallable<>(task(anonymous, 0), () -> "ok", java.util.Collections.emptyList());
             assertThat(anonymousCall.executorName()).isEqualTo("NA");

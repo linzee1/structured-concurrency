@@ -60,7 +60,7 @@ SUCCESS:6
 
 ```java
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.GlobalPar;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 
@@ -70,10 +70,7 @@ GlobalPar config = GlobalPar.builder()
         .build();
 Par par = config.defaultPar();
 
-MultiTaskOptions opts = MultiTaskOptions.of("batch-task")
-        .parallelism(4)
-        .timeout(java.time.Duration.ofMillis(5000))
-        .build();
+BatchOptions opts = BatchOptions.timeout("batch-task", java.time.Duration.ofMillis(5000)).parallelism(4);
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4, 5, 6);
 TaskBatchResult<Integer> result = par.map( items, x -> {

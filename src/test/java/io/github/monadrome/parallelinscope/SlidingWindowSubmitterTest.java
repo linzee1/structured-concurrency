@@ -312,11 +312,10 @@ class SlidingWindowSubmitterTest {
 
     private static MultiTaskContext context(int tasks, int parallelism, TaskType type) {
         return MultiTaskContext.resolve(
-                MultiTaskOptions.of("batch")
+                BatchOptions.timeout("batch", Duration.ofSeconds(30))
                         .parallelism(parallelism)
                         .taskType(type)
-                        .timeout(Duration.ofSeconds(30))
-                        .build(),
+                        .spec(),
                 tasks,
                 null);
     }

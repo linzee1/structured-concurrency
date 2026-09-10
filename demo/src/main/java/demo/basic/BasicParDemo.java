@@ -1,7 +1,7 @@
 package demo.basic;
 
 import io.github.monadrome.parallelinscope.GlobalPar;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParName;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
  *
  * <ul>
  *   <li>创建并配置 Par 实例
- *   <li>使用 MultiTaskOptions 设置并行度
+ *   <li>使用 BatchOptions 设置并行度
  *   <li>使用 Par.map() 并行处理集合
  *   <li>获取和处理结果
  * </ul>
@@ -46,10 +46,7 @@ public class BasicParDemo {
             System.out.println("输入数据: " + numbers);
 
             // 5. 配置并行选项
-            MultiTaskOptions options = MultiTaskOptions.of("basic-demo")
-                    .parallelism(3)
-                    .timeout(java.time.Duration.ofSeconds(30))
-                    .build();
+            BatchOptions options = BatchOptions.timeout("basic-demo", java.time.Duration.ofSeconds(30)).parallelism(3);
 
             System.out.println("并行度: " + options.parallelism());
 

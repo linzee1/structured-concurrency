@@ -7,7 +7,7 @@
 
 | 文档 | 摘要 |
 |---|---|
-| [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、`TaskGroupDefinition`/`TaskKey`/`TaskGroup` 公共 API、`MultiTaskOptions`、结果类型（`TaskGroupResult`/`TaskOutcome`） |
+| [task-group-api-and-options.md](task-group-api-and-options.md) | TaskGroup 目标与非目标、Group/Batch 语义边界、`TaskGroupDefinition`/`TaskKey`/`TaskGroup` 公共 API、选项类型（`BatchOptions`/`TaskGroupOptions`/`TaskOptions`）、结果类型（`TaskGroupResult`/`TaskOutcome`） |
 | [task-group-lifecycle.md](task-group-lifecycle.md) | TaskGroup 对象与上下文生命周期（MemberState、TaskExecutionContext、SubmissionScope、TTL 边界）、结构 parent/取消 parent/deadline 解耦、状态机与完成原因、GlobalPar 关闭与资源所有权 |
 | [task-group-submission.md](task-group-submission.md) | TaskGroup submit 冻结与统一提交契约、配置期校验、executor rejection、两阶段提交内核 `TaskSubmissions` 的复用边界 |
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员主动取消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |

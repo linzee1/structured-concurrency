@@ -63,22 +63,20 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 ```java
 TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
-        MultiTaskOptions.of("account-page")
-                .timeout(Duration.ofSeconds(3))
-                .build());
+        TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3)));
 
 TaskKey<User> user = definition.task(
             new TaskKey<User>("get-user") {},
-            "user", userService::getUser,
-            MultiTaskOptions.builder().inheritTimeout().build());
+            ParName.of("user"), userService::getUser,
+            TaskOptions.inheritTimeout());
 TaskKey<List<Order>> orders = definition.task(
             new TaskKey<List<Order>>("get-orders") {},
-            "order", orderService::getOrders,
-            MultiTaskOptions.builder().inheritTimeout().build());
+            ParName.of("order"), orderService::getOrders,
+            TaskOptions.inheritTimeout());
 TaskKey<Inventory> inventory = definition.task(
             new TaskKey<Inventory>("get-inventory") {},
-            "inventory", inventoryService::getInventory,
-            MultiTaskOptions.builder().inheritTimeout().build());
+            ParName.of("inventory"), inventoryService::getInventory,
+            TaskOptions.inheritTimeout());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -90,16 +88,16 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 
 ```java
 public final class TaskGroupDefinition {
-    public static Builder builder(MultiTaskOptions groupOptions);
-    public MultiTaskOptions groupOptions();
+    public static Builder builder(TaskGroupOptions groupOptions);
+    public TaskGroupOptions groupOptions();
     public List<TaskDefinition<?>> tasks();
 
     public static final class Builder {
         public <T> TaskKey<T> task(
                 TaskKey<T> key,
-                String executorName,
+                ParName parName,
                 Callable<T> callable,
-                MultiTaskOptions options);
+                TaskOptions options);
         public TaskGroupDefinition build();
     }
 }
@@ -149,35 +147,98 @@ public final class TaskGroup implements AutoCloseable {
 submit 时创建，调用方用配置期注册的键在提交后取回类型安全的 future。definition 不捕获线程
 上下文，因此结构归属始终由提交现场决定。
 
-### 3.2 组级与成员级选项
+### 3.2 选项：一个作用域一个类型
 
-组级与成员级选项统一为 `MultiTaskOptions`；组读取 name/timeout/listeners，成员与 combine 的
-执行行为使用 timeout/taskType/rejectEnqueue。它们的身份来自 `TaskKey.name()`，不读取 options
-的 name/listeners；成员是单任务，`parallelism` 虽被解析但不影响执行，成员内部嵌套提交读取
-嵌套提交自己的 options：
+选项只在两类位置出现：**作用域**（Batch、Group）与**单次任务执行**（member、combine）。
+三类角色的字段集合互不相同，因此各有独立类型；MUST NOT 用一个超集类型同时承担多种角色。
+
+理由不是命名美观，而是本库要消除的错误类别：超集类型允许在成员位置书写 `parallelism`
+这样"被解析但无人读取"的字段——用户以为设置了并发上限，运行时静默失效。字段必须在类型上
+不可表达，而不是靠文档提醒。
+
+| 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
+|---|---|---|---|
+| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue | 批次 unit 解析、滑动窗口并发上限、入队策略 |
+| `TaskGroupOptions` | `TaskGroupDefinition.builder(...)` | name / timeout / listeners | 组名、组 deadline、组收敛监听快照 |
+| `TaskOptions` | `Builder.task(...)`、`Builder.combine(...)` | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、CPU-bound inline 策略、入队拒绝策略 |
 
 ```java
-public final class MultiTaskOptions {
-    public static Builder builder();
-    public static Builder of(String name);
+public final class TaskOptions {
+    public static TaskOptions inheritTimeout();
+    public static TaskOptions timeout(Duration timeout);
+    public TaskOptions taskType(TaskType taskType);
+    public TaskOptions rejectEnqueue(boolean rejectEnqueue);
+
+    public Optional<Duration> timeout();
+    public TaskType taskType();
+    public boolean rejectEnqueue();
+}
+
+public final class TaskGroupOptions {
+    public static TaskGroupOptions inheritTimeout(String name);
+    public static TaskGroupOptions timeout(String name, Duration timeout);
+    public TaskGroupOptions listener(TaskGroupListener listener);
+
+    public String name();
+    public Optional<Duration> timeout();
+    public List<TaskGroupListener> listeners();
+}
+
+public final class BatchOptions {
+    public static BatchOptions inheritTimeout(String name);
+    public static BatchOptions timeout(String name, Duration timeout);
+    public BatchOptions parallelism(int parallelism);
+    public BatchOptions taskType(TaskType taskType);
+    public BatchOptions rejectEnqueue(boolean rejectEnqueue);
 
     public String name();
     public int parallelism();
     public Optional<Duration> timeout();
     public TaskType taskType();
     public boolean rejectEnqueue();
-    public List<TaskGroupListener> listeners();
 }
 ```
 
-- `name` 非空；
-- timeout 必须显式二选一：`timeout(Duration)`（正数）或 `inheritTimeout()`（继承外层
-  deadline）；两者都未声明或同时声明时 `build()` 抛 `IllegalArgumentException`；`timeout()`
-  访问器返回空 `Optional` 表示继承；
+**字段即消费集合。** 每个选项类型暴露的字段集合必须等于其消费者读取的集合：成员与 combine
+的身份来自 `TaskKey.name()`，单任务是单次执行、没有扇出，因此 `TaskOptions` MUST NOT 含
+name、parallelism、listeners；组不是一次任务执行，因此 `TaskGroupOptions` MUST NOT 含
+parallelism、taskType、rejectEnqueue。
+
+**三个类型互不相关，判别式由调用点静态决定。** 就"一个单位的选项"而言，这是把原先的单
+product type 换成三个角色 product 组成的不相交并集：分支选择发生在形参位置——`Par.map` 只
+接受 `BatchOptions`，`TaskGroupDefinition.builder` 只接受 `TaskGroupOptions`，
+`task`/`combine` 只接受 `TaskOptions`——编译器在选择分支的同时排除了其余分支的字段，运行时
+不需要也不存在 tag。因此 MUST NOT 引入公共父类型、角色枚举或运行期判别字段：一旦存在公共
+父类型，"把组选项传给成员位置"就会重新变成可编译的，本节的编译期保证随即失效。
+
+**timeout 的显式选择提升为类型不变量。** `inheritTimeout()` 与 `timeout(Duration)` 是仅有的
+两个工厂：不存在"未声明"状态（遗漏声明是编译错误），两个声明也不可能同时出现（两个工厂都
+返回终态实例）。这比原先"`build()` 时校验二者恰有其一"更强，约束的语义不变。
+
+**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`/
+`listener(...)` 返回新实例，原实例不变；不引入 Builder 与中间可变状态。无参工厂
+（如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
+
+语义逐条不变（拆分只改变值的承载类型，不改变任何解析结果或执行行为）：
+
+- name 非空；timeout 为正数，负值或零在工厂期被拒绝；
+- `timeout()` 访问器返回空 `Optional` 表示继承外层 deadline；
 - 组级 `inheritTimeout()` 要求 submit 时存在外层 scoped task，否则 `submit` 抛
-  `IllegalArgumentException`；成员级 `inheritTimeout()` 解析为组 deadline；
-- options 不保存运行状态，可安全复用；
-- listener 在 options 构建时复制成不可修改快照，submit 时使用该快照。
+  `IllegalArgumentException`；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
+  timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
+- 成员的诊断名始终取注册 key 的 name；
+- 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`/`TaskGroup.submit`）读取
+  的是该嵌套提交自己的选项；
+- options 不保存运行状态，可安全复用；listener 在 `TaskGroupOptions` 构造时复制成不可修改
+  快照，`submit` 时使用该快照；
+- 校验时机不变：配置期只校验选项自身与配置参数的合法性，现场相关校验（executor 名解析、
+  继承 deadline 是否存在）仍留在 `submit`。
+
+**内核对选项类型无感知。** `MultiTaskContext.resolve(...)` MUST NOT 接收公共选项类型；每个
+选项类型提供一个包私有适配方法，把选项折叠成内核载体（name、requestedParallelism、timeout、
+taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取 key，requestedParallelism
+恒为 1），batch 侧由 `BatchOptions` 适配。签名与三 parent 解耦语义见
+[生命周期与状态机 §5](task-group-lifecycle.md)。
 
 ### 3.3 结果类型
 

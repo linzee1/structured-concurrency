@@ -10,9 +10,9 @@ class MultiTaskContextTest {
     @Test
     void childDeadlineCannotOutliveParentDeadline() {
         MultiTaskContext parent = MultiTaskContext.resolve(
-                MultiTaskOptions.of("outer").timeout(Duration.ofMillis(100)).build(), 1, null);
+                BatchOptions.timeout("outer", Duration.ofMillis(100)).spec(), 1, null);
         MultiTaskContext child = MultiTaskContext.resolve(
-                MultiTaskOptions.of("inner").timeout(Duration.ofSeconds(10)).build(), 1, parent);
+                BatchOptions.timeout("inner", Duration.ofSeconds(10)).spec(), 1, parent);
 
         assertThat(child.deadlineNanos()).isLessThanOrEqualTo(parent.deadlineNanos());
         assertThat(child.cancellationToken()).isNotNull();
@@ -20,15 +20,13 @@ class MultiTaskContextTest {
 
     @Test
     void resolvesParallelismAndRuntimeMetadata() {
-        MultiTaskOptions options = MultiTaskOptions.of("io")
+        BatchOptions options = BatchOptions.timeout("io", Duration.ofSeconds(30))
                 .parallelism(99)
                 .taskType(TaskType.IO_BOUND)
-                .rejectEnqueue(false)
-                .timeout(Duration.ofSeconds(30))
-                .build();
+                .rejectEnqueue(false);
         ExecutorServiceStub executor = new ExecutorServiceStub();
         ExecutorIdentity identity = new ExecutorIdentity(executor);
-        MultiTaskContext context = MultiTaskContext.resolve(options, 3, null, null, identity, "http");
+        MultiTaskContext context = MultiTaskContext.resolve(options.spec(), 3, null, null, identity, "http");
 
         assertThat(context.effectiveParallelism()).isEqualTo(3);
         assertThat(context.executorIdentity()).isSameAs(identity);
@@ -41,7 +39,7 @@ class MultiTaskContextTest {
     @Test
     void rejectsNegativeTaskCount() {
         assertThatThrownBy(() -> MultiTaskContext.resolve(
-                        MultiTaskOptions.of("x").timeout(Duration.ofSeconds(30)).build(), -1, null))
+                        BatchOptions.timeout("x", Duration.ofSeconds(30)).spec(), -1, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -51,14 +49,9 @@ class MultiTaskContextTest {
         TaskGraphObservationScope observation = global.openTaskGraphObservation();
         try {
             MultiTaskContext parent = MultiTaskContext.resolve(
-                    MultiTaskOptions.of("parent")
-                            .timeout(Duration.ofSeconds(30))
-                            .build(),
-                    2,
-                    null,
-                    observation);
+                    BatchOptions.timeout("parent", Duration.ofSeconds(30)).spec(), 2, null, observation);
             MultiTaskContext child = MultiTaskContext.resolve(
-                    MultiTaskOptions.of("child").timeout(Duration.ofSeconds(30)).build(), 1, parent);
+                    BatchOptions.timeout("child", Duration.ofSeconds(30)).spec(), 1, parent);
 
             assertThat(parent.name()).isEqualTo("parent");
             assertThat(parent.taskCount()).isEqualTo(2);

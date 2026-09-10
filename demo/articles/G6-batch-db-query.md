@@ -44,7 +44,7 @@ for (Future<List<User>> f : futures) {
 
 ```java
 import io.github.monadrome.parallelinscope.Par;
-import io.github.monadrome.parallelinscope.MultiTaskOptions;
+import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.GlobalPar;
 
@@ -64,10 +64,7 @@ for (int i = 0; i < allIds.size(); i += shardSize) {
 }
 
 // 3. 并行查询，parallelism=5 表示最多同时 5 个分片在执行
-MultiTaskOptions options = MultiTaskOptions.of("db-batch-query").taskType(TaskType.IO_BOUND)
-        .parallelism(5)
-        .timeout(java.time.Duration.ofMillis(30000))
-        .build();
+BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000)).parallelism(5).taskType(TaskType.IO_BOUND);
 
 TaskBatchResult<List<User>> result = par.map( shards, shard -> {
     return userDao.selectByIds(shard);

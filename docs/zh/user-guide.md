@@ -37,15 +37,13 @@ Par defaultPar = GlobalPar.global().defaultPar();
 
 ## 执行批次
 
-`MultiTaskOptions` 是单次调用的不可变输入。库将它与任务数量、父批次和绑定的执行器 identity 解析为内部 `MultiTaskContext`。
+`BatchOptions` 是一次批次调用的不可变输入。选项类型与作用域一一对应：批次用 `BatchOptions`，任务组用 `TaskGroupOptions`，单个成员或 combine 用 `TaskOptions`。库把作用域的 name、并发度与执行策略，连同任务数量、父批次和绑定的执行器 identity，一起解析为内部 `MultiTaskContext`。
 
 ```java
-MultiTaskOptions options = MultiTaskOptions.of("fetch-account")
-        .taskType(TaskType.IO_BOUND)
+BatchOptions options = BatchOptions.timeout("fetch-account", Duration.ofSeconds(5))
         .parallelism(16)
-        .timeout(Duration.ofSeconds(5))
-        .rejectEnqueue(false)
-        .build();
+        .taskType(TaskType.IO_BOUND)
+        .rejectEnqueue(false);
 
 TaskBatchResult<Account> result = httpPar.map(
         accountIds,
@@ -55,7 +53,7 @@ TaskBatchResult<Account> result = httpPar.map(
 List<ListenableFuture<Account>> futures = result.results();
 ```
 
-`parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制；timeout 必须显式二选一：调用 `timeout(Duration)` 设置正数超时，或调用 `inheritTimeout()` 继承外层作用域的 deadline——两者都未声明或同时声明时 `build()` 拒绝。显式 timeout 会被外层 deadline 截断；在没有外层 scoped task 时声明继承会在入口点被拒绝。`TaskType.CPU_BOUND` 与 `TaskType.IO_BOUND` 描述调度意图。`rejectEnqueue` 控制绑定执行器支持时是否拒绝排队。
+`parallelism` 限制该批次的活跃提交窗口。负数表示让策略解析有效限制。timeout 必须在两个互斥的静态工厂里显式二选一：`BatchOptions.timeout(name, Duration)` 设置正数超时，`BatchOptions.inheritTimeout(name)` 继承外层作用域的 deadline——没有第三个状态，遗漏声明根本无法构造选项对象。显式 timeout 会被外层 deadline 截断；在没有外层 scoped task 时声明继承会在入口点被拒绝。`TaskType.CPU_BOUND` 与 `TaskType.IO_BOUND` 描述调度意图。`rejectEnqueue` 控制绑定执行器支持时是否拒绝排队。
 
 结果 future 按输入顺序排列。失败、超时、取消、submitter 中断或拒绝导致窗口停止时，未提交 placeholder 也会完成或取消，因此聚合 future 不会永久停留在 live 状态。
 
@@ -63,22 +61,20 @@ List<ListenableFuture<Account>> futures = result.results();
 
 当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组由 `TaskGroupDefinition` 描述：一个不可变、可复用的纯数据描述。`TaskGroupDefinition.Builder.task` 只记录定义；它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务。`TaskGroup.submit(global, definition)` 在提交时解析调用线程的上下文，冻结完整成员集合，准备全部成员后再统一提交。
 
-组和批次共用同一个选项类型 `MultiTaskOptions`：组读取 name、timeout 和 listeners，每个成员读取执行子集（task type、enqueue 策略、timeout）。成员是单任务，因此它的 `parallelism` 会被解析但无人读取——成员内部提交的嵌套工作读取的是该嵌套提交自己 options 的 parallelism。成员通常声明 `inheritTimeout()` 以运行在组 deadline 之下；成员的显式 timeout 会被组 deadline 截断。声明 `inheritTimeout()` 的组必须在一个 scoped task 内提交，否则 `submit` 被拒绝。成员的诊断名始终是它的 `TaskKey` 名；成员 options 中的 name 和 listeners 不读取。
+组作用域声明 `TaskGroupOptions`：只含组名、组 deadline 和组收敛监听器。组不是一次任务执行，所以它没有并发度、task type 或 enqueue 策略。每个成员和 combine 声明 `TaskOptions`：只含该次执行的 timeout、task type 和 enqueue 策略。成员是单任务，没有扇出，所以选项里不存在并发度字段——内部嵌套提交读取的是该嵌套提交自己的选项。身份也不是选项：成员的诊断名始终是它的 `TaskKey` 名。成员通常声明 `TaskOptions.inheritTimeout()` 以运行在组 deadline 之下；成员的显式 timeout 会被组 deadline 截断。声明 `inheritTimeout` 的组必须在一个 scoped task 内提交，否则 `submit` 被拒绝。
 
 ```java
 TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
-        MultiTaskOptions.of("account-page")
-                .timeout(Duration.ofSeconds(3))
-                .build());
+        TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3)));
 
 TaskKey<User> user = definition.task(
         new TaskKey<User>("user") {},
         DATABASE, userRepository::load,
-        MultiTaskOptions.builder().inheritTimeout().build());
+        TaskOptions.inheritTimeout());
 TaskKey<List<Order>> orders = definition.task(
         new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,
-        MultiTaskOptions.builder().taskType(TaskType.IO_BOUND).inheritTimeout().build());
+        TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -100,7 +96,7 @@ TaskKey<AccountPage> page = definition.combine(
         new TaskKey<AccountPage>("assemble-page") {},
         ParName.of("cpu"),
         values -> new AccountPage(values.value(user), values.value(orders)),
-        MultiTaskOptions.builder().inheritTimeout().build());
+        TaskOptions.inheritTimeout());
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     AccountPage accountPage = group.future(page).get();
