@@ -33,6 +33,10 @@
 - Split the shared `MultiTaskOptions` superset into one option type per scope: `BatchOptions` for `Par.map` (name, parallelism, timeout, task type, enqueue policy), `TaskGroupOptions` for `TaskGroupDefinition.builder` (name, timeout, listeners), and `TaskOptions` for `TaskGroupDefinition.Builder.task` and `combine` (timeout, task type, enqueue policy). A member or combine is a single task, so its options no longer declare a name, a parallelism, or listeners: a field its only consumer never reads is now unrepresentable instead of silently ignored. The three types share no supertype, so the role is chosen statically by the parameter position and passing a group option to a member no longer compiles.
 - Make the timeout a type-level invariant instead of a `build()`-time check: `timeout(name, Duration)` and `inheritTimeout(name)` are the only factories (`TaskOptions` factories take no name), so a missing or doubled declaration cannot be constructed at all. Options are now built with static factories and immutable withers rather than a builder, and `MultiTaskContext.resolve` takes the package-private `UnitSpec` carrier instead of a public option type, so the kernel no longer depends on public options and a member no longer resolves an unused parallelism.
 
+### Features
+
+- Add a `TaskGroupDefinition.Builder.task(key, parName, callable)` overload for members that run under the group deadline. It is exactly the four-argument form with `TaskOptions.inheritTimeout()`, so a member that needs no tighter budget, different task type, or different enqueue policy declares no options. The forced deadline choice remains at the group level, and a member that inherits the group deadline still cannot outlive it.
+
 ## [0.2.0] - 2026-07-22
 
 ### Breaking changes

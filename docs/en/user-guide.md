@@ -72,12 +72,14 @@ freezes the complete member set, prepares every member, and then submits them.
 
 A group scope declares `TaskGroupOptions`: the group name, the group deadline, and the group's
 convergence listeners. A group is not a task execution, so it has no concurrency, task type, or
-enqueue policy. Each member and combine declares `TaskOptions`: only that execution's timeout, task
-type, and enqueue policy. A member is a single task with no fan-out, so no parallelism field exists
-in its options — nested work submitted inside a member reads that nested submission's own options.
-Identity is not an option either: a member's diagnostic name is always its `TaskKey` name. Members
-typically declare `TaskOptions.inheritTimeout()` so they run under the group deadline; an explicit
-member timeout is capped by it. A group that declares `inheritTimeout` must be submitted from
+enqueue policy. A member or combine declares `TaskOptions` only when it must differ: the type carries
+just that execution's timeout, task type, and enqueue policy. A member is a single task with no
+fan-out, so no parallelism field exists in its options — nested work submitted inside a member reads
+that nested submission's own options. Identity is not an option either: a member's diagnostic name is
+always its `TaskKey` name. A member runs under the group deadline by default — omitting the fourth
+argument is exactly `TaskOptions.inheritTimeout()`, so a member can never outlive the group deadline
+that way. Pass options explicitly only for a tighter budget, a different task type, or a different
+enqueue policy; an explicit member timeout is capped by the group deadline. A group that declares `inheritTimeout` must be submitted from
 inside a scoped task, otherwise `submit` is rejected.
 
 ```java
@@ -86,8 +88,7 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 
 TaskKey<User> user = definition.task(
         new TaskKey<User>("user") {},
-        DATABASE, userRepository::load,
-        TaskOptions.inheritTimeout());
+        DATABASE, userRepository::load);
 TaskKey<List<Order>> orders = definition.task(
         new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,

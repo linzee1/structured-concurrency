@@ -143,6 +143,19 @@ public final class TaskGroupDefinition {
         }
 
         /**
+         * Registers one member that runs under the enclosing group's deadline.
+         *
+         * <p>Shorthand for {@link #task(TaskKey, ParName, Callable, TaskOptions)} with {@link
+         * TaskOptions#inheritTimeout()}. The deadline decision is already forced — and declared — at
+         * the group level, and a member that inherits it can never outlive it, so a member that
+         * needs no tighter budget declares nothing. Pass explicit options when the member needs its
+         * own task type, enqueue policy, or a tighter timeout.
+         */
+        public <T> TaskKey<T> task(TaskKey<T> key, ParName parName, Callable<T> callable) {
+            return task(key, parName, callable, TaskOptions.inheritTimeout());
+        }
+
+        /**
          * Registers one member. The key carries the member name and captures its result type;
          * name nullness and blankness are rejected by the {@link TaskKey} constructor, while a
          * duplicate name is rejected here. The {@code parName} is validated by {@link

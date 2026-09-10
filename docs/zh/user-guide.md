@@ -61,7 +61,7 @@ List<ListenableFuture<Account>> futures = result.results();
 
 当一个请求需要一小组固定、相互独立、返回类型或所用 `Par` 各不相同的操作时，使用任务组。任务组由 `TaskGroupDefinition` 描述：一个不可变、可复用的纯数据描述。`TaskGroupDefinition.Builder.task` 只记录定义；它不创建执行上下文、不捕获 TTL 值、不启动 timer、不提交任务。`TaskGroup.submit(global, definition)` 在提交时解析调用线程的上下文，冻结完整成员集合，准备全部成员后再统一提交。
 
-组作用域声明 `TaskGroupOptions`：只含组名、组 deadline 和组收敛监听器。组不是一次任务执行，所以它没有并发度、task type 或 enqueue 策略。每个成员和 combine 声明 `TaskOptions`：只含该次执行的 timeout、task type 和 enqueue 策略。成员是单任务，没有扇出，所以选项里不存在并发度字段——内部嵌套提交读取的是该嵌套提交自己的选项。身份也不是选项：成员的诊断名始终是它的 `TaskKey` 名。成员通常声明 `TaskOptions.inheritTimeout()` 以运行在组 deadline 之下；成员的显式 timeout 会被组 deadline 截断。声明 `inheritTimeout` 的组必须在一个 scoped task 内提交，否则 `submit` 被拒绝。
+组作用域声明 `TaskGroupOptions`：只含组名、组 deadline 和组收敛监听器。组不是一次任务执行，所以它没有并发度、task type 或 enqueue 策略。每个成员和 combine 需要收紧时才声明 `TaskOptions`：该类型只含这一次执行的 timeout、task type 和 enqueue 策略，省略即继承组 deadline。成员是单任务，没有扇出，所以选项里不存在并发度字段——内部嵌套提交读取的是该嵌套提交自己的选项。身份也不是选项：成员的诊断名始终是它的 `TaskKey` 名。成员默认就运行在组 deadline 之下：省略第四个实参等价于传入 `TaskOptions.inheritTimeout()`，成员永远不会因此超出组 deadline。需要更紧的预算、不同的 task type 或入队策略时才显式传入 `TaskOptions`；成员的显式 timeout 会被组 deadline 截断。声明 `inheritTimeout` 的组必须在一个 scoped task 内提交，否则 `submit` 被拒绝。
 
 ```java
 TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
@@ -69,8 +69,7 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 
 TaskKey<User> user = definition.task(
         new TaskKey<User>("user") {},
-        DATABASE, userRepository::load,
-        TaskOptions.inheritTimeout());
+        DATABASE, userRepository::load);
 TaskKey<List<Order>> orders = definition.task(
         new TaskKey<List<Order>>("orders") {},
         HTTP, orderClient::load,

@@ -665,6 +665,66 @@ class TaskGroupTest {
     }
 
     @Test
+    void omittedMemberOptionsDefaultToAnInheritedTimeoutAndTheStandardPolicy() {
+        TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("default-member"));
+        definition.task(new TaskKey<>("member") {}, ParName.of("direct"), () -> 1);
+
+        TaskOptions options = definition.build().tasks().get(0).options();
+
+        assertThat(options.timeout()).isEmpty();
+        assertThat(options.taskType()).isEqualTo(TaskType.CPU_BOUND);
+        assertThat(options.rejectEnqueue()).isTrue();
+    }
+
+    @Test
+    void omittedMemberOptionsResolveToTheGroupDeadline() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("direct"), direct).build();
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("omitted-member"));
+            TaskKey<Long> member = definition.task(
+                    new TaskKey<>("member") {},
+                    ParName.of("direct"),
+                    () -> TaskExecutionContext.current().multiTaskContext().deadlineNanos());
+
+            TaskGroup group = TaskGroup.submit(global, definition.build());
+            TaskGroupResult result = group.completionFuture().get(2, TimeUnit.SECONDS);
+
+            assertThat(group.future(member).get(2, TimeUnit.SECONDS)).isEqualTo(result.deadlineNanos());
+        } finally {
+            global.close();
+            direct.shutdownNow();
+        }
+    }
+
+    @Test
+    void omittedMemberTimeoutIsStillCappedByTheGroupDeadline() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        try {
+            TaskGroupDefinition.Builder definition =
+                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("capped-member", Duration.ofMillis(30)));
+            TaskKey<Long> member = definition.task(new TaskKey<>("slow") {}, ParName.of("worker"), () -> {
+                Thread.sleep(10_000);
+                return 1L;
+            });
+
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.members().get("slow").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.members().get("slow").startTimeNanos()).isPositive();
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void memberWithTighterExplicitTimeoutKeepsItsOwnDeadline() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         GlobalPar global =

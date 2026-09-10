@@ -67,16 +67,14 @@ TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(
 
 TaskKey<User> user = definition.task(
             new TaskKey<User>("get-user") {},
-            ParName.of("user"), userService::getUser,
-            TaskOptions.inheritTimeout());
+            ParName.of("user"), userService::getUser);
 TaskKey<List<Order>> orders = definition.task(
             new TaskKey<List<Order>>("get-orders") {},
             ParName.of("order"), orderService::getOrders,
-            TaskOptions.inheritTimeout());
+            TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND));
 TaskKey<Inventory> inventory = definition.task(
             new TaskKey<Inventory>("get-inventory") {},
-            ParName.of("inventory"), inventoryService::getInventory,
-            TaskOptions.inheritTimeout());
+            ParName.of("inventory"), inventoryService::getInventory);
 
 try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
     User userValue = group.future(user).get();
@@ -93,6 +91,10 @@ public final class TaskGroupDefinition {
     public List<TaskDefinition<?>> tasks();
 
     public static final class Builder {
+        public <T> TaskKey<T> task(
+                TaskKey<T> key,
+                ParName parName,
+                Callable<T> callable);
         public <T> TaskKey<T> task(
                 TaskKey<T> key,
                 ParName parName,
@@ -227,6 +229,10 @@ product type 换成三个角色 product 组成的不相交并集：分支选择�
   `IllegalArgumentException`；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
 - 成员的诊断名始终取注册 key 的 name；
+- 成员选项 MAY 省略：`task(key, parName, callable)` 等价于第四个实参传
+  `TaskOptions.inheritTimeout()`。省略不放宽任何约束——成员始终受组 deadline 上界约束，不可能
+  因此获得无界执行；这道强制选择已在组级做过且已写明，成员侧的第二次声明在常态下不携带信息。
+  需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
 - 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`/`TaskGroup.submit`）读取
   的是该嵌套提交自己的选项；
 - options 不保存运行状态，可安全复用；listener 在 `TaskGroupOptions` 构造时复制成不可修改
