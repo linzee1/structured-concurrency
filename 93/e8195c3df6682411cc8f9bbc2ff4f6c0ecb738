@@ -1,0 +1,41 @@
+design/task-group-cancellation.md
+  ai_agent 1-154
+design/task-group-terminal-combine.md
+  ai_agent 1-214
+design/draining-queue-contract.md
+  ai_agent 1-302
+design/first-principles.md
+  ai_agent 1-70
+design/task-group-observability-and-verification.md
+  ai_agent 1-156
+adr/0002-separate-task-execution-and-future-lifecycle.md
+  ai_agent 1-454
+adr/0001-layered-cartesian-concurrency-testing.md
+  ai_agent 1-369
+design/cancellation-propagation.md
+  ai_agent 1-147
+adr/0005-globalpar-executor-binding.md
+  ai_agent 1-1228
+design/task-group-lifecycle.md
+  ai_agent 1-256
+design/task-group-api-and-options.md
+  ai_agent 1-311
+adr/0003-event-coalesced-purge-maintenance.md
+  ai_agent 1-113
+adr/0004-lifecycle-blocking-queue-recovery.md
+  ai_agent 1-206
+adr/AGENTS.md
+  ai_agent 1-43
+design/extension-and-wrapping.md
+  ai_agent 1-362
+design/task-group-submission.md
+  ai_agent 1-138
+design/AGENTS.md
+  ai_agent 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "93e8195c3df6682411cc8f9bbc2ff4f6c0ecb738",
+  "prompts": {}
+}
