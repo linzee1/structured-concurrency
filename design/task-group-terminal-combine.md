@@ -53,21 +53,20 @@ TaskKey<Inventory> inventory = new TaskKey<Inventory>("inventory") {};
 TaskKey<AccountPage> page = new TaskKey<AccountPage>("assemble-page") {};
 
 TaskGroupOptions groupOptions = TaskGroupOptions.timeout("account-page", Duration.ofSeconds(3));
-TaskOptions userOptions = TaskOptions.inheritTimeout();   // order/inventory/combine 同型
+TaskOptions userOptions = TaskOptions.inheritTimeout().taskType(TaskType.IO_BOUND);
 
+// combine 依赖全部成员，因此由终止方法声明：注册 combine 与 build 是同一次调用
 TaskGroupDefinition definition = TaskGroupDefinition.builder(groupOptions)
         .task(user, ParName.of("database"), () -> users.load(request.userId()), userOptions)
-        .task(orders, ParName.of("http"), () -> orderClient.load(request.userId()), orderOptions)
-        .task(inventory, ParName.of("inventory"), () -> inventoryClient.load(), inventoryOptions)
-        .combine(
+        .task(orders, ParName.of("http"), () -> orderClient.load(request.userId()))
+        .task(inventory, ParName.of("inventory"), () -> inventoryClient.load())
+        .buildWithCombiner(
                 page,
                 ParName.of("cpu"),
                 values -> new AccountPage(
                         values.value(user),
                         values.value(orders),
-                        values.value(inventory)),
-                combineOptions)
-        .build();
+                        values.value(inventory)));
 
 try (TaskGroup group = TaskGroup.submit(global, definition)) {
     ListenableFuture<AccountPage> pageFuture = group.future(page);
@@ -94,7 +93,7 @@ public final class CompletedTaskValues {
 
 - `CompletedTaskValues` 是 final class 而非 interface：用户从不实现它，只在 lambda 中调用 `value(key)`；实例化由框架独占，"视图仅在 `apply` 期间有效、回调返回后可释放引用"的语义不受第三方实现干扰；
 - `CombineFunction` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为 `USER_FAILURE`），combine 与 member 并列在同一定义 API 上，受检异常处理必须对称；JDK 函数式接口中没有"单参且抛受检异常"的类型，这是新增此接口的唯一理由。注意 Batch（`Par.map`）的用户函数是不抛受检异常的 JDK `Function`——这是既有分叉（batch 元素仿 `Stream.map`，group member 仿 `ExecutorService.submit(Callable)`），combine 跟随 member 一侧。备选方案 `Function<CompletedTaskValues, R>`（零新增函数式接口、用户自行包装受检异常）被拒绝：运行时异常虽仍能收敛 `USER_FAILURE`，但同一 Builder 内 member/combine 不对称，且包装污染 `TaskCompletion.failure()` 的 cause 链；
-- `combine(key, parName, function, options)` 在配置期校验：参数为 null、key 名称与任一 member 或 combine 重复，立即拒绝；一个 definition 至多一个 combine。executor 只接受注册名（submit 时经 `GlobalPar.par(parName)` 解析，未知名称抛 `IllegalArgumentException`），不提供 `Par` 实例重载，与 member 对称；
+- combine 由终止方法 `buildWithCombiner(key, parName, function[, options])` 声明：它注册 combine 并返回构建完成的 definition，因此 combine 不可能被声明在成员之前，也不需要单独的 `build()` 调用。选项可省略，等价于 `TaskOptions.inheritTimeout()`——与 member 相同的默认；它同样在配置期校验：参数为 null、key 名称与任一 member 或 combine 重复，立即拒绝；一个 definition 至多一个 combine。executor 只接受注册名（submit 时经 `GlobalPar.par(parName)` 解析，未知名称抛 `IllegalArgumentException`），不提供 `Par` 实例重载，与 member 对称；
 - `TaskGroup` 不新增泛型参数，也不新增 `resultFuture()`：terminal future 通过既有的 `group.future(combineKey)` 取回，类型安全、未知 key 校验和 Guava 终态语义全部复用成员路径；
 - `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用 timeout/taskType/rejectEnqueue，与 member 一致；身份取 combine key 的 name。`TaskOptions` 不含 name/listeners，因此 combine 不可能通过选项覆盖 Group 名称或取消策略（见 [API 与选项 §3.2](task-group-api-and-options.md)）；
 - 没有 combine 的 Group 不创建任何虚假终端任务，也不存在 `Void` 特殊路径。

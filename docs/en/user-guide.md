@@ -125,19 +125,22 @@ itself does not add dependency edges between siblings.
 
 ### Terminal combine
 
-When the request ends by assembling the member values into one result, the definition can declare
-a single terminal combine instead of wiring `Futures` callbacks yourself. The combine is a real
+When the request ends by assembling the member values into one result, the terminal `buildWithCombiner` call declares
+a single combine — registering it and building the definition at once — instead of making you wire
+`Futures` callbacks yourself. The combine is a real
 scoped task — prepared at submit like a member, but submitted to its own `Par` only after every
 member succeeds — so it inherits the group's structured cancellation, deadline, and observability:
 
 ```java
-TaskKey<AccountPage> page = definition.combine(
-        new TaskKey<AccountPage>("assemble-page") {},
-        ParName.of("cpu"),
-        values -> new AccountPage(values.value(user), values.value(orders)),
-        TaskOptions.inheritTimeout());
+TaskKey<AccountPage> page = new TaskKey<AccountPage>("assemble-page") {};
 
-try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
+// The combine depends on every member, so the terminal call declares it and builds the definition
+TaskGroupDefinition built = definition.buildWithCombiner(
+        page,
+        ParName.of("cpu"),
+        values -> new AccountPage(values.value(user), values.value(orders)));
+
+try (TaskGroup group = TaskGroup.submit(global, built)) {
     AccountPage accountPage = group.future(page).get();
 }
 ```

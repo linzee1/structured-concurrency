@@ -88,16 +88,18 @@ try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
 
 ### 终端汇合
 
-当请求最终要把各成员的值组装成一个结果时，可以在定义中声明一个终端 combine，而不必自己编排 `Futures` 回调。combine 是真实的 scoped 任务——submit 时与成员一样完成准备，但只在所有成员成功后才提交到它自己的 `Par`——因此它继承组的结构化取消、deadline 和可观测性：
+当请求最终要把各成员的值组装成一个结果时，可以在定义中用终止方法 `buildWithCombiner` 声明一个终端 combine（它同时完成构建），而不必自己编排 `Futures` 回调。combine 是真实的 scoped 任务——submit 时与成员一样完成准备，但只在所有成员成功后才提交到它自己的 `Par`——因此它继承组的结构化取消、deadline 和可观测性：
 
 ```java
-TaskKey<AccountPage> page = definition.combine(
-        new TaskKey<AccountPage>("assemble-page") {},
-        ParName.of("cpu"),
-        values -> new AccountPage(values.value(user), values.value(orders)),
-        TaskOptions.inheritTimeout());
+TaskKey<AccountPage> page = new TaskKey<AccountPage>("assemble-page") {};
 
-try (TaskGroup group = TaskGroup.submit(global, definition.build())) {
+// combine 依赖全部成员，因此由终止方法声明：注册 combine 与 build 是同一次调用
+TaskGroupDefinition built = definition.buildWithCombiner(
+        page,
+        ParName.of("cpu"),
+        values -> new AccountPage(values.value(user), values.value(orders)));
+
+try (TaskGroup group = TaskGroup.submit(global, built)) {
     AccountPage accountPage = group.future(page).get();
 }
 ```

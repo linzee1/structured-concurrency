@@ -174,12 +174,27 @@ public final class TaskGroupDefinition {
         }
 
         /**
-         * Registers the terminal combine. The combine is a real scoped task that depends on every
-         * member: it is prepared at submit like a member but submitted to its executor only after
-         * all members succeed, and the group completes only when its future is terminal. A group
-         * accepts at most one combine; its name must not collide with any member name.
+         * Registers the terminal combine, which runs under the group deadline, and returns the
+         * finished definition.
+         *
+         * <p>A combine depends on every member, so it is declared by the terminal call instead of a
+         * separate step. Shorthand for {@link #buildWithCombiner(TaskKey, ParName, CombineFunction,
+         * TaskOptions)} with {@link TaskOptions#inheritTimeout()}.
          */
-        public <R> TaskKey<R> combine(
+        public <R> TaskGroupDefinition buildWithCombiner(TaskKey<R> key, ParName parName, CombineFunction<R> function) {
+            return buildWithCombiner(key, parName, function, TaskOptions.inheritTimeout());
+        }
+
+        /**
+         * Registers the terminal combine with explicit options and returns the finished definition.
+         *
+         * <p>The combine is a real scoped task that depends on every member: it is prepared at submit
+         * like a member but submitted to its executor only after all members succeed, and the group
+         * completes only when its future is terminal. A group accepts at most one combine; its name
+         * must not collide with any member name. The combine stays registered on this builder, so a
+         * later {@link #build()} returns the same definition.
+         */
+        public <R> TaskGroupDefinition buildWithCombiner(
                 TaskKey<R> key, ParName parName, CombineFunction<R> function, TaskOptions options) {
             Objects.requireNonNull(key, "key cannot be null");
             Objects.requireNonNull(parName, "parName cannot be null");
@@ -192,7 +207,7 @@ public final class TaskGroupDefinition {
                 throw new IllegalArgumentException("Duplicate name '" + key.name() + "'");
             }
             combine = new CombineDefinition<>(key, parName, function, options);
-            return key;
+            return build();
         }
 
         public TaskGroupDefinition build() {

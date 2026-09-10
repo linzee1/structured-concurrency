@@ -100,6 +100,15 @@ public final class TaskGroupDefinition {
                 ParName parName,
                 Callable<T> callable,
                 TaskOptions options);
+        public <R> TaskGroupDefinition buildWithCombiner(
+                TaskKey<R> key,
+                ParName parName,
+                CombineFunction<R> function);
+        public <R> TaskGroupDefinition buildWithCombiner(
+                TaskKey<R> key,
+                ParName parName,
+                CombineFunction<R> function,
+                TaskOptions options);
         public TaskGroupDefinition build();
     }
 }
@@ -131,7 +140,10 @@ public final class TaskGroup implements AutoCloseable {
 
 - `TaskGroupDefinition.Builder.task()` 只校验并保存不可变任务定义（key 为 null、name 重复、参数为
   null 立即拒绝；name 的 null/空白校验由 `TaskKey` 构造器完成）；不得提交 executor、启动
-  timer、创建 `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；
+  timer、创建 `MultiTaskContext`/`TaskExecutionContext` 或占用运行期资源；省略 `TaskOptions`
+  等价于传入 `TaskOptions.inheritTimeout()`；
+- `buildWithCombiner()` 是声明终端汇合的**终止方法**：它注册 combine 并返回构建完成的
+  definition，因此不必也无法把 combine 声明在成员之前；选项可省略，默认与成员相同；
 - `TaskGroup.submit()` 是唯一的冻结与提交入口；它按提交线程解析结构父任务与
   observation、创建并注册全部成员后才允许任何成员进入 executor；definition 本身可重复提交；
 - `TaskKey<T>` 由调用方以匿名子类创建（`new TaskKey<List<Order>>("orders") {}`），在运行时
@@ -162,7 +174,7 @@ submit 时创建，调用方用配置期注册的键在提交后取回类型安�
 |---|---|---|---|
 | `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue | 批次 unit 解析、滑动窗口并发上限、入队策略 |
 | `TaskGroupOptions` | `TaskGroupDefinition.builder(...)` | name / timeout / listeners | 组名、组 deadline、组收敛监听快照 |
-| `TaskOptions` | `Builder.task(...)`、`Builder.combine(...)` | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、CPU-bound inline 策略、入队拒绝策略 |
+| `TaskOptions` | `Builder.task(...)`、`Builder.buildWithCombiner(...)` | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、CPU-bound inline 策略、入队拒绝策略 |
 
 ```java
 public final class TaskOptions {
