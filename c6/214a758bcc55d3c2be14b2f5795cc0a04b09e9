@@ -1,0 +1,21 @@
+reports/mutation-testing-2026-08-21.md
+  ai_agent 1-85
+reports/recent-update-analysis.html
+  ai_agent 260
+reports/timer-holder-execution-analysis.html
+  ai_agent 1-974
+wiki/ai-concurrency-review-false-positive.md
+  ai_agent 60
+blogs/CancellationToken-lateBind-竞态分析翻车记录.md
+  ai_agent 1-160
+guava-monitor-code-reading-report.html
+  ai_agent 1-547
+reports/concurrent-limit-executor-inline-fallback-deadlock.html
+  ai_agent 1-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c6214a758bcc55d3c2be14b2f5795cc0a04b09e9",
+  "prompts": {}
+}
