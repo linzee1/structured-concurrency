@@ -186,7 +186,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
         final AtomicInteger cnt = this.count;
         lock.lockInterruptibly();
         try {
-            while (cnt.get() == capacity) {
+            while (cnt.get() >= capacity) {
                 notFull.await();
             }
             enqueue(node);
@@ -207,7 +207,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
         final AtomicInteger cnt = this.count;
         lock.lockInterruptibly();
         try {
-            while (cnt.get() == capacity) {
+            while (cnt.get() >= capacity) {
                 if (nanos <= 0L) return false;
                 nanos = notFull.awaitNanos(nanos);
             }
@@ -225,13 +225,13 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     public boolean offer(E e) {
         if (e == null) throw new NullPointerException();
         final AtomicInteger cnt = this.count;
-        if (cnt.get() == capacity) return false;
+        if (cnt.get() >= capacity) return false;
         int c;
         Node<E> node = new Node<>(e);
         final ReentrantLock lock = this.putLock;
         lock.lock();
         try {
-            if (cnt.get() == capacity) return false;
+            if (cnt.get() >= capacity) return false;
             enqueue(node);
             c = cnt.getAndIncrement();
             if (c + 1 < capacity) notFull.signal();

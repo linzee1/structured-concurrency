@@ -77,11 +77,10 @@ class VariableLinkedBlockingQueueTest {
 
     /**
      * Shrinking below the current size keeps existing elements and makes remainingCapacity negative;
-     * note the current implementation only rejects offers at exactly {@code size == capacity}, so a
-     * shrunk queue keeps accepting elements until size catches up with the new capacity.
+     * the queue admits no further elements until takes bring the size back below the new capacity.
      */
     @Test
-    void setCapacity_shrink_belowSize_keepsExistingElements() {
+    void setCapacity_shrink_belowSize_keepsExistingElements() throws Exception {
         VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(3);
         queue.offer("a");
         queue.offer("b");
@@ -89,8 +88,13 @@ class VariableLinkedBlockingQueueTest {
         assertEquals(1, queue.capacity());
         assertEquals(2, queue.size());
         assertEquals(-1, queue.remainingCapacity());
+        assertFalse(queue.offer("c"));
+        assertFalse(queue.offer("c", 50, TimeUnit.MILLISECONDS));
+        assertEquals(2, queue.size());
+        assertEquals("a", queue.take());
+        assertEquals("b", queue.take());
         assertTrue(queue.offer("c"));
-        assertEquals(3, queue.size());
+        assertEquals(1, queue.size());
     }
 
     @Test

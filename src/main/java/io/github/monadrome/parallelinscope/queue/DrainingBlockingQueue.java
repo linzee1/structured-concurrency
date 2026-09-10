@@ -637,6 +637,12 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     public E peek() {
         takeMonitor.enter();
         try {
+            // Read count before head.next: the count read is the happens-before edge to a
+            // concurrent enqueue under putMonitor, so a racing offer cannot produce a spurious
+            // null on a non-empty queue.
+            if (count.get() == 0) {
+                return drained() ? drainedSpecialValue() : null;
+            }
             Node<E> first = head.next;
             if (first != null) {
                 return first.item;
@@ -720,6 +726,13 @@ public class DrainingBlockingQueue<E> extends AbstractQueue<E> implements Blocki
     public E element() {
         takeMonitor.enter();
         try {
+            // See peek(): the count read orders this against concurrent enqueues.
+            if (count.get() == 0) {
+                if (drained()) {
+                    return drainedRequiredValue("element");
+                }
+                throw new NoSuchElementException();
+            }
             Node<E> first = head.next;
             if (first != null) {
                 return first.item;
