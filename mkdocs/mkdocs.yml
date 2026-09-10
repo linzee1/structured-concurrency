@@ -1,10 +1,10 @@
 site_name: parallel-in-scope
 site_description: A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, deadlock detection, and sliding-window scheduling
-site_url: https://huatalk.github.io/parallel-in-scope/
+site_url: https://monadrome.github.io/parallel-in-scope/
 docs_dir: ../docs
 
-repo_name: HuaTalk/parallel-in-scope
-repo_url: https://github.com/HuaTalk/parallel-in-scope
+repo_name: monadrome/parallel-in-scope
+repo_url: https://github.com/monadrome/parallel-in-scope
 edit_uri: edit/main/docs/
 
 copyright: © parallel-in-scope — Apache License 2.0
@@ -16,19 +16,18 @@ nav:
       - Cooperative cancellation: reference/cooperative-cancellation.md
       - Nullability annotations: reference/nullability-annotations.md
   - Implementation & Design:
-      - ThreadRelay internals: internals/thread-relay.md
       - Design philosophy: design/philosophy.md
       - Idea Graveyard: design/idea-graveyard.md
   - Tests & Cases:
-      - AsyncBatchResult test design: testing/async-batch-result-report-test-design.md
+      - TaskBatchResult test design: testing/task-batch-result-report-test-design.md
       - AI concurrency review case study: case-studies/ai-concurrency-review-false-positive.md
-  - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
+  - Issues: https://github.com/monadrome/parallel-in-scope/issues
 
 extra:
   generator: false
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/HuaTalk/parallel-in-scope
+      link: https://github.com/monadrome/parallel-in-scope
       name: GitHub
 
 theme:
@@ -102,16 +101,15 @@ plugins:
   - search
   - redirects:
       redirect_maps:
-        zh-CN/README.md: https://huatalk.github.io/parallel-in-scope/zh/
-        zh-CN/user-guide.md: https://huatalk.github.io/parallel-in-scope/zh/user-guide/
-        zh-CN/reference/cooperative-cancellation.md: https://huatalk.github.io/parallel-in-scope/zh/reference/cooperative-cancellation/
-        zh-CN/reference/nullability-annotations.md: https://huatalk.github.io/parallel-in-scope/zh/reference/nullability-annotations/
-        zh-CN/reference/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/reference/testing/async-batch-result-report-test-design/
-        zh-CN/internals/thread-relay.md: https://huatalk.github.io/parallel-in-scope/zh/internals/thread-relay/
-        zh-CN/design/philosophy.md: https://huatalk.github.io/parallel-in-scope/zh/design/philosophy/
-        zh-CN/design/idea-graveyard.md: https://huatalk.github.io/parallel-in-scope/zh/design/idea-graveyard/
-        zh-CN/testing/async-batch-result-report-test-design.md: https://huatalk.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
-        zh-CN/case-studies/ai-concurrency-review-false-positive.md: https://huatalk.github.io/parallel-in-scope/zh/case-studies/ai-concurrency-review-false-positive/
+        zh-CN/README.md: https://monadrome.github.io/parallel-in-scope/zh/
+        zh-CN/user-guide.md: https://monadrome.github.io/parallel-in-scope/zh/user-guide/
+        zh-CN/reference/cooperative-cancellation.md: https://monadrome.github.io/parallel-in-scope/zh/reference/cooperative-cancellation/
+        zh-CN/reference/nullability-annotations.md: https://monadrome.github.io/parallel-in-scope/zh/reference/nullability-annotations/
+        zh-CN/reference/testing/async-batch-result-report-test-design.md: https://monadrome.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
+        zh-CN/design/philosophy.md: https://monadrome.github.io/parallel-in-scope/zh/design/philosophy/
+        zh-CN/design/idea-graveyard.md: https://monadrome.github.io/parallel-in-scope/zh/design/idea-graveyard/
+        zh-CN/testing/async-batch-result-report-test-design.md: https://monadrome.github.io/parallel-in-scope/zh/testing/async-batch-result-report-test-design/
+        zh-CN/case-studies/ai-concurrency-review-false-positive.md: https://monadrome.github.io/parallel-in-scope/zh/case-studies/ai-concurrency-review-false-positive/
   - i18n:
       docs_structure: folder
       fallback_to_default: false
@@ -133,13 +131,12 @@ plugins:
                 - 协作式取消: reference/cooperative-cancellation.md
                 - 空值注解: reference/nullability-annotations.md
             - 实现与设计:
-                - ThreadRelay 内部机制: internals/thread-relay.md
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md
             - 测试与案例:
-                - AsyncBatchResult 测试设计: testing/async-batch-result-report-test-design.md
+                - TaskBatchResult 测试设计: testing/task-batch-result-report-test-design.md
                 - AI 并发审查误报复盘: case-studies/ai-concurrency-review-false-positive.md
-            - Issues: https://github.com/HuaTalk/parallel-in-scope/issues
+            - Issues: https://github.com/monadrome/parallel-in-scope/issues
   - git-revision-date-localized
 
 extra_css:

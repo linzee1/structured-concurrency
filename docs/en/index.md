@@ -7,8 +7,9 @@ This page is the English entry point for the user guide, API references, design 
 | Document | Role |
 |---|---|
 | [Full user guide](user-guide.md) | **Primary guide**: configuration, public APIs, runtime behavior, and advanced features |
-| [Demo project](https://github.com/HuaTalk/parallel-in-scope/blob/main/demo/README.en.md) | Runnable examples and build commands |
-| [Demo documentation map](https://github.com/HuaTalk/parallel-in-scope/blob/main/demo/docs/en/README.md) | English entry point for the example catalog |
+| [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/blob/main/demo/README.en.md) | Runnable examples and build commands |
+| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/main/demo/docs/en/README.md) | English entry point for the example catalog |
 
 ## API and Contracts
 
@@ -21,7 +22,6 @@ This page is the English entry point for the user guide, API references, design 
 
 | Document | Role |
 |---|---|
-| [ThreadRelay internals](internals/thread-relay.md) | Cross-thread context relay |
 | [Design philosophy](design/philosophy.md) | Design decisions and boundaries |
 | [Idea Graveyard](design/idea-graveyard.md) | Intentionally unsupported features |
 
@@ -29,7 +29,7 @@ This page is the English entry point for the user guide, API references, design 
 
 | Document | Role |
 |---|---|
-| [AsyncBatchResult test design](testing/async-batch-result-report-test-design.md) | Stable report contracts and concurrency assertions |
+| [TaskBatchResult test design](testing/task-batch-result-report-test-design.md) | Stable report contracts and concurrency assertions |
 | [AI concurrency review case study](case-studies/ai-concurrency-review-false-positive.md) | A false-positive review and how to verify it |
 
 ## Documentation Roles
