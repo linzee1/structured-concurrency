@@ -1,0 +1,179 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupOptions.java
+  ai_agent 1-84
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerBoundaryTest.java
+  ai_agent 1,3-4,6-7,10-12,15-17,19-21,23-28,30-37,40-43,46-55,59-72,76-89,91-104
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  ai_agent 1-211
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  ai_agent 1-627
+src/main/java/io/github/monadrome/parallelinscope/CombineFunction.java
+  ai_agent 1,4-21,23,25-26,29,31-33,35
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerConcurrencyTest.java
+  ai_agent 1-4,6-7,11,14-15,17-20,22,25,28-30,32-54,56-58,60-62,65,67-83,86,88-112,115,117-137,140,142-156,158-163,165-172,174,177-182,185-188,190-191,193,195-198,201-203,205-207,210-215,217-227,230-244,246,248-264
+src/main/java/io/github/monadrome/parallelinscope/GlobalParPurgePolicy.java
+  ai_agent 1,4,6-7,9-12,14-18,20-21,24-25,28-29,32-43,45-59,62-65
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  ai_agent 1-106
+src/test/java/io/github/monadrome/parallelinscope/ScopedCallableContextRestoreTest.java
+  ai_agent 1-101
+src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  ai_agent 1-733
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphPolarityTest.java
+  ai_agent 1-191
+src/main/java/io/github/monadrome/parallelinscope/ExecutorIdentity.java
+  ai_agent 1-47
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphObservationScope.java
+  ai_agent 1,4,8,12,15-25,27-31,36,38,40-42,44-54,56-59,63-65,67-70,72-75,77-81,83-93,95-103,105-113,115-123,125-133,135-137,139-141,143-151,157-158,160-174,179-183,187-191,197,199-201,204,206-207,212
+src/main/java/io/github/monadrome/parallelinscope/GlobalParDeadlockPolicy.java
+  ai_agent 1-53
+src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java
+  ai_agent 1,3-4,6-7,9-14,18-19,21-24,27-30,32,34-37,40-41,44-50,52-72,76-81,83-106,110-115,117-124,128-134,136-150,154-160,162-181,185-192,194-228,232-236,238-264,268-272,274-275,278-280,284-286,288-311,313-317,321-322,324,326-329,331-332,335-336,339-343,346-349,352-353,355-357,360-363,366-368,371-373,376-378,381-383
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphObservationScopeTest.java
+  ai_agent 1,3-4,6-12,14-15,17,20-24,28-44,48-50,52-64,68-86,88-95,99-105,108-138,142-143
+src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java
+  ai_agent 1,11-13,15-18,20-24,29,34-35,37-39,41-42,45,49,52-54,58,61-63,67,70-72,74-76,79-80,86-87,95-97,103,105-108,110,114,116-117,123-131,135-136,140-157,163-166,171-183,186-200
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhase.java
+  ai_agent 1,4,6-7,9-12,14-19
+src/test/java/io/github/monadrome/parallelinscope/GlobalParTest.java
+  ai_agent 1-577
+src/main/java/io/github/monadrome/parallelinscope/CompletedTaskValues.java
+  ai_agent 1,3-5,9-10,12-18,20,22-23,25-27,31,33-35,37-45,47-49,52-57
+src/main/java/io/github/monadrome/parallelinscope/TaskSubmissions.java
+  ai_agent 1-72
+src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java
+  ai_agent 1,3-4,6,9,11-15,17-18,22-36,40-43,47-67,70-76,78-79,81-87,90-91
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphExportTest.java
+  ai_agent 1-487
+src/main/java/io/github/monadrome/parallelinscope/TaskCompletion.java
+  ai_agent 1-204
+src/test/java/io/github/monadrome/parallelinscope/CancellationTokenLateBindRaceTest.java
+  ai_agent 1-140
+src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java
+  ai_agent 1-109
+src/test/java/io/github/monadrome/parallelinscope/ActionGateTest.java
+  ai_agent 1-153
+src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java
+  ai_agent 1-81
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupOptionsTest.java
+  ai_agent 1-75
+src/main/java/io/github/monadrome/parallelinscope/GlobalPar.java
+  ai_agent 1,3-5,8,14-16,19-21,24-26,28-29,32,34-38,40-43,45-104,106-108,111,113-115,117-132,136,138,140-143,146-148,152-154,156-157,161-162,164-166,169-170,173-175,177-179,182-185,187-189,192-194,196-197,200-202,205-208,210,212-213,217,219,221-222,226,228-232,234-239,242-252,255-262,264-273,277-287,290-292,295-355,358-439
+src/test/java/io/github/monadrome/parallelinscope/CancellationTriggerCartesianTest.java
+  ai_agent 1,3,5,9,14,16-22,24-25,27-29,32-37,40-44,47-84,88,90-107,111-116,118,121-125,127,130-137,139-141,144-197,199-238,240-243,245-253
+src/test/java/io/github/monadrome/parallelinscope/GlobalParPoliciesTest.java
+  ai_agent 1-117
+src/main/java/io/github/monadrome/parallelinscope/TaskOutcome.java
+  ai_agent 1-40
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  ai_agent 1-4,11,14,16,20-22,24-27,33,35,37,40-45,51-57,59,61,64,66,70-81,86,90-91,94-111,114-116,118-122,126-141,145,150,154-155,158-171,174,178-194
+src/test/java/io/github/monadrome/parallelinscope/ListenableCompletionServiceTest.java
+  ai_agent 1-337
+src/main/java/io/github/monadrome/parallelinscope/TaskListener.java
+  ai_agent 1,4-11,15-16,19,21,23
+src/test/java/io/github/monadrome/parallelinscope/TaskCompletionTest.java
+  ai_agent 1-88
+src/test/java/io/github/monadrome/parallelinscope/TaskKeyTest.java
+  ai_agent 1-45
+src/main/java/io/github/monadrome/parallelinscope/TaskGraphData.java
+  ai_agent 1-12,14-15,17-18,21-29,33-34,36-37,39-44,47,49,51-59,63,65,67-69,71,75,77,79-81,83,87,89,91-92,96,98,100-103,105-106,110,112,114-117,119,122-138,140-146,149-153,155-180,182-189,191,194-213,215
+src/test/java/io/github/monadrome/parallelinscope/CancellationPropagationCartesianTest.java
+  ai_agent 1-185
+src/test/java/io/github/monadrome/parallelinscope/CheckpointsTest.java
+  ai_agent 1,3-4,8,13,16,19-21,23,25,30-39,42-48,51-59,63-65,68-69,73-81,85-95,97-99,101-104,108-111,113-122,126-170,174-195,197-203,207,209-229,231,233,236-238,240-244,246,248-280,283-287,290-292
+src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  ai_agent 1,3,10,12,16-20,25,28,30,32,36-38,42,49-51,54,59,61-62,65-66,70,72-73,77-78,82-92,94,97-105,110-111,117-120,123,128-129,134,136,142,145,156-158,166-168,175-176,180
+src/test/java/io/github/monadrome/parallelinscope/ActionGateBoundaryTest.java
+  ai_agent 1-57
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  ai_agent 1,3-6,9-19,21-40,42-44,46-48,50-52,54-56,58-60,62-84,86-88
+src/main/java/io/github/monadrome/parallelinscope/TaskExecutionContext.java
+  ai_agent 1,3,6-51,54-55,58-60,63-67,70-73,76-77,80-81
+src/test/java/io/github/monadrome/parallelinscope/ScopePrimitivesTest.java
+  ai_agent 1-325
+src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java
+  ai_agent 1-59
+src/test/java/io/github/monadrome/parallelinscope/CheckpointsOutcomeTest.java
+  ai_agent 1-4,6,9,11-13,16-18,20,23-24,27-29,32-39,41-42,46-49,53-56,60-67,71-79,81-84,86-90,95-111,116-123,127-142,146-154,158-166,169-180,183-217,219-220,222-226
+src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java
+  ai_agent 1-20,23-38,40-49,51-52,56-59,61-64,66-67,71-74,76-80,82-83,87-91,93-110,113-114,118-122,124-129,132,136-140,142-155,157-158,162-165,167-181,183-184,188-192,194-197,199,203-207,209-210,212-217,219,223-227,229-242,244,248-252,254-256,259-262,265-267,270-272,275-278,280-283,285-301,303-304,308-312,315-323,325-333,337-340
+src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  ai_agent 1-4,12-14,16-17,21,24-35,37-39,44,46-47,49,51-58,63,65-66,70-92,95-97,99,101-102,105-228
+src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseCartesianTest.java
+  ai_agent 1-147
+src/main/java/io/github/monadrome/parallelinscope/HeuristicPurger.java
+  ai_agent 1-426
+src/main/java/io/github/monadrome/parallelinscope/TaskFuture.java
+  ai_agent 1-77
+src/test/java/io/github/monadrome/parallelinscope/LeanCancellationExceptionTest.java
+  ai_agent 1-32
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerCartesianTest.java
+  ai_agent 1-120
+src/main/java/io/github/monadrome/parallelinscope/BlockingRisk.java
+  ai_agent 1-9
+src/main/java/io/github/monadrome/parallelinscope/ActionGate.java
+  ai_agent 1-177
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  ai_agent 1,3,5,10,14-20,22-27,34-36,38-42,44-45,48-50,53-55,58-73,77-84,86-91,93-96,99-104,106-117,120-122,124-129,131-140,142-143,145-146,151-152,154-161,164-165
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerQueueCompatibilityTest.java
+  ai_agent 1-124
+src/main/java/io/github/monadrome/parallelinscope/package-info.java
+  ai_agent 1-8,10
+src/main/java/io/github/monadrome/parallelinscope/ExecutorRuntime.java
+  ai_agent 1,5-6,8,11,13-15,17-23,25-27,29-39,42-43,46-47,50-56,58-74
+src/main/java/io/github/monadrome/parallelinscope/SubmissionException.java
+  ai_agent 1,4-6,8,11-12
+src/test/java/io/github/monadrome/parallelinscope/TaskEdgeTest.java
+  ai_agent 1,3,5,8,10-23,27-41
+src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java
+  ai_agent 1-220
+src/main/java/io/github/monadrome/parallelinscope/TaskEdge.java
+  ai_agent 1,3,6-10,14,21-24,29-51,53-55,57-86,92-95,100,103-106,109,112-115,118,121-124,127,130-133,136,139-142,145-146,148-169,173-175
+src/test/java/io/github/monadrome/parallelinscope/DeadlockDetectionListenerTest.java
+  ai_agent 1,3,5-6,8-9,12-18,22-27,31-34,38-42,46-51
+src/test/java/io/github/monadrome/parallelinscope/TaskExecutionContextTest.java
+  ai_agent 1-67
+src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  ai_agent 1-9,18-20,23-26,29-35,41-42,44-47,52-56,60-72,74-83,86,88,92,101-121,123-124,126,128-138,140-142,144-149,151-160,164-174,181-212,220,223-300
+src/main/java/io/github/monadrome/parallelinscope/ListenableCompletionService.java
+  ai_agent 1-13,15-16,19-23,25,27,29,31-33,36,38,40-43,45,47-48,50-53,55,57-59,61-69,71,73-75,77-82,84-91,94,96-97,99-101,105,107-108,110-113,117,119-120,122-123,127,129-134,136-143,147,149-151,153-155,159,161-162,164-166,170,172,174-176,180,182-185,188-189
+src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java
+  ai_agent 1,3-6,12-15,23-27,32-34,41-42,50-51,54,58-70,73-86,89-128,136,144,148-149,153,157,161,170,176,180,187,192,199-232,241,247,251,254,259,264-350
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineTest.java
+  ai_agent 1-402
+src/main/java/io/github/monadrome/parallelinscope/ParName.java
+  ai_agent 1-64
+src/main/java/io/github/monadrome/parallelinscope/Task.java
+  ai_agent 1-264
+src/main/java/io/github/monadrome/parallelinscope/SubmissionScope.java
+  ai_agent 1-3,6,8-9,11-12,14,16-18,21-25,28-31
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupListener.java
+  ai_agent 1,3,5-8,10-12,14-16,18-21
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java
+  ai_agent 1-225
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphBatchIdentityTest.java
+  ai_agent 1,3,5,9,11,13-25,27,32-45,47,52-58,60,63-67,69,74-89,91-93,98-104,108-114,116-125,127,132-138,140-142,144,146-190
+src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java
+  ai_agent 1-70
+src/test/java/io/github/monadrome/parallelinscope/HeuristicPurgerExpiryTest.java
+  ai_agent 1-217
+src/test/java/io/github/monadrome/parallelinscope/FutureInspectorTest.java
+  ai_agent 1,3,8-10,21,23,27,29,33,35,39,41-54,68-81,84-125
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  ai_agent 1-1103
+src/main/java/io/github/monadrome/parallelinscope/TaskKey.java
+  ai_agent 1-71
+src/test/java/io/github/monadrome/parallelinscope/BatchOptionsTest.java
+  ai_agent 1-103
+src/test/java/io/github/monadrome/parallelinscope/PackageBoundaryTest.java
+  ai_agent 1-62
+src/test/java/io/github/monadrome/parallelinscope/SmartBlockingQueueTest.java
+  ai_agent 1,3-4,6-7,11,13-14,18-23,27-34,38-49,52-59,62-69
+src/test/java/io/github/monadrome/parallelinscope/TaskOptionsTest.java
+  ai_agent 1-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "68584d15688de125acefe25a716fa2a9b485badb",
+  "prompts": {}
+}
