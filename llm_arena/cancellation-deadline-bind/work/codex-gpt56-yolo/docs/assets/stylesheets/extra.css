@@ -1,0 +1,10 @@
+/* 微调：正文最大行宽，提升长文档可读性 */
+.md-grid {
+  max-width: 1400px;
+}
+
+/* 表格更紧凑 */
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+  padding: 0.6em 0.9em;
+}

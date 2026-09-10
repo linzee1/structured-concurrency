@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.huatalk</groupId>
+    <artifactId>parallel-in-scope-demo</artifactId>
+    <version>0.1.0</version>
+    <packaging>jar</packaging>
+
+    <name>parallel-in-scope-demo</name>
+    <description>
+        Demo and examples for parallel-in-scope.
+        This is a standalone module that depends only on the published library artifact.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>8</maven.compiler.release>
+        <parallel-in-scope.version>0.2.0-SNAPSHOT</parallel-in-scope.version>
+        <junit-jupiter.version>5.14.4</junit-jupiter.version>
+        <assertj.version>3.27.7</assertj.version>
+    </properties>
+
+    <dependencies>
+        <!-- parallel-in-scope: published artifact from Maven Central -->
+        <dependency>
+            <groupId>io.github.huatalk</groupId>
+            <artifactId>parallel-in-scope</artifactId>
+            <version>${parallel-in-scope.version}</version>
+        </dependency>
+
+        <!-- Test: JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test: AssertJ -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <!-- Keep the standalone demo on its conservative Java 8 build baseline. -->
+                <version>3.15.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.5</version>
+            </plugin>
+            <!-- Code formatting: `mvn spotless:apply` formats all sources -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.44.5</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat>
+                            <version>2.97.0</version>
+                        </palantirJavaFormat>
+                    </java>
+                </configuration>
+            </plugin>
+            <!-- exec-maven-plugin for running demos -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <mainClass>demo.basic.BasicParDemo</mainClass>
+                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>run-all-demos</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>run-basic</id>
+                                <phase>verify</phase>
+                                <goals><goal>java</goal></goals>
+                                <configuration>
+                                    <mainClass>demo.basic.BasicParDemo</mainClass>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>run-cancellation</id>
+                                <phase>verify</phase>
+                                <goals><goal>java</goal></goals>
+                                <configuration>
+                                    <mainClass>demo.basic.CancellationDemo</mainClass>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>run-deadlock</id>
+                                <phase>verify</phase>
+                                <goals><goal>java</goal></goals>
+                                <configuration>
+                                    <mainClass>demo.advanced.DeadlockDetectionDemo</mainClass>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>run-batch</id>
+                                <phase>verify</phase>
+                                <goals><goal>java</goal></goals>
+                                <configuration>
+                                    <mainClass>demo.integration.BatchProcessingDemo</mainClass>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

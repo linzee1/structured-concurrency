@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>parallel-in-scope 最近更新复盘与重做报告</title>
+  <style>
+    :root {
+      --ink: #1f2328;
+      --muted: #667085;
+      --line: #d0d7de;
+      --paper: #f7f8fa;
+      --panel: #ffffff;
+      --accent: #0f766e;
+      --danger: #b42318;
+      --warn: #b54708;
+      --ok: #027a48;
+      --code: #f6f8fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.62;
+    }
+    main {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 72px;
+    }
+    header {
+      padding-bottom: 22px;
+      border-bottom: 3px solid var(--ink);
+      margin-bottom: 26px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(30px, 4.5vw, 52px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    h2 { margin: 0 0 14px; font-size: 23px; line-height: 1.25; }
+    h3 { margin: 20px 0 8px; font-size: 17px; }
+    p { margin: 9px 0; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      margin: 18px 0;
+    }
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--code);
+      border: 1px solid #eaedf0;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.92em;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    .verdict {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .stamp {
+      border: 2px solid var(--ok);
+      color: var(--ok);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 800;
+      text-align: center;
+      padding: 12px 8px;
+      transform: rotate(-2deg);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .metric {
+      border-left: 5px solid var(--accent);
+      background: #f8fbfa;
+      padding: 13px 14px;
+      min-height: 88px;
+    }
+    .metric strong {
+      display: block;
+      font-size: 25px;
+      line-height: 1;
+      margin-bottom: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .metric span { color: var(--muted); font-size: 14px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 15px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      background: #fafafa;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .sev {
+      display: inline-block;
+      min-width: 76px;
+      text-align: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .critical { background: #fee4e2; color: var(--danger); }
+    .high { background: #fffaeb; color: var(--warn); }
+    .ok { background: #dcfae6; color: var(--ok); }
+    .evidence {
+      background: #fafafa;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+    ul { padding-left: 22px; }
+    li { margin: 6px 0; }
+    @media (max-width: 820px) {
+      main { width: min(100% - 24px, 1120px); padding-top: 28px; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      .verdict { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 520px) {
+      .grid { grid-template-columns: 1fr; }
+      section { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>最近更新复盘与重做报告</h1>
+    <div class="subtitle">
+      仓库：/Users/qinghualin/Documents/javaProjects/vformation · 日期：2026-05-22 · 当前分支：task/renamev2-5fed0b
+    </div>
+  </header>
+
+  <section>
+    <div class="verdict">
+      <div class="stamp">已重做</div>
+      <div>
+        <h2>执行摘要</h2>
+        <p>
+          已按“先 revert，再理解历史需求并重做”的方向处理：本地先用提交
+          <code>ca0a11d</code> 回滚 Maven Central 发布配置，再用提交
+          <code>c3812c1</code> 回滚远端问题提交 <code>dd14892</code>。
+          随后重新执行重命名和包结构迁移，并保留最近主线已经完成的功能语义。
+        </p>
+        <p>
+          这次重做没有沿用 <code>dd14892</code> 的覆盖式结果，而是以近期 main 的行为为准：
+          保留 <code>ParConfig</code> immutable builder、<code>Par.map(...)</code> 实例 API、
+          <code>ParOptions</code>、空值注解、TaskGraph 组合式 TTL、<code>ScopedCallable.current()</code>
+          和 <code>HeuristicPurger</code> 的 rate-limiter-only 简化。
+        </p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="metric"><strong>2</strong><span>已创建 revert 提交</span></div>
+      <div class="metric"><strong>7</strong><span>新的主包结构</span></div>
+      <div class="metric"><strong>100/100</strong><span>单元测试通过</span></div>
+      <div class="metric"><strong>0</strong><span>非测试代码旧包名残留</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>问题判断</h2>
+    <table>
+      <thead>
+      <tr><th>对象</th><th>判断</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td><code>dd14892</code></td>
+        <td><span class="sev critical">有风险</span></td>
+        <td>远端重命名/重构提交在内容层面覆盖了近期 main 的多项结果，不能直接保留。</td>
+      </tr>
+      <tr>
+        <td><code>25d4250</code></td>
+        <td><span class="sev high">先回滚</span></td>
+        <td>该发布配置提交建立在问题提交之上，已先回滚，避免后续重做混入发布配置变更。</td>
+      </tr>
+      <tr>
+        <td>当前工作树</td>
+        <td><span class="sev ok">已重做</span></td>
+        <td>项目名、模块名、包名已重新迁移；近期 main 的功能语义保留并通过测试。</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>重做后的结构</h2>
+    <table>
+      <thead>
+      <tr><th>包</th><th>职责</th><th>代表类</th></tr>
+      </thead>
+      <tbody>
+      <tr><td><code>scope</code></td><td>公开 scope API 和配置</td><td><code>Par</code>, <code>ParConfig</code>, <code>ParOptions</code>, <code>AsyncBatchResult</code>, <code>TaskType</code></td></tr>
+      <tr><td><code>cancel</code></td><td>协作取消和 purge</td><td><code>CancellationToken</code>, <code>Checkpoints</code>, <code>HeuristicPurger</code></td></tr>
+      <tr><td><code>context</code></td><td>任务上下文 ThreadLocal/TTL relay</td><td><code>TaskScopeTl</code>, <code>ThreadRelay</code></td></tr>
+      <tr><td><code>context.graph</code></td><td>任务图和 livelock 检测</td><td><code>TaskGraph</code>, <code>TaskEdge</code>, <code>TaskEdgeEntry</code></td></tr>
+      <tr><td><code>internal</code></td><td>执行管线内部实现</td><td><code>ConcurrentLimitExecutor</code>, <code>ScopedCallable</code>, <code>FutureInspector</code></td></tr>
+      <tr><td><code>queue</code></td><td>调度队列</td><td><code>SmartBlockingQueue</code>, <code>VariableLinkedBlockingQueue</code></td></tr>
+      <tr><td><code>spi</code></td><td>扩展点接口</td><td><code>TaskListener</code>, <code>ExecutorResolver</code>, <code>LivelockListener</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>保留的近期需求</h2>
+    <ul>
+      <li><code>ParConfig</code> 继续使用不可变 Builder 模型和全局默认配置。</li>
+      <li><code>Par</code> 继续是实例 API，保留 name-based <code>map(String, List, Function, ParOptions)</code>。</li>
+      <li><code>ParOptions</code> 保持当前命名，没有改成 <code>ParallelOptions</code>。</li>
+      <li><code>TaskGraph</code> 保留组合式 <code>TransmittableThreadLocal&lt;TaskGraph.Data&gt;</code> 设计。</li>
+      <li><code>ThreadRelay</code> 保留 plain <code>ThreadLocal</code> + <code>Transmitter.registerThreadLocal</code> 模式。</li>
+      <li><code>ScopedCallable</code> 保留 final context fields 和 <code>current()</code>。</li>
+      <li><code>HeuristicPurger</code> 保留只由 rate limiter 控制的 purge 逻辑。</li>
+      <li>空值注解继续采用 JSR-305 + Checker Framework 的混合策略，每个新包都有 <code>package-info.java</code>。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>验证结果</h2>
+    <div class="evidence">mvn test
+Result: BUILD SUCCESS
+Tests run: 100, Failures: 0, Errors: 0, Skipped: 0
+
+Residual-name scan:
+rg "PurgeStrategy|PurgeService|\bvformation\b|io\.github\.huatalk\.vformation|vformation-demo" \
+  openspec/specs openspec/changes/context-relay-hooks README.md README_EN.md CLAUDE.md doc pom.xml \
+  src demo --glob '!**/src/test/**'
+Result: no matches</div>
+  </section>
+
+  <section>
+    <h2>当前状态</h2>
+    <table>
+      <tbody>
+      <tr><th>Git 状态</th><td>当前工作树包含重命名重做、根 POM 单模块化、独立 demo 工程和文档同步改动。</td></tr>
+      <tr><th>发布结构</th><td>根目录 <code>pom.xml</code> 是唯一发布库；<code>demo/</code> 是独立示例工程，不参与发布。</td></tr>
+      <tr><th>报告文件</th><td><code>reports/recent-update-analysis.html</code> 已更新为本次复盘与重做结论。</td></tr>
+      <tr><th>剩余注意点</th><td>本次改动还未提交；如果需要保留报告文件，需要把 <code>reports/</code> 一并纳入提交。</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>

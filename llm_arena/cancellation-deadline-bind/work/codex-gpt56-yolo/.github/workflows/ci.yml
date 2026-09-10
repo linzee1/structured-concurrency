@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: mkdocs/requirements.txt
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r mkdocs/requirements.txt
+
+      - name: Check English documentation language
+        run: python3 scripts/check-english-docs.py
+
+      - name: Check local documentation links
+        run: python3 scripts/check-local-links.py
+
+      - name: Build documentation strictly
+        run: mkdocs build --strict --config-file mkdocs/mkdocs.yml
+
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 11, 17, 21 ]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test library
+        run: mvn -B -ntp clean install
+
+      - name: Build demo
+        run: mvn -B -ntp -f demo/pom.xml package
+
+  java8-runtime:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up build JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: 11
+          distribution: temurin
+          cache: maven
+
+      - name: Build the Java 8 library artifact
+        run: |
+          echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+          mvn -B -ntp -Dmaven.test.skip=true -Dmaven.javadoc.skip=true clean install
+
+      - name: Set up Java 8 runtime
+        uses: actions/setup-java@v5
+        with:
+          java-version: 8
+          distribution: temurin
+          cache: maven
+
+      - name: Run the public API consumer on Java 8
+        run: >-
+          mvn -B -ntp
+          -f verification/maven-central-consumer/pom.xml
+          -Dparallel-in-scope.version="$LIBRARY_VERSION"
+          clean test

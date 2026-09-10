@@ -36,6 +36,3 @@ todo/
 
 # MkDocs build output
 mkdocs/site/
-
-# Agent skills from npm packages (managed by skills-npm)
-**/skills/npm-*

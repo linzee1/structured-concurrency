@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.huatalk</groupId>
+    <artifactId>parallel-in-scope</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>parallel-in-scope</name>
+    <description>
+        parallel-in-scope — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
+    </description>
+    <url>https://github.com/huatalk/parallel-in-scope</url>
+
+    <scm>
+        <connection>scm:git:https://github.com/huatalk/parallel-in-scope.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/huatalk/parallel-in-scope.git</developerConnection>
+        <url>https://github.com/huatalk/parallel-in-scope</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/huatalk/parallel-in-scope/issues</url>
+    </issueManagement>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>huatalk</id>
+            <name>huatalk</name>
+            <url>https://github.com/huatalk</url>
+        </developer>
+    </developers>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.release>8</java.release>
+        <maven.compiler.testRelease>11</maven.compiler.testRelease>
+        <guava.version>33.6.0-jre</guava.version>
+        <ttl.version>2.14.5</ttl.version>
+        <lombok.version>1.18.46</lombok.version>
+        <junit-jupiter.version>5.14.4</junit-jupiter.version>
+        <mockito.version>5.23.0</mockito.version>
+        <assertj.version>3.27.7</assertj.version>
+        <awaitility.version>4.3.0</awaitility.version>
+        <jsr305.version>3.0.2</jsr305.version>
+        <checker-qual.version>3.55.1</checker-qual.version>
+    </properties>
+
+    <dependencies>
+        <!-- Core: Guava (ListenableFuture, Graph, etc.) -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
+        <!-- Core: TransmittableThreadLocal -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>transmittable-thread-local</artifactId>
+            <version>${ttl.version}</version>
+        </dependency>
+
+        <!-- Nullability annotations (compile-only, transitively provided by Guava) -->
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>${jsr305.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.checkerframework</groupId>
+            <artifactId>checker-qual</artifactId>
+            <version>${checker-qual.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Lombok (compile-only) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Test: JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test: Mockito -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test: AssertJ -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test: Awaitility -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.15.0</version>
+                <configuration>
+                    <release>${java.release}</release>
+                    <testRelease>${maven.compiler.testRelease}</testRelease>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.5</version>
+            </plugin>
+            <!-- Code formatting: `mvn spotless:apply` formats all sources -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.44.5</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat>
+                            <version>2.97.0</version>
+                        </palantirJavaFormat>
+                    </java>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.4</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.4</version>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.11.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <configuration>
+                    <source>${java.release}</source>
+                    <failOnWarnings>false</failOnWarnings>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>pitest</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.25.9</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <testPlugin>junit5</testPlugin>
+                            <targetClasses>
+                                <param>io.github.huatalk.parallelinscope.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.huatalk.parallelinscope.*</param>
+                            </targetTests>
+                            <!-- Demonstration programs are executable examples, not library
+                                 contract code; keep them out of the mutation score denominator. -->
+                            <excludedClasses>
+                                <param>io.github.huatalk.parallelinscope.queue.*Demo*</param>
+                            </excludedClasses>
+                            <outputFormats>
+                                <param>HTML</param>
+                                <param>XML</param>
+                            </outputFormats>
+                            <threads>8</threads>
+                            <!-- VoidMethodCallMutator mostly produces equivalent mutants on
+                                 concurrent queue code (Monitor.enter/leave/signal removals that
+                                 do not alter observable single-threaded behavior). The mutators
+                                 list below replaces PIT's default set, omitting VOID_METHOD_CALLS
+                                 to focus the score on behavior-detectable mutations. -->
+                            <mutators>
+                                <param>CONDITIONALS_BOUNDARY</param>
+                                <param>NEGATE_CONDITIONALS</param>
+                                <param>INCREMENTS</param>
+                                <param>INVERT_NEGS</param>
+                                <param>NULL_RETURNS</param>
+                                <param>FALSE_RETURNS</param>
+                                <param>TRUE_RETURNS</param>
+                                <param>PRIMITIVE_RETURNS</param>
+                                <param>EMPTY_RETURNS</param>
+                            </mutators>
+                            <!-- Shutdown-contract mutants can release several independent waiters;
+                                 keep the per-mutation timeout above their combined bounded waits. -->
+                            <timeoutConstant>60000</timeoutConstant>
+                            <timeoutFactor>1.25</timeoutFactor>
+                            <!-- Coverage phase must fit the whole suite; the 10s default kills
+                                 the minion mid-run and misreports the running test as failing. -->
+                            <coverageTimeout>300</coverageTimeout>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

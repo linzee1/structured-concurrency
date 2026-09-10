@@ -13,6 +13,10 @@
 | [task-group-cancellation.md](task-group-cancellation.md) | TaskGroup 取消 token 拓扑、成员主动取消级联、fail-fast、deadline 计算与 timer、成员 bind 跳过策略、`originState()` 归因规则 |
 | [task-group-observability-and-verification.md](task-group-observability-and-verification.md) | TaskGroup 成员 TaskListener 与 `TaskGroupListener`、TaskGraph 规则、并发不变量、必测矩阵、验收标准 |
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：API、全量 join、结果、取消、观测、缺点与非目标 |
+| [group-api-redesign-v0.3-proposal.md](group-api-redesign-v0.3-proposal.md) | （提案，待讨论）TaskGroup 用户接口重新设计：概念清点、公理推导、目标 API 与旧新映射；通过后沉淀回契约系列 |
+| [enhanced-listenablefuture-analysis.md](enhanced-listenablefuture-analysis.md) | （分析，待讨论）增强 ListenableFuture：内核现有增强盘点、future 通道缺口、公开 `TaskFuture` 评估与实现约束；v0.3 group 提案的前置分析 |
+| [task-future-design.md](task-future-design.md) | （提案，待讨论）`Task`/`TaskFuture` 设计契约：forwarding 模式增强 future 的目标、约束、不变量、API、实现方式与能力取舍 |
+| [handoff-task-future-implementation.md](handoff-task-future-implementation.md) | （交接）Task/TaskFuture → group v0.3 的实施交接：已定决策及理由、代码锚点、实施步骤、测试矩阵、坑位清单；供零上下文实现会话直接开工 |
 
 ## 取消与队列
 
