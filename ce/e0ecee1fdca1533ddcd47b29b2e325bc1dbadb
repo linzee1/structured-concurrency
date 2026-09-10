@@ -1,0 +1,20 @@
+src/test/java/io/github/monadrome/parallelinscope/GlobalParTest.java
+  s_512b1cd0783af7::t_a1b2fe5ad667ff 393,395
+  s_512b1cd0783af7::t_e6ab5747f50ca7 382
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "cee0ecee1fdca1533ddcd47b29b2e325bc1dbadb",
+  "prompts": {},
+  "sessions": {
+    "s_512b1cd0783af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20c8c92c-0a6f-4f35-9a42-f538907d1c20",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
