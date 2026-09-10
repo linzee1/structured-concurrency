@@ -2,7 +2,7 @@
 
 # Demo 文章索引
 
-这些文章是基于 `0.2.0-SNAPSHOT` API 的问题导向示例；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。
+这些文章是基于 `0.2.0` API 的问题导向示例；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。
 
 ## 推荐起点
 

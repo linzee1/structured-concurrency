@@ -7,7 +7,7 @@
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 
-> Current development version: `0.2.0-SNAPSHOT`. The `0.2.0` line is a breaking API migration from `0.1.x`.
+> Current development version: `0.2.0`. The `0.2.0` line is a breaking API migration from `0.1.x`.
 
 A structured-concurrency toolkit for Java 8+ with bounded batch submission, cooperative cancellation, context propagation, and task-graph diagnostics.
 

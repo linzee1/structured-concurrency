@@ -1,9 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - 2026-09-10
 
 ### Breaking changes
 
+- Replace `ParConfig`, `ParOptions`, `ExecutorResolver`, and legacy `Par` entry points with immutable `GlobalPar`, executor-bound `Par`, and per-batch options. The per-batch type is finally named `BatchOptions`; the intermediate `ExecutionOptions` and `BatchExecutionOptions` names from earlier `0.2.0-SNAPSHOT` builds do not survive.
+- Make `BatchExecutionContext` the source of task scope state, including cancellation, deadlines, nested batches, and executor identity.
 - Consolidate the public API and callback types into the root `io.github.monadrome.parallelinscope`
   package. Cancellation, context, graph, scheduling, and maintenance implementation types now share
   that package as package-private kernel code; only the independent `DrainingBlockingQueue` and
@@ -15,9 +17,8 @@
   internal `CancellationToken` transitions. `ActionGate` is retained as package-private pending a
   separate removal decision.
 - Rename `TaskGroupSpec` to `TaskGroupDefinition`, its nested `MemberSpec` to `TaskDefinition`, and `members()` to `tasks()`. These objects record reusable task definitions rather than specifications for execution.
-- Move the Maven coordinates and the root Java package from the account's former name to its current one after the GitHub account rename `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` → `io.github.monadrome:parallel-in-scope`, and `io.github.huatalk.parallelinscope` → `io.github.monadrome.parallelinscope` for imports, `package` declarations, and service loading. `0.1.0` remains published under the old coordinates on Maven Central; the `0.1.0` section above keeps the historical coordinate.
+- Move the Maven coordinates and the root Java package from the account's former name to its current one after the GitHub account rename `huatalk` → `monadrome`: `io.github.huatalk:parallel-in-scope` → `io.github.monadrome:parallel-in-scope`, and `io.github.huatalk.parallelinscope` → `io.github.monadrome.parallelinscope` for imports, `package` declarations, and service loading. `0.1.0` remains published under the old coordinates on Maven Central; the `0.1.0` section below keeps the historical coordinate.
 - Rename `GlobalParLivelockPolicy` to `GlobalParDeadlockPolicy` and `LivelockListener` to `DeadlockDetectionListener`; the graph reports potential deadlock structures, not runtime livelock.
-- Rename `ExecutionOptions` to `BatchExecutionOptions` to make its per-`Par.map` scope explicit.
 - Replace the abrupt-close `ClosableBlockingQueue` (recovery lists, `remainingList()`) with `DrainingBlockingQueue`: `close()` rejects producers while consumers keep draining queued elements until the `DRAINED` terminal state. No custom shutdown exception types are introduced: write rejections throw `IllegalStateException`, drained reads throw `NoSuchElementException`.
 - Merge `TaskGraph` into `TaskGraphObservationScope`: the observation scope is now a request-level `TransmittableThreadLocal` global (identity-propagated to worker threads), owns the graph lifecycle (`install`/`restore`/`data`/`logTaskPair`/`hasXxx` statics), and runs deadlock detection in `close()`. The former `TaskGraph.Data` is now the top-level `TaskGraphData`; `previousData()` and `complete()` are removed.
 - Make the typed key an abstract class whose anonymous subclass captures the member result type at runtime (Guava `TypeToken` style: `new TaskKey<List<Order>>("orders") {}`). The type is named `TaskKey` rather than `TaskRef`: a key identifies a definition slot and compares equal by its name alone, so a key claiming a supertype of the registered type is equal to the registered key. The key names a slot that may be a member or the terminal combine, so `TaskKey.memberName()`, `TaskDefinition.memberName()` and `CombineDefinition.memberName()` become `name()`. `TaskGroupDefinition.Builder.task` takes the key as its first argument and no longer takes `memberName`; `TaskDefinition.ref()` and `CombineDefinition.ref()` are renamed to `key()`; `TaskGroup.future(key)` rejects a key whose raw result type does not cover the type the member was registered with.
@@ -41,19 +42,12 @@
 - Add `TaskGroupDefinition.Builder.task(key, parName, callable)` for members that run under the group deadline: it is exactly the four-argument form with `TaskOptions.inheritTimeout()`, so a member that needs no tighter budget, different task type, or different enqueue policy declares no options. The forced deadline choice remains at the group level, and a member that inherits the group deadline still cannot outlive it. The terminal combine gets the same treatment through `buildWithCombiner(key, parName, function)`.
 - Add the public `TaskFuture<T>` contract and its package-private-constructed `Task<T>` implementation: every delivered task execution future reports its `taskName()`, `outcome()`, `deadlineNanos()`, `remaining()`, and `failure()`. The view is additive over `ListenableFuture`, so Guava combinators and code that never checks the interface are unaffected; `FluentFuture.from(task)` remains the route to fluent chaining.
 
-## [0.2.0] - 2026-07-22
-
-### Breaking changes
-
-- Replace `ParConfig`, `ParOptions`, `ExecutorResolver`, and legacy `Par` entry points with immutable `GlobalPar`, executor-bound `Par`, and per-batch `BatchExecutionOptions`.
-- Make `BatchExecutionContext` the source of task scope state, including cancellation, deadlines, nested batches, and executor identity.
-
 ### Features
 
 - Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
 - Support custom schedulers and isolate timer callback dispatch from timer threads.
 - Add the public `ActionGate` API for count- and duration-based action gating.
-- Add immutable multi-`Par` `GlobalPar` topology, `GlobalExecutionPolicy`, deadlock/purge policies, and explicit observation scopes.
+- Add immutable multi-`Par` `GlobalPar` topology, deadlock and purge policies, and explicit observation scopes.
 - Add `ClosableBlockingQueue` lifecycle shutdown, recovery lists, poison signaling, and post-close FIFO `drainTo` recovery transfer.
 
 ### Fixes
@@ -70,6 +64,11 @@
 
 - Record task/Future lifecycle and event-coalesced purge decisions as architecture decision records.
 - Add layered Cartesian and latch-controlled concurrency coverage for cancellation, queue mutation, and purge races.
+
+Artifacts:
+
+- Maven Central: `io.github.monadrome:parallel-in-scope:0.2.0`
+- GitHub release: [v0.2.0](https://github.com/monadrome/parallel-in-scope/releases/tag/v0.2.0)
 
 ## [0.1.0] - 2026-07-18
 

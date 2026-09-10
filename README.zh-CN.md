@@ -7,7 +7,7 @@
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-007396?logo=openjdk&logoColor=white)](https://github.com/monadrome/parallel-in-scope#compatibility-and-build)
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 
-> 当前开发版本：`0.2.0-SNAPSHOT`。`0.2.0` 相对 `0.1.x` 是一次破坏性 API 迁移。
+> 当前开发版本：`0.2.0`。`0.2.0` 相对 `0.1.x` 是一次破坏性 API 迁移。
 
 面向 Java 8+ 的结构化并发工具包，提供有界批量提交、协作式取消、上下文传播和任务图诊断。
 
