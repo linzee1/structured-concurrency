@@ -1,0 +1,21 @@
+docs/zh/migration-v0.2.md
+  s_512b1cd0783af7::t_8d99c9bb2b9c25 141-192
+docs/en/migration-v0.2.md
+  s_512b1cd0783af7::t_4407308e1170b3 204-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "bb8a5367ea41e94b9116b253fb7c2a7b45b9f77f",
+  "prompts": {},
+  "sessions": {
+    "s_512b1cd0783af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20c8c92c-0a6f-4f35-9a42-f538907d1c20",
+        "model": "deepseek-v4.1-flash-expires-on-0910"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
