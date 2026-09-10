@@ -676,6 +676,19 @@ class TaskFutureTest {
         assertThat(timed.toString()).contains("name=orders", "state=RUNNING", "remaining=PT");
     }
 
+    @Test
+    void outcomeReadsSuccessEvenWhenTheCallingThreadIsInterrupted() {
+        Task<String> succeeded = Task.of("orders", new CancellationToken(), Futures.immediateFuture("done"));
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThat(succeeded.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(succeeded.failure()).isNull();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     // ==================== helpers ====================
 
     private static TaskGroupOptions groupOptions(String name) {

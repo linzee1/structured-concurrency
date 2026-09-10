@@ -105,6 +105,23 @@ public class CancellationTokenTest {
         assertThat(alreadySucceeded.get()).isEqualTo("kept");
     }
 
+    @Test
+    public void bindWithoutDeadlineNeverArmsATimeout() throws Exception {
+        // Long.MAX_VALUE means no deadline; the subtraction in bind would overflow against a
+        // negative nanoTime() and fire immediately if a timeout were scheduled unconditionally.
+        CancellationToken token = new CancellationToken(null, Long.MAX_VALUE);
+
+        SettableFuture<String> pending = SettableFuture.create();
+        token.bind(ImmutableList.of(pending), Futures.immediateVoidFuture(), TIMER);
+
+        Thread.sleep(100);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.RUNNING);
+        assertThat(pending.isDone()).isFalse();
+
+        pending.set("done");
+        await().untilAsserted(() -> assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS));
+    }
+
     // ==================== bind state transition tests ====================
 
     @Test

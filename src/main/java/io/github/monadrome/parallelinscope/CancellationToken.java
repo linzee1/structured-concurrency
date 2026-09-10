@@ -130,8 +130,13 @@ public class CancellationToken {
             ListenableFuture<?> submitCanceller,
             ScheduledExecutorService timer) {
         Objects.requireNonNull(timer);
-        FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures))
-                .withTimeout(Duration.ofNanos(deadlineNanos - System.nanoTime()), timer);
+        FluentFuture<?> failFastFuture = FluentFuture.from(Futures.allAsList(futures));
+        if (deadlineNanos != Long.MAX_VALUE) {
+            // Clamp the subtraction: with no upper bound a negative nanoTime() would overflow the
+            // difference negative and schedule the timeout for immediate execution.
+            failFastFuture = failFastFuture.withTimeout(
+                    Duration.ofNanos(Math.max(0L, deadlineNanos - System.nanoTime())), timer);
+        }
         // A pending successfulAsList is the one cancellable handle that reaches both the task
         // futures and the submission canceller: it stays pending until every input is done, so
         // cancelling it still propagates after one task already failed or was cancelled.

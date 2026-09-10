@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
@@ -142,13 +143,13 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
             return TokenOutcomes.forCanceled(token, TaskOutcome.MEMBER_CANCELED);
         }
         try {
-            delegate.get();
+            // The delegate is done here, so read it with Futures.getDone: unlike get(), it never
+            // throws InterruptedException, and a caller thread that happens to carry the
+            // interrupt flag can no longer turn a success into a phantom USER_FAILURE.
+            Futures.getDone(delegate);
             return TaskOutcome.SUCCESS;
         } catch (ExecutionException failure) {
             return classifyFailure(failure.getCause());
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            return TaskOutcome.USER_FAILURE;
         }
     }
 

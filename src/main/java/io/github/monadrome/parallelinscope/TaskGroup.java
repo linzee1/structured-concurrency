@@ -253,17 +253,15 @@ public final class TaskGroup implements AutoCloseable {
                 member.reason = classifyCancelled(member);
             } else {
                 try {
-                    member.future.get();
+                    // The listener fires only on a done future, so read the result with
+                    // Futures.getDone: unlike get(), it never throws InterruptedException, and an
+                    // interrupted completing thread can no longer turn a success into a phantom
+                    // USER_FAILURE.
+                    Futures.getDone(member.future);
                     member.reason = TaskOutcome.SUCCESS;
                 } catch (ExecutionException failure) {
                     member.failure = failure.getCause();
                     member.reason = classifyFailure(member, member.failure);
-                } catch (CancellationException impossible) {
-                    member.reason = TaskOutcome.MEMBER_CANCELED;
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    member.failure = interrupted;
-                    member.reason = TaskOutcome.USER_FAILURE;
                 }
             }
             observedReason = member.reason;
