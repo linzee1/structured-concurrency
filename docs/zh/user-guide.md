@@ -106,7 +106,7 @@ try (TaskGroup group = TaskGroup.submit(global, built)) {
 
 `CompletedTaskValues` 视图不阻塞，只通过注册的 `TaskKey` 键暴露已成功的成员值——不暴露 future，也不提供按名称取值的 map。combine 函数恰好执行一次，运行在指定 `Par` 的 worker 线程上（绝不在成员的完成回调线程上运行；被拒绝的 combine 记 `SUBMISSION_FAILURE`，不会 inline 执行），并且它必须是 member 值与配置期捕获环境的纯函数：它在最后一个成员成功的瞬间被调度，submit 返回后提交线程上创建的状态对它不可见——那种场景请直接读成员 future 自行组装。一个组至多声明一个 combine，使用自己的 `TaskKey`；`group.future(combineKey)` 以普通 Guava 语义解析类型化的终端 future。任一成员失败时 combine 不会执行，终端 future 以组的归因 outcome 取消。combine 的快照呈现在 `TaskGroupResult.terminal()`（`members()` 保持只含成员）；combine 自身失败或被拒绝时，`failedTaskName()` 携带 combine 的注册名。组 deadline 涵盖 fan-out 与 combine，因此成员用掉大部分预算后 combine 可能尚未开始即超时——这是有意的端到端语义。
 
-## 从 future 读取任务归因
+## 从 future 读取任务归因 {#task-attribution}
 
 库为每一次任务执行交付的 future 都是 `TaskFuture<T>`：它既是 `ListenableFuture<T>`，也能回答这个任务是谁、最后如何结束。批次的每个元素、任务组的成员、终端 combine，以及组完成 future 都适用。
 
@@ -162,9 +162,9 @@ databasePar.map(ids, id -> {
 }, databaseOptions);
 ```
 
-需要跨多个 `Par` 诊断任务图时，请使用[观测作用域](#观测嵌套工作)。
+需要跨多个 `Par` 诊断任务图时，请使用[观测作用域](#nested-observation)。
 
-## 观测嵌套工作
+## 观测嵌套工作 {#nested-observation}
 
 任务图观测显式绑定到一个 `GlobalPar`。作用域负责清理任务图，并在请求结束时（已启用时）调用潜在死锁检测 listener。检测到循环只表示结构风险，不证明线程当前已经死锁。
 
@@ -218,7 +218,7 @@ queue.awaitDrained();   // 可选：等待排空
 Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 ```
 
-关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `isShutdown()` 判断"生产端已关"，用 `isDrained()` 判断"已排空"。完整契约见 [排干式关闭契约](../../design/draining-queue-contract.md)。
+关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `isShutdown()` 判断"生产端已关"，用 `isDrained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/main/design/draining-queue-contract.md)。
 
 ## 运行规则
 

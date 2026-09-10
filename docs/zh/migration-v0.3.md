@@ -33,7 +33,7 @@ for (TaskFuture<Account> future : result.results()) {
 }
 ```
 
-归因规则见[使用指南](user-guide.md#从-future-读取任务归因)。
+归因规则见[使用指南](user-guide.md#task-attribution)。
 
 ## 被放弃的批次元素改为以 `SubmissionException` 失败
 
