@@ -1,0 +1,19 @@
+.gitignore
+  s_d4465d8bd228ff::t_add70c52c11e9e 28-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a2753d9b826462ea95c6b852c46312ebb29f393f",
+  "prompts": {},
+  "sessions": {
+    "s_d4465d8bd228ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec751c71-6858-423a-9cf0-88b6885bdc30",
+        "model": "ep-s52bpjk9"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
