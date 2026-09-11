@@ -25,6 +25,16 @@ todo/
 # Claude
 .claude/
 
+# Local agent tooling: symlinks into node_modules, created per-IDE by npm postinstall
+npm-huatalk-hiding-skill-hide
+
+# Playwright MCP scratch output
+.playwright-mcp/
+
+# Scratch assets
+pelican-check.png
+pelican-bicycle-deepseek-v4.1-flash.svg
+
 # Local planning state
 .planning/
 **/task_plan.md
