@@ -1,0 +1,895 @@
+<title>Axiom Drift</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:#f4f7f8; --surface:#ffffff; --surface-2:#eef3f5;
+    --ink:#16242f; --ink-2:#3c4d59; --muted:#62727d;
+    --line:#d8e1e5; --line-strong:#b9c8cf;
+    --navy:#19354b; --navy-ink:#e8f1f5;
+    --teal:#087e8b; --teal-deep:#04616c; --teal-soft:#dff4f2;
+    --red:#b8323f; --red-soft:#fae8eb;
+    --amber:#96590a; --amber-soft:#fdf0d8;
+    --green:#1f6b4f; --green-soft:#e0f2e9;
+    --code-bg:#101b25; --code-ink:#d5e3ea; --code-line:#2a3d4b;
+    --shadow:0 1px 2px rgba(22,36,47,.06), 0 8px 24px -16px rgba(22,36,47,.28);
+    --fid-bg:#19354b; --fid-ink:#ffffff; --chip-ax-ink:#19354b;
+    --maxw:1180px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#0f1720; --surface:#16212b; --surface-2:#1b2833;
+      --ink:#e4edf2; --ink-2:#bdcdd7; --muted:#8b9da8;
+      --line:#2a3a46; --line-strong:#3c505f;
+      --navy:#0b1a26; --navy-ink:#dceaf1;
+      --teal:#4bb8bf; --teal-deep:#7fd3d6; --teal-soft:#12333a;
+      --red:#f08a94; --red-soft:#3a1c21;
+      --amber:#e0ab5c; --amber-soft:#372a13;
+      --green:#7cc7a3; --green-soft:#143024;
+      --code-bg:#0a121a; --code-ink:#cadce6; --code-line:#22323f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.7);
+      --fid-bg:#243848; --fid-ink:#dceaf1; --chip-ax-ink:#bdcdd7;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#0f1720; --surface:#16212b; --surface-2:#1b2833;
+    --ink:#e4edf2; --ink-2:#bdcdd7; --muted:#8b9da8;
+    --line:#2a3a46; --line-strong:#3c505f;
+    --navy:#0b1a26; --navy-ink:#dceaf1;
+    --teal:#4bb8bf; --teal-deep:#7fd3d6; --teal-soft:#12333a;
+    --red:#f08a94; --red-soft:#3a1c21;
+    --amber:#e0ab5c; --amber-soft:#372a13;
+    --green:#7cc7a3; --green-soft:#143024;
+    --code-bg:#0a121a; --code-ink:#cadce6; --code-line:#22323f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.7);
+    --fid-bg:#243848; --fid-ink:#dceaf1; --chip-ax-ink:#bdcdd7;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Public Sans","Avenir Next","Segoe UI",system-ui,sans-serif;
+    font-size:16px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4 { font-family:Archivo,"Avenir Next",system-ui,sans-serif; text-wrap:balance; margin:0; }
+  p { margin:0; }
+  a { color:var(--teal-deep); text-decoration-thickness:1px; text-underline-offset:2px; }
+  code, pre, .mono { font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; }
+  :focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+
+  .wrap { max-width:var(--maxw); margin:0 auto; padding:0 28px; }
+
+  /* ---------- masthead ---------- */
+  header.mast { background:var(--navy); color:var(--navy-ink); border-bottom:3px solid var(--teal); }
+  .mast-in { max-width:var(--maxw); margin:0 auto; padding:44px 28px 38px;
+             display:grid; grid-template-columns:minmax(0,1fr) auto; gap:40px; align-items:end; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:500;
+             letter-spacing:.14em; text-transform:uppercase; color:var(--teal-deep); }
+  header.mast .eyebrow { color:#7fd3d6; }
+  header.mast h1 { font-size:clamp(34px,4.6vw,54px); font-weight:700; line-height:1.02;
+                   letter-spacing:-.018em; margin:14px 0 16px; max-width:16ch; }
+  .lede { max-width:62ch; color:#c4d8e2; font-size:17.5px; }
+  .mast-meta { font-family:"IBM Plex Mono",monospace; font-size:12px; line-height:1.9;
+               color:#9dbccb; text-align:right; white-space:nowrap; }
+  .mast-meta b { color:#e8f1f5; font-weight:500; }
+
+  /* ---------- verdict strip ---------- */
+  .verdict { background:var(--surface); border-bottom:1px solid var(--line); }
+  .verdict-in { max-width:var(--maxw); margin:0 auto; padding:22px 28px;
+                display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1px;
+                background:var(--line); }
+  .vcell { background:var(--surface); padding:14px 18px; }
+  .vcell .n { font-family:Archivo,sans-serif; font-size:30px; font-weight:600; line-height:1;
+              letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .vcell .k { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+              text-transform:uppercase; color:var(--muted); margin-top:7px; }
+  .vcell.a .n { color:var(--red); } .vcell.b .n { color:var(--amber); }
+  .vcell.c .n { color:var(--teal); } .vcell.ok .n { color:var(--green); }
+
+  /* ---------- shell ---------- */
+  .shell { max-width:var(--maxw); margin:0 auto; padding:0 28px;
+           display:grid; grid-template-columns:238px minmax(0,1fr); gap:52px; align-items:start; }
+  @media (max-width:960px) { .shell { grid-template-columns:1fr; gap:0; } nav.rail { display:none; } }
+
+  nav.rail { position:sticky; top:0; max-height:100vh; overflow-y:auto; padding:38px 0 40px; }
+  nav.rail .grp { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+                  text-transform:uppercase; color:var(--muted); margin:22px 0 8px; }
+  nav.rail a { display:flex; gap:9px; padding:4px 0; font-size:13.5px; color:var(--ink-2);
+               text-decoration:none; line-height:1.4; }
+  nav.rail a:hover { color:var(--teal-deep); }
+  nav.rail a .id { font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:500;
+                   color:var(--muted); flex:0 0 22px; padding-top:2px; }
+
+  main { padding:38px 0 90px; min-width:0; }
+  section { padding-top:8px; margin-bottom:56px; }
+  section > h2 { font-size:27px; font-weight:600; letter-spacing:-.015em; margin:6px 0 8px; }
+  section > .sub { color:var(--muted); max-width:66ch; margin-bottom:26px; }
+
+  /* ---------- finding cards ---------- */
+  .find { background:var(--surface); border:1px solid var(--line); border-radius:3px;
+          box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden; }
+  .find > .head { display:grid; grid-template-columns:auto minmax(0,1fr); gap:16px;
+                  padding:18px 22px 14px; align-items:start; }
+  .fid { font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+         color:var(--fid-ink); background:var(--fid-bg); padding:4px 8px; border-radius:2px;
+         letter-spacing:.02em; }
+  .find h3 { font-size:19.5px; font-weight:600; letter-spacing:-.01em; line-height:1.28; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+  .chip { font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500;
+          letter-spacing:.06em; text-transform:uppercase; padding:3px 7px; border-radius:2px;
+          border:1px solid transparent; white-space:nowrap; }
+  .chip.probe { color:var(--green); background:var(--green-soft); border-color:var(--green); }
+  .chip.read { color:var(--muted); background:var(--surface-2); border-color:var(--line-strong); }
+  .chip.sev-a { color:var(--red); background:var(--red-soft); border-color:var(--red); }
+  .chip.sev-b { color:var(--amber); background:var(--amber-soft); border-color:var(--amber); }
+  .chip.sev-c { color:var(--teal); background:var(--teal-soft); border-color:var(--teal); }
+  .chip.ax { color:var(--chip-ax-ink); background:var(--surface-2); border-color:var(--line-strong); }
+
+  .find > .body { padding:0 22px 20px; }
+  .find > .body > * + * { margin-top:13px; }
+  .find p { max-width:74ch; }
+  .loc { font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink-2);
+         background:var(--surface-2); border-left:2px solid var(--teal); padding:6px 10px;
+         display:block; overflow-x:auto; white-space:nowrap; }
+  .fix { border-top:1px dashed var(--line-strong); padding-top:13px; }
+  .fix b { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.09em;
+           text-transform:uppercase; color:var(--teal-deep); display:block; margin-bottom:5px; }
+
+  pre { margin:0; background:var(--code-bg); color:var(--code-ink); padding:14px 16px;
+        border-radius:3px; overflow-x:auto; font-size:12.5px; line-height:1.62; }
+  pre .hl { color:#f0a3ab; }
+  pre .ok { color:#8ed0ae; }
+  pre .dim { color:#7b93a3; }
+  code:not(pre code) { background:var(--surface-2); border:1px solid var(--line);
+        padding:.08em .34em; border-radius:2px; font-size:.88em; }
+
+  table { width:100%; border-collapse:collapse; font-size:14.5px; }
+  .tscroll { overflow-x:auto; border:1px solid var(--line); border-radius:3px; background:var(--surface); }
+  th { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.09em;
+       text-transform:uppercase; color:var(--muted); text-align:left; font-weight:500;
+       padding:11px 14px; border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+  td { padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  td.k { font-family:"IBM Plex Mono",monospace; font-size:12.5px; white-space:nowrap; color:var(--ink-2); }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+
+  .note { background:var(--teal-soft); border-left:3px solid var(--teal); padding:15px 18px;
+          border-radius:0 3px 3px 0; }
+  .note.warn { background:var(--amber-soft); border-left-color:var(--amber); }
+  .note b { font-weight:600; }
+  ul.tight { margin:0; padding-left:20px; } ul.tight li { margin:5px 0; max-width:72ch; }
+  ol.seq { margin:0; padding-left:0; list-style:none; counter-reset:s; }
+  ol.seq li { counter-increment:s; position:relative; padding:13px 0 13px 44px;
+              border-bottom:1px solid var(--line); max-width:74ch; }
+  ol.seq li:last-child { border-bottom:0; }
+  ol.seq li::before { content:counter(s); position:absolute; left:0; top:13px; width:30px;
+              font-family:Archivo,sans-serif; font-size:19px; font-weight:600;
+              color:var(--teal); line-height:1.35; font-variant-numeric:tabular-nums; }
+  footer { border-top:1px solid var(--line); background:var(--surface); }
+  footer .wrap { padding:26px 28px 40px; color:var(--muted); font-size:13.5px; }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<header class="mast">
+  <div class="mast-in">
+    <div>
+      <div class="eyebrow">parallel-in-scope · dev/v0.3.0 · first-principles review</div>
+      <h1>Axiom Drift</h1>
+      <p class="lede">The execution kernel holds up. What has drifted is the surface the user
+        actually touches: two options that do nothing unless you happened to wire your own
+        thread pool a particular way, a scope whose <code>close()</code> does not close anything,
+        a typed key that only checks raw types, and a group that reports failure by returning
+        normally.</p>
+    </div>
+    <div class="mast-meta">
+      reviewed <b>2026-09-11</b><br>
+      base <b>bf24db6</b> · <b>0.2.0</b><br>
+      main <b>9 092</b> LOC / <b>54</b> files<br>
+      tests <b>12 008</b> LOC / <b>512</b> green<br>
+      probes <b>6 of 7</b> confirmed
+    </div>
+  </div>
+</header>
+
+<div class="verdict">
+  <div class="verdict-in">
+    <div class="vcell a"><div class="n">9</div><div class="k">Axiom-level gaps</div></div>
+    <div class="vcell b"><div class="n">8</div><div class="k">Half-built features</div></div>
+    <div class="vcell c"><div class="n">13</div><div class="k">Refactors</div></div>
+    <div class="vcell ok"><div class="n">6</div><div class="k">Proven by probe</div></div>
+    <div class="vcell"><div class="n">1</div><div class="k">Hypothesis disproved</div></div>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="rail" aria-label="Findings index">
+    <div class="grp">Method</div>
+    <a href="#method"><span class="id">§</span><span>How this was checked</span></a>
+    <div class="grp">A · Axiom-level</div>
+    <a href="#a1"><span class="id">A1</span><span>close() does not join</span></a>
+    <a href="#a2"><span class="id">A2</span><span>Failure returns normally</span></a>
+    <a href="#a3"><span class="id">A3</span><span>Inert enqueue options</span></a>
+    <a href="#a4"><span class="id">A4</span><span>Wrapped pool loses features</span></a>
+    <a href="#a5"><span class="id">A5</span><span>TaskKey checks raw types</span></a>
+    <a href="#a6"><span class="id">A6</span><span>Checkpoint name mismatch</span></a>
+    <a href="#a7"><span class="id">A7</span><span>Deadline has no backstop</span></a>
+    <a href="#a8"><span class="id">A8</span><span>No single-task entry</span></a>
+    <a href="#a9"><span class="id">A9</span><span>installGlobal is one-shot</span></a>
+    <div class="grp">B · Half-built</div>
+    <a href="#b1"><span class="id">B1</span><span>TaskType is a boolean</span></a>
+    <a href="#b2"><span class="id">B2</span><span>BlockingRisk half-wired</span></a>
+    <a href="#b3"><span class="id">B3</span><span>Function vs Callable</span></a>
+    <a href="#b4"><span class="id">B4</span><span>Batch result ergonomics</span></a>
+    <a href="#b5"><span class="id">B5</span><span>Group has no report</span></a>
+    <a href="#b6"><span class="id">B6</span><span>No awaitQuiescence</span></a>
+    <a href="#b7"><span class="id">B7</span><span>Checkpoints coverage</span></a>
+    <a href="#b8"><span class="id">B8</span><span>Queues as a second product</span></a>
+    <div class="grp">C · Refactors</div>
+    <a href="#tierc"><span class="id">C</span><span>All thirteen</span></a>
+    <div class="grp">Close</div>
+    <a href="#sequence"><span class="id">§</span><span>Suggested sequence</span></a>
+    <a href="#sound"><span class="id">§</span><span>Checked and sound</span></a>
+  </nav>
+
+  <main>
+    <section id="method">
+      <div class="eyebrow">Method</div>
+      <h2>How this was checked</h2>
+      <p class="sub">Every claim below is marked with its provenance, because the two kinds are
+        worth very different amounts.</p>
+      <div class="find">
+        <div class="body" style="padding-top:18px">
+          <p><span class="chip probe">probe</span> means a throwaway harness drove the
+            <em>public API only</em> and printed the contradiction. Six such claims were run;
+            one hypothesis I held going in was disproved by its own probe and has been struck
+            from this report rather than softened.</p>
+          <p><span class="chip read">code reading</span> means static reading plus grep, with a
+            <code>path:line</code> anchor. These are structural facts (what is public, what is
+            unreachable, what allocates), not behavioural predictions.</p>
+          <p>This review deliberately does <em>not</em> restate
+            <code>reports/defect-analysis-2026-09-10.md</code>. Those five defects are
+            reproduced by <code>verification/defect-repro/run.sh</code> and stand on their own;
+            findings here are new ground, and where they touch a known defect it is called out.</p>
+          <div class="note">
+            <b>The disproved one, for the record.</b> I expected <code>HeuristicPurger</code> to
+            spawn a scheduler thread even with purge disabled (which is the default). It does
+            construct the executor eagerly — but <code>Executors.newSingleThreadScheduledExecutor</code>
+            starts no thread until the first task, so the thread count really is zero. No finding.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tiera">
+      <div class="eyebrow">Tier A</div>
+      <h2>Nine places the code contradicts its own axioms</h2>
+      <p class="sub"><code>design/first-principles.md</code> is unusually explicit for a library
+        this size, which makes it a real test instrument: each finding below names the axiom it
+        fails, not a matter of taste.</p>
+
+      <article class="find" id="a1">
+        <div class="head">
+          <span class="fid">A1</span>
+          <div>
+            <h3>Closing a scope does not close anything — user code outlives the try-block</h3>
+            <div class="chips">
+              <span class="chip sev-a">structural</span>
+              <span class="chip probe">probe</span>
+              <span class="chip ax">Axiom 1 · 作用域关闭时其内工作必然终态</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p>Axiom 1 promises that when a scope closes, the work inside it is necessarily
+            terminal. Both closers break that promise: <code>TaskGroup.close()</code> cancels and
+            returns, and cancellation is only a best-effort interrupt — user code that does not
+            cooperate keeps running on the pool. <code>GlobalPar.close()</code> likewise rejects
+            new work and returns without waiting.</p>
+          <span class="loc">TaskGroup.java:145 — <code>public void close() { if (!completion.isDone()) cancel(); }</code></span>
+          <p>Measured with a member that ignores interrupts, inside try-with-resources:</p>
+<pre>7 scope-close-does-not-join : user code still running right after close()? <span class="hl">true</span>
+   user code actually ended <span class="hl">299ms AFTER</span> the try-with-resources block exited</pre>
+          <p>This is the gap between this library and <code>StructuredTaskScope</code>, whose
+            <code>close()</code> joins by contract. Today the syntax that <em>looks</em> like a
+            structured scope gives a weaker guarantee than the axiom states, and no javadoc on
+            <code>close()</code> says so.</p>
+          <div class="fix"><b>Direction</b>
+            Either make <code>close()</code> cancel-then-join (the axiom as written, with a
+            bounded grace period so a rogue task cannot hang shutdown forever), or keep the
+            non-blocking close and amend Axiom 1 to "terminal or abandoned with cancellation
+            requested" — and say it on <code>close()</code>. The first is the honest reading of
+            the project's own stated position; whichever you pick, the doc and the code must
+            agree, because this one sentence is what the library sells.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a2">
+        <div class="head">
+          <span class="fid">A2</span>
+          <div>
+            <h3>A group whose member threw completes successfully</h3>
+            <div class="chips">
+              <span class="chip sev-a">footgun</span>
+              <span class="chip probe">probe</span>
+              <span class="chip ax">Axiom 2 · 忘记处理失败</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p><code>convergeIfTerminal()</code> always calls <code>completion.set(result)</code> —
+            never <code>setException</code>. So <code>completionFuture().get()</code> returns
+            normally even when every member failed, and the only trace is a field on the result
+            the caller has to remember to read.</p>
+<pre>4 group-failure-visibility : get() <span class="hl">RETURNED NORMALLY</span>, outcome=MEMBER_CANCELED failedTask=boom
+  -> a caller who does not inspect outcome() silently loses the failure</pre>
+          <p>"Outcome is data, not an exception" is a deliberate and defensible decision —
+            <code>TaskBatchResult</code> makes the same call. But Axiom 2 says the library's job
+            is to make forgetting either impossible or <em>conspicuous</em>, and right now
+            forgetting is neither: there is no <code>orThrow()</code>, no
+            <code>throwIfFailed()</code>, and nothing that a reviewer would notice missing at a
+            call site. Note the probe also re-confirms defect #5 from the September 10 report —
+            a lone failing member reads <code>MEMBER_CANCELED</code>, not <code>USER_FAILURE</code>.</p>
+          <div class="fix"><b>Direction</b>
+            Add one terminal accessor on <code>TaskGroupResult</code> that throws the recorded
+            failure (<code>orThrow()</code> / <code>successfulOrThrow()</code>), and mirror it on
+            <code>TaskBatchResult</code>. Data stays the default; the loud path becomes one call
+            away instead of unavailable. This costs no new concept — it is a reader over the
+            snapshot that already exists.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a3">
+        <div class="head">
+          <span class="fid">A3</span>
+          <div>
+            <h3><code>rejectEnqueue</code> — on by default — does nothing unless the user picked one specific queue</h3>
+            <div class="chips">
+              <span class="chip sev-a">inert option</span>
+              <span class="chip probe">probe</span>
+              <span class="chip ax">Axiom 3 · 安全性优先于表达力</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p><code>BatchOptions</code> and <code>TaskOptions</code> both expose
+            <code>rejectEnqueue(boolean)</code>, defaulting to <code>true</code>. The only code in
+            the library that reads it is <code>SmartBlockingQueue.offer</code> — a public class
+            the library never instantiates. Register a pool built with a plain
+            <code>LinkedBlockingQueue</code> and the option is a no-op, silently.</p>
+          <span class="loc">SmartBlockingQueue.java:66 — the sole reader of <code>unit.rejectEnqueue()</code> and of <code>taskType() == CPU_BOUND</code> for queue skipping</span>
+          <p>Same batch, same options (<code>IO_BOUND</code> + <code>rejectEnqueue(true)</code>),
+            only the queue differs:</p>
+<pre>2 rejectEnqueue(true)+IO_BOUND honoured?
+  plainLinkedBlockingQueue rejections=<span class="hl">0</span>   SmartBlockingQueue rejections=<span class="ok">3</span>
+  -> option is <span class="hl">SILENTLY INERT</span> unless the user picked SmartBlockingQueue</pre>
+          <p><code>TaskType</code> is half-affected: its inline-fallback-on-rejection behaviour
+            works with any executor, but its queue-skipping behaviour has the same dependency.
+            So the same enum means one thing or two things depending on plumbing the option type
+            never mentions.</p>
+          <div class="fix"><b>Direction</b>
+            Pick one. Either <code>GlobalPar.Builder.register</code> installs the smart queue
+            itself (owning the mechanism the option promises), or it validates at
+            <code>build()</code> and refuses — or at minimum warns once — when a registered pool
+            cannot honour an enqueue policy. An option that is documented, defaulted to
+            <code>true</code>, and inert is exactly the "easy to misuse capability" Axiom 3 says
+            to withhold rather than ship.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a4">
+        <div class="head">
+          <span class="fid">A4</span>
+          <div>
+            <h3>Pre-wrapping your own pool silently disables purge and deadlock detection</h3>
+            <div class="chips">
+              <span class="chip sev-a">silent degradation</span>
+              <span class="chip probe">probe</span>
+              <span class="chip ax">Axiom 2 · 结构性保证或显眼</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p>Two features gate on <code>suppliedExecutor instanceof ThreadPoolExecutor</code>.
+            A user who registers <code>MoreExecutors.listeningDecorator(pool)</code> — a natural
+            thing to do in a Guava codebase, and a shape <code>ExecutorRuntime</code> explicitly
+            anticipates — fails both checks: <code>blockingRisk</code> falls back to
+            <code>UNKNOWN</code> and the purge observer becomes a no-op.</p>
+          <span class="loc">ExecutorRuntime.java:71 <code>detectRisk</code> · GlobalPar.java:358 <code>bindPurgeObserver</code> — both test the wrapper, not the pool inside it</span>
+          <p>Identical topology (a batch nesting a batch on the same pool), registered raw versus
+            decorated:</p>
+<pre>3 executor self-loop (same pool nested in itself) detected?
+  raw TPE=<span class="ok">true</span>   listeningDecorator(TPE)=<span class="hl">false</span>
+  -> DETECTION SILENTLY LOST when the user pre-wraps their pool</pre>
+          <p>The deadlock detector is the library's answer to its most dangerous failure mode —
+            a bounded pool nested inside itself. Losing it to a wrapper, with no diagnostic, is
+            the worst possible failure shape for a safety feature.</p>
+          <div class="fix"><b>Direction</b>
+            Unwrap before classifying. Guava's decorator does not expose its delegate, so
+            <code>register</code> should accept the physical pool and do its own listening
+            adaptation (<code>ExecutorRuntime</code> already handles both cases), and reject or
+            warn on an executor it cannot see through. Detection that silently downgrades is
+            worse than detection that refuses to start.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a5">
+        <div class="head">
+          <span class="fid">A5</span>
+          <div>
+            <h3><code>TaskKey</code>'s type safety is raw-type only — it permits heap pollution</h3>
+            <div class="chips">
+              <span class="chip sev-a">type safety</span>
+              <span class="chip probe">probe</span>
+              <span class="chip ax">§三 · 类型安全下沉到键</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p><code>TaskKey</code> captures a full <code>TypeToken</code>, then both resolution
+            sites throw that fidelity away by comparing <code>getRawType()</code>. A key claiming
+            <code>List&lt;Integer&gt;</code> resolves a member registered as
+            <code>List&lt;String&gt;</code>: both raw types are <code>List</code>.</p>
+          <span class="loc">TaskGroup.java:132 and CompletedTaskValues.java:47 — <code>key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())</code></span>
+<pre>1 generic-key-check : <span class="hl">ACCEPTED by future(key)</span>, blew up later at element access:
+  java.lang.ClassCastException: class java.lang.String cannot be cast to class java.lang.Integer</pre>
+          <p>The failure surfaces far from the mistake — at element access, in user code, with a
+            stack trace that names neither the key nor the group. The stated reason keys exist at
+            all is "type safety sunk into the key"; for every generic result type, which is most
+            of them, that safety is currently nominal. It also weakens the <code>invokeAll</code>
+            rejection in the idea graveyard, which leans on this exact property.</p>
+          <div class="fix"><b>Direction</b>
+            <code>TypeToken</code> already answers this correctly: replace both checks with
+            <code>key.resultType().isSupertypeOf(member.resultType)</code>, which keeps the
+            intended "a key may claim a supertype" rule and rejects the incompatible-generic
+            case. Small, local, and it makes the documented guarantee real. If the v0.3 proposal
+            to delete <code>TaskKey</code> in favour of returned <code>TaskFuture&lt;T&gt;</code>
+            lands, this disappears instead — that plan is strictly stronger here, since the
+            compiler does the work.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a6">
+        <div class="head">
+          <span class="fid">A6</span>
+          <div>
+            <h3>A mistyped task name turns a cancellation checkpoint into a no-op</h3>
+            <div class="chips">
+              <span class="chip sev-a">footgun</span>
+              <span class="chip probe">probe</span>
+              <span class="chip ax">Axiom 2 · 忘记 = 不可能或显眼</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p><code>Checkpoints.checkpoint(taskName, lean)</code> compares the argument to the
+            current unit's name and <em>returns silently</em> when they differ — and again when
+            there is no enclosing scope at all. So the one API a user calls to make long-running
+            work cancellable fails open on a typo, on a renamed task, on a copy-pasted loop body,
+            and on being called one frame too far out.</p>
+          <span class="loc">Checkpoints.java:47-56 — <code>if (taskName == null || !taskName.equals(unit.name())) return;</code></span>
+<pre>5 checkpoint-name-matching : wrongName=<span class="hl">NO-OP(silent)</span> rightName=<span class="ok">threw</span>
+  -> a typo'd or refactored task name disables cooperative cancellation without a word</pre>
+          <p>The name parameter earns nothing here. The framework's own pre-run call passes the
+            unit's own name, so it always matches; the only behaviour the parameter can produce
+            is the silent-skip that hurt the probe.</p>
+          <div class="fix"><b>Direction</b>
+            Make the no-argument form the primary API (<code>Checkpoints.checkpoint()</code>,
+            checking the current scope unconditionally, like <code>rawCheckpoint</code> already
+            does), and have the framework call the internal token check directly. If a
+            name-scoped variant survives at all, a mismatch should throw
+            <code>IllegalStateException</code> — "you are not in the task you think you are in"
+            is a bug, not a reason to skip a safety check.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a7">
+        <div class="head">
+          <span class="fid">A7</span>
+          <div>
+            <h3>The deadline is enforced only by a timer thread — checkpoints never look at it</h3>
+            <div class="chips">
+              <span class="chip sev-b">timing</span>
+              <span class="chip read">code reading</span>
+              <span class="chip ax">§二 · deadline 是端到端预算</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p><code>checkCancellationToken</code> reads <code>token.state()</code> and nothing
+            else. The token carries <code>deadlineNanos()</code> and <code>remaining()</code>, yet
+            no checkpoint compares them. A task therefore stays "not cancelled" for as long as
+            the timer thread is late — GC pause, busy scheduler, or a cached-pool thread yet to
+            be created.</p>
+          <span class="loc">Checkpoints.java:494-502 · CancellationToken.java:134-139 (the already-expired case is defect #4 in the September 10 report)</span>
+          <p>This is the missing second line of defence behind that known defect: an expired
+            deadline currently depends entirely on a scheduled action having run. Reading the
+            clock at every checkpoint makes expiry a property of time rather than of scheduling —
+            and the machinery is already in place.</p>
+          <div class="fix"><b>Direction</b>
+            Treat <code>deadlineNanos() &lt;= System.nanoTime()</code> as cancelled inside
+            <code>checkCancellationToken</code>, and derive default waits from
+            <code>token.remaining()</code> so <code>checkGet(future)</code> and friends cannot
+            outlive the budget they were given. One <code>nanoTime()</code> per checkpoint
+            (measured at ~0.01 µs) buys deadline enforcement that no longer depends on a timer
+            thread being punctual.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a8">
+        <div class="head">
+          <span class="fid">A8</span>
+          <div>
+            <h3>There is no way to run <em>one</em> scoped task</h3>
+            <div class="chips">
+              <span class="chip sev-b">missing primitive</span>
+              <span class="chip read">code reading</span>
+              <span class="chip ax">§二 · Batch = 同构映射, Group = 异构协调</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p><code>Par</code> exposes exactly one work-submitting method: <code>map</code>. The
+            abstraction boundary reads "batch = homogeneous fan-out, group = heterogeneous
+            coordination" — and leaves the unary case, the smallest unit of the thing this
+            library is about, with no entry point at all.</p>
+          <span class="loc">Par.java — public methods: <code>globalPar()</code>, <code>name()</code>, <code>map(List, Function, BatchOptions)</code></span>
+          <p>To run a single task with a deadline, TTL propagation, and structured cancellation,
+            a user must write
+            <code>par.map(singletonList(x), f, opts).results().get(0)</code> or stand up a
+            one-member <code>TaskGroup</code> with a <code>TaskKey</code>. Both are ceremony over
+            an operation the kernel already supports directly:
+            <code>TaskSubmissions.prepare</code> + <code>submitScoped</code> is exactly this, and
+            <code>TaskGroup</code> calls it per member.</p>
+          <div class="fix"><b>Direction</b>
+            Add <code>Par.submit(Callable&lt;T&gt;, TaskOptions)</code> returning
+            <code>TaskFuture&lt;T&gt;</code>. By the evaluation checklist this is pure
+            parameterisation of the existing kernel — no new concept, no second pipeline,
+            cancellation and deadline inherited unchanged — and it removes the most common reason
+            a user would reach for a raw <code>ExecutorService</code> and lose scoping entirely.</div>
+        </div>
+      </article>
+
+      <article class="find" id="a9">
+        <div class="head">
+          <span class="fid">A9</span>
+          <div>
+            <h3><code>installGlobal</code> argues against itself, and cannot be undone</h3>
+            <div class="chips">
+              <span class="chip sev-c">API</span>
+              <span class="chip read">code reading</span>
+              <span class="chip ax">Axiom 3 · 宁可不提供某个能力</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p>A process-wide <code>AtomicReference</code>, settable once, with no uninstall — and
+            its own javadoc says applications should normally pass <code>Par</code> instances
+            around instead of using it as a service locator.</p>
+          <span class="loc">GlobalPar.java:46,119 — <code>INSTALLED.compareAndSet(null, globalPar)</code>, no clear path</span>
+          <p>The practical cost lands on tests and on any container that restarts a context in
+            one JVM: the second install throws, and the first <code>GlobalPar</code> is pinned
+            for the lifetime of the classloader even after <code>close()</code>. The repository's
+            own test can only assert that a second install fails.</p>
+          <div class="fix"><b>Direction</b>
+            Either delete it (Axiom 3's default, and the javadoc's own recommendation), or make
+            it symmetric — have <code>close()</code> clear the installed reference so a
+            lifecycle can legitimately repeat. Keeping a one-shot global that the docs advise
+            against is the one option that serves nobody.</div>
+        </div>
+      </article>
+    </section>
+
+    <section id="tierb">
+      <div class="eyebrow">Tier B</div>
+      <h2>Eight features that stop short of their own promise</h2>
+      <p class="sub">Not bugs — declared capability that the implementation only partly delivers.
+        These are the ones worth deciding on before 0.3 freezes the surface.</p>
+
+      <article class="find" id="b1">
+        <div class="head"><span class="fid">B1</span><div>
+          <h3><code>TaskType</code> is a three-valued enum with two distinguishable values</h3>
+          <div class="chips"><span class="chip sev-b">half-built</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p>Every read in the library tests <code>== CPU_BOUND</code>. <code>IO_BOUND</code> and
+            <code>MIXED</code> are therefore behaviourally identical, while
+            <code>MIXED</code>'s javadoc ("cache check first, then IO on miss") promises a
+            distinction that does not exist.</p>
+          <span class="loc">grep <code>TaskType.</code> in src/main → 6 sites, all <code>CPU_BOUND</code> comparisons</span>
+          <div class="fix"><b>Direction</b> Either give <code>MIXED</code> real semantics
+            (it plausibly means "may enqueue, never run inline") or collapse the enum to the
+            boolean it is. A public enum whose values are indistinguishable teaches users a
+            distinction the runtime will not honour.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b2">
+        <div class="head"><span class="fid">B2</span><div>
+          <h3><code>BlockingRisk</code> declares four states and can only ever produce two</h3>
+          <div class="chips"><span class="chip sev-b">half-built</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p><code>VIRTUAL_THREAD_PER_TASK</code> and <code>UNBOUNDED</code> are never assigned.
+            <code>detectRisk</code> maps <code>ThreadPoolExecutor → BOUNDED_PLATFORM_POOL</code>
+            and everything else to <code>UNKNOWN</code>, ignoring the two facts that actually
+            determine nesting risk: queue boundedness and maximum pool size.</p>
+          <span class="loc">BlockingRisk.java:4-8 (4 constants) · ExecutorRuntime.java:70-75 (2 outcomes)</span>
+          <div class="fix"><b>Direction</b> Classify from the pool's real shape — bounded queue
+            plus fixed maximum is the deadlock-prone case; an unbounded queue is a different risk
+            (memory, not deadlock) and deserves its declared constant. A `ForkJoinPool` should
+            not silently read as unknown. Combined with A4, this is the difference between a
+            deadlock detector that works on real applications and one that works on the pools
+            the tests happen to build.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b3">
+        <div class="head"><span class="fid">B3</span><div>
+          <h3>Batch elements cannot throw checked exceptions; group members can</h3>
+          <div class="chips"><span class="chip sev-b">inconsistency</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p><code>Par.map</code> takes <code>Function&lt;? super T, ? extends R&gt;</code>, so
+            every element body that calls IO must wrap its checked exceptions by hand.
+            <code>TaskGroupDefinition.task</code> takes <code>Callable&lt;T&gt;</code> and does
+            not. Axiom 4 says to follow JDK idiom, and the JDK idiom for "work that may throw" is
+            <code>Callable</code>.</p>
+          <span class="loc">Par.java:93 <code>Function</code> vs TaskGroupDefinition.Builder <code>Callable</code></span>
+          <div class="fix"><b>Direction</b> Accept a throwing function in the batch path
+            (a package-level <code>ThrowingFunction&lt;T,R&gt;</code>, or overload with
+            <code>Function&lt;T, Callable&lt;R&gt;&gt;</code>). Under the 0.x breaking-change
+            allowance this is cheap now and expensive later.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b4">
+        <div class="head"><span class="fid">B4</span><div>
+          <h3>The 90% batch case needs three steps and a Guava import</h3>
+          <div class="chips"><span class="chip sev-b">ergonomics</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p>"Run these, give me the results, fail if any failed" is
+            <code>map(...)</code> → <code>.results()</code> →
+            <code>Futures.allAsList(...)</code> → <code>.get()</code>. And the input must be a
+            <code>List</code> — no <code>Collection</code>, <code>Iterable</code>, or
+            <code>Stream</code>, though nothing in the kernel needs indexed access beyond
+            <code>list.get(index)</code> during preparation.</p>
+          <div class="fix"><b>Direction</b> One convenience on <code>TaskBatchResult</code>
+            (<code>values()</code> / <code>valuesOrThrow()</code>) covers the common path without
+            a new concept, and widening the input to <code>Collection</code> costs one
+            <code>ArrayList</code> copy on entry. Pairs naturally with A2's terminal accessor —
+            same idea, both entry points.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b5">
+        <div class="head"><span class="fid">B5</span><div>
+          <h3>Batches report; groups do not</h3>
+          <div class="chips"><span class="chip sev-c">asymmetry</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p><code>TaskBatchResult</code> has <code>report()</code> and
+            <code>reportString()</code>; <code>TaskGroupResult</code> — which holds strictly
+            richer data, per-member snapshots with timings — has neither. Meanwhile
+            <code>BatchReport.stateCounts()</code> is annotated <code>@Nullable</code> for a null
+            that <code>report()</code> never produces, forcing a dead null-check on every caller,
+            and <code>BatchReport</code>'s constructor is public although users never build one.</p>
+          <span class="loc">TaskBatchResult.java:96-131 · BatchReport.stateCounts() <code>@Nullable</code> · TaskGroupResult.java (no report)</span>
+          <div class="fix"><b>Direction</b> Drop the impossible null and the public constructor,
+            then give the group the same one-line summary. Two symmetric results should answer the
+            same question the same way.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b6">
+        <div class="head"><span class="fid">B6</span><div>
+          <h3><code>GlobalPar.close()</code> cannot be joined</h3>
+          <div class="chips"><span class="chip sev-b">lifecycle</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p><code>close()</code> flips a flag and shuts the framework services down once
+            admissions and batches drain — but exposes no way to wait for that. There is no
+            <code>awaitTermination</code>, and <code>activeBatches</code> is private, so an
+            application shutdown hook has no join point and no observability.</p>
+          <span class="loc">GlobalPar.java:235-241 <code>close()</code> · <code>activeAdmissions</code>/<code>activeBatches</code> private</span>
+          <p>The internal threads are daemons, so JVM exit is safe. A container redeploy is not:
+            in-flight timeout actions keep the old classloader alive with nobody able to wait for
+            them.</p>
+          <div class="fix"><b>Direction</b> <code>awaitQuiescence(Duration)</code> returning
+            whether it drained, plus an in-flight count for metrics. This is also what A1 needs if
+            <code>close()</code> becomes joining — same plumbing, two callers.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b7">
+        <div class="head"><span class="fid">B7</span><div>
+          <h3><code>Checkpoints</code> is 30-plus methods of one pattern, with uneven coverage</h3>
+          <div class="chips"><span class="chip sev-c">surface</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p>541 lines in which nearly every method is: check the token, call the JDK operation,
+            translate <code>InterruptedException</code>. The coverage that resulted is uneven —
+            <code>CountDownLatch</code> has an untimed <code>checkAwait</code> but
+            <code>Semaphore</code> has only timed <code>tryAcquire</code>; there is no
+            <code>Lock.lock()</code> adapter; and no method derives its wait from the deadline the
+            token already holds (see A7).</p>
+          <div class="fix"><b>Direction</b> Keep the handful of genuinely common wrappers as
+            sugar, but express them over one parameterised primitive
+            (<code>Checkpoints.interruptible(op)</code>) so coverage stops depending on which
+            methods someone got around to writing. This is the "parameterise, don't multiply
+            concepts" checklist item applied to the library's largest public class.</div>
+        </div>
+      </article>
+
+      <article class="find" id="b8">
+        <div class="head"><span class="fid">B8</span><div>
+          <h3>18% of main is a queue library the toolkit never uses</h3>
+          <div class="chips"><span class="chip sev-b">scope</span><span class="chip read">code reading</span></div>
+        </div></div>
+        <div class="body">
+          <p><code>DrainingBlockingQueue</code> is 1 642 lines — the largest file in the project by
+            2.6× — is public API, has its own contract document and 1 448 lines of tests, and is
+            referenced from <code>src/main</code> only by its own package javadoc. Its sibling
+            <code>VariableLinkedBlockingQueue</code> is reached only through
+            <code>SmartBlockingQueue</code>, and carries both P1 defects from the September 10
+            report.</p>
+          <div class="tscroll" style="margin-top:13px"><table>
+            <thead><tr><th>Component</th><th class="num">LOC</th><th>Used by the kernel?</th></tr></thead>
+            <tbody>
+              <tr><td class="k">queue/DrainingBlockingQueue</td><td class="num">1 642</td><td>No — package javadoc only</td></tr>
+              <tr><td class="k">queue/VariableLinkedBlockingQueue</td><td class="num">516</td><td>Indirectly, via SmartBlockingQueue</td></tr>
+              <tr><td class="k">SmartBlockingQueue</td><td class="num">86</td><td>Never constructed by the library (A3)</td></tr>
+            </tbody>
+          </table></div>
+          <p style="margin-top:13px">CLAUDE.md calls this package "independent general-purpose
+            queue implementations", so the coupling is intentional. The question is whether a
+            structured-concurrency toolkit should <em>ship</em> it: it doubles the review surface,
+            and its defects are now this artifact's defects.</p>
+          <div class="fix"><b>Direction</b> Split it into a sibling artifact (<code>…-queues</code>)
+            that the core depends on, or drop it from the public surface and keep only what
+            <code>SmartBlockingQueue</code> needs. 0.x is the cheapest moment this decision will
+            ever have.</div>
+        </div>
+      </article>
+    </section>
+
+    <section id="tierc">
+      <div class="eyebrow">Tier C</div>
+      <h2>Thirteen refactors, in descending order of payoff</h2>
+      <p class="sub">Mechanical and local. None changes observable behaviour except where noted.</p>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>#</th><th>Finding</th><th>Anchor</th><th>Why it pays</th></tr></thead>
+          <tbody>
+            <tr><td class="k">C1</td>
+              <td><b><code>Task</code> is public but is not API.</b> Documented "never constructed by users / treat the implementation as private", never appears in a public signature, yet it is pinned in the public surface test.</td>
+              <td class="k">Task.java:38<br>PublicApiSurfaceTest:34</td>
+              <td>Make it package-private and the promise becomes enforced rather than requested. One line, minus one public type.</td></tr>
+            <tr><td class="k">C2</td>
+              <td><b><code>CancellationToken</code> is user-subclassable.</b> A <code>public</code> non-final class with three public constructors, a <code>create()</code> factory, and public <code>bind()</code> — every state method overridable. It is also the library's single source of attribution truth.</td>
+              <td class="k">CancellationToken.java:39</td>
+              <td>An override of <code>state()</code> corrupts every outcome the library reports. Seal the class, hide <code>bind()</code>, keep one construction path.</td></tr>
+            <tr><td class="k">C3</td>
+              <td><b>Three aggregate futures per batch where one would do.</b> <code>bind</code> builds <code>allAsList(futures)</code> and <code>successfulAsList(futures)</code>; <code>retainUntilComplete</code> builds a third over the same list — roughly 3n listener registrations per batch, ~4n per group.</td>
+              <td class="k">CancellationToken.java:133,143<br>GlobalPar.java:281</td>
+              <td>Share one aggregate between binding and retention. Pure win on the submit path, proportional to fan-out.</td></tr>
+            <tr><td class="k">C4</td>
+              <td><b><code>ScopedCallable</code>'s six public accessors are unreachable.</b> The instance is handed straight to <code>TtlCallable.get(...)</code> and never retained, so nothing can call <code>executionTime()</code>, <code>waitTime()</code>, <code>totalTime()</code>, <code>taskExecutionContext()</code>, <code>executorName()</code>, or <code>cancellationToken()</code>. The listener field is non-final, declared after the constructor, and still named <code>newTaskListeners</code>.</td>
+              <td class="k">ScopedCallable.java:52-99<br>TaskSubmissions.java:36</td>
+              <td>~50 lines of provably dead code in the hottest class in the library, plus a mutable field that should be final.</td></tr>
+            <tr><td class="k">C5</td>
+              <td><b><code>ListenableCompletionService</code> implements an interface nobody uses.</b> 191 lines, five constructors, full <code>CompletionService</code> contract — and <code>SlidingWindowSubmitter</code> calls exactly two methods, reading completions from the queue it owns rather than through <code>take()</code>.</td>
+              <td class="k">ListenableCompletionService.java<br>SlidingWindowSubmitter.java:119,148</td>
+              <td>Collapse to the two-method internal submitter it actually is; three constructors and the <code>Runnable</code>-overload path exist only for tests.</td></tr>
+            <tr><td class="k">C6</td>
+              <td><b>O(n) work under the group lock on every completion.</b> <code>memberCompleted</code> runs a full <code>allMatch</code> stream inside <code>synchronized (this)</code> to test the join condition, making convergence O(n²) in lock-held time; <code>membersAndTerminal()</code> and <code>memberFutures()</code> allocate fresh lists per call.</td>
+              <td class="k">TaskGroup.java:246-302 (join test at :275)</td>
+              <td>A success counter next to the existing <code>terminalCount</code> makes the test O(1). Matters for wide groups, and shortens a lock the whole group contends on.</td></tr>
+            <tr><td class="k">C7</td>
+              <td><b>Group submission burns N+1 SecureRandom UUIDs on the caller's thread.</b> Every <code>MultiTaskContext</code> and the group itself generate one, at ~0.20 µs measured — ~13 µs of caller latency for a 64-member group — for values used only as graph keys and diagnostic ids.</td>
+              <td class="k">MultiTaskContext.java:45<br>TaskGroup.java:52</td>
+              <td>A counter plus a per-<code>GlobalPar</code> prefix is ~5 ns and equally unique within a process. Batches pay this once; groups pay per member.</td></tr>
+            <tr><td class="k">C8</td>
+              <td><b>Graph bookkeeping runs when nobody is observing.</b> <code>Par.executeGlobal</code> builds a <code>TaskEdge</code> and reads <code>unit.remaining()</code> before <code>logTaskPair</code> discovers there is no active scope.</td>
+              <td class="k">Par.java:123-133</td>
+              <td>One null check ahead of the allocation. Observation is off by default, so this is the common path.</td></tr>
+            <tr><td class="k">C9</td>
+              <td><b>Two parallel executor-graph implementations, neither memoized.</b> A string-keyed legacy graph and an identity-keyed one coexist; closing one scope rebuilds them two to three times because <code>executorCycle()</code>, <code>executorSelfLoop()</code>, and <code>buildDetectionEvent</code> each regenerate from scratch.</td>
+              <td class="k">TaskGraphData.java:91-120,164,194</td>
+              <td>Retire the legacy fallback and memoize like <code>graph()</code> already does. Request-close cost drops by a factor, and one of two graph models stops needing maintenance.</td></tr>
+            <tr><td class="k">C10</td>
+              <td><b><code>MultiTaskContext.resolve</code> has four overloads up to nine positional parameters.</b> The nine-argument call sites in <code>TaskGroup</code> are unreadable and three adjacent <code>@Nullable</code> reference parameters are trivially transposable.</td>
+              <td class="k">MultiTaskContext.java:63-131<br>TaskGroup.java:487,526</td>
+              <td>One resolution-parameters object; the compiler starts catching what review currently has to.</td></tr>
+            <tr><td class="k">C11</td>
+              <td><b>The builder is not a builder.</b> <code>Builder.task(...)</code> returns the <code>TaskKey</code> you passed in, so calls cannot chain; <code>buildWithCombiner()</code> both registers and builds; and the builder stays reusable, so a <code>task()</code> after <code>buildWithCombiner()</code> silently yields a second, different definition.</td>
+              <td class="k">TaskGroupDefinition.java Builder</td>
+              <td>Cost me a compile error while writing the probes for this report. The v0.3 proposal's single-use builder fixes it — worth confirming that is the plan.</td></tr>
+            <tr><td class="k">C12</td>
+              <td><b>Doc rot from the package merge.</b> Three <code>CancellationToken</code> javadocs still explain a <code>scope</code>/<code>cancel</code> package split that no longer exists — one claims a method "is public only because" of it, though the method is now package-private. Public types <code>@link</code> package-private ones (<code>Par</code> and <code>TaskType</code> → <code>SlidingWindowSubmitter</code>, <code>TaskKey</code> → <code>MultiTaskContext</code>), which publish as broken links.</td>
+              <td class="k">CancellationToken.java:189,203,250<br>Par.java:24 · TaskType.java:7 · TaskKey.java:20</td>
+              <td>The javadoc is the contract for a pre-1.0 library. Also fix <code>CancellationToken.bind</code>'s expired-deadline sentence when defect #4 lands.</td></tr>
+            <tr><td class="k">C13</td>
+              <td><b>33 untracked agent-config directories in the working tree.</b> <code>.adal/ .agents/ .augment/ .codebuddy/ …</code> — none matched by the 30-line <code>.gitignore</code>, so <code>git status</code> is unreadable and an accidental <code>git add -A</code> commits them.</td>
+              <td class="k">.gitignore</td>
+              <td>Two glob lines. Trivial, but it is currently the first thing anyone sees.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sequence">
+      <div class="eyebrow">Recommendation</div>
+      <h2>Suggested sequence</h2>
+      <p class="sub">Ordered by "decision needed before code" first, then by payoff per unit of
+        risk. The five defects from the September 10 report stay ahead of all of this.</p>
+      <ol class="seq">
+        <li><b>Decide A1 before anything else.</b> Whether <code>close()</code> joins determines
+          what the library <em>is</em>, and B6's <code>awaitQuiescence</code> is its
+          implementation. Every other API choice reads differently depending on this answer.</li>
+        <li><b>Then A3 + A4 together.</b> Both are "a feature silently does nothing depending on
+          how the user built their pool", both live in <code>register</code>/<code>ExecutorRuntime</code>,
+          and B2's risk classification is the same edit. One change, three findings.</li>
+        <li><b>A5 and A6 next — small, local, high blast radius.</b> Two type-check expressions and
+          one checkpoint signature. Both convert a documented guarantee from nominal to real, and
+          A5 becomes moot if the v0.3 <code>TaskKey</code> removal lands, so sequence it against
+          that proposal.</li>
+        <li><b>A2 + B4 + B5 as one ergonomics pass.</b> Terminal accessors and a symmetric report
+          across both entry points — no new concepts, and it closes the "forgot to check" hole on
+          the paths users actually write.</li>
+        <li><b>A7 with defect #4.</b> The clock-reading checkpoint is the backstop that makes that
+          fix robust rather than merely correct-when-the-timer-is-punctual. Same area, one test
+          matrix.</li>
+        <li><b>A8 once A1 is settled.</b> A unary <code>submit</code> inherits whatever
+          <code>close()</code> semantics you chose, so build it after, not before.</li>
+        <li><b>Tier C opportunistically</b>, except C1/C2/C11, which change the public surface and
+          therefore belong in the same release as the other API decisions. C13 today — it costs
+          two lines.</li>
+        <li><b>B8 is a product decision, not a refactor.</b> Worth an ADR either way: 18% of the
+          codebase and two P1 defects currently ride along on a promise the toolkit does not make.</li>
+      </ol>
+    </section>
+
+    <section id="sound">
+      <div class="eyebrow">Negative results</div>
+      <h2>Checked and found sound</h2>
+      <p class="sub">Where I went looking and found nothing worth reporting — as useful as the
+        findings, since it marks where not to spend the next review.</p>
+      <div class="find"><div class="body" style="padding-top:18px">
+        <ul class="tight">
+          <li><b>Java 8 compatibility holds.</b> <code>maven-compiler-plugin</code> uses
+            <code>&lt;release&gt;8&lt;/release&gt;</code>, which enforces the JDK 8 API surface,
+            and Guava 33.6.0-jre still ships class-file major version 52. The stated floor is
+            real, not aspirational.</li>
+          <li><b><code>ExecutionPhaseHintFuture</code>'s phase machine is airtight.</b> The
+            <code>run()</code>/<code>afterDone()</code> monitor discipline genuinely closes the
+            lost-cancel-signal window, and the comments explaining why are accurate.</li>
+          <li><b>Admission counting is correct.</b> <code>enterAdmission</code>'s retry loop
+            terminates in at most two iterations, and the
+            <code>activeAdmissions</code>/<code>activeBatches</code> handshake into
+            <code>shutdownServicesWhenAdmissionsComplete</code> has no path that leaks a count.</li>
+          <li><b>Token attribution is genuinely race-free by construction.</b> Committing state
+            before cancelling futures, then reading state post hoc — plus
+            <code>originState()</code>'s parent walk — is the right design, and
+            <code>TokenOutcomes</code> being the single mapping table is what makes it reviewable.
+            This is the strongest part of the codebase.</li>
+          <li><b>TTL and context restore are balanced on every path.</b> Normal, exceptional,
+            cancelled, rejected, and inline all restore, including the deliberate
+            <code>restore(null)</code> around listener notification so listeners cannot inherit a
+            current-task identity.</li>
+          <li><b>The purge scheduler thread is lazy</b> — my hypothesis that a disabled purge
+            policy still costs a thread was wrong, and its probe said so.</li>
+        </ul>
+      </div></div>
+    </section>
+  </main>
+</div>
+
+<footer><div class="wrap">
+  Review of <code>parallel-in-scope</code> at <code>dev/v0.3.0</code> (base <code>bf24db6</code>,
+  version 0.2.0), 2026-09-11. Probe findings were produced through the public API only; the harness
+  was temporary and has not been added to the repository. Companion documents:
+  <code>reports/defect-analysis-2026-09-10.md</code> (five reproduced defects),
+  <code>design/first-principles.md</code> (the axioms tested here),
+  <code>design/group-api-redesign-v0.3-proposal.md</code> (which independently resolves A5 and C11).
+</div></footer>
