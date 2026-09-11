@@ -7,12 +7,18 @@ TaskGroup/combine）。
 最小复现代码见各条），不是静态推理。基线 `mvn test` = 512 tests, 0 failures, 0 errors——以下问题
 全部位于现有测试未覆盖的路径上。
 
+> **复核修订（2026-09-11）**：本报告经独立复核（harness 重跑 exit 0 + 逐条静态核对）后修订：
+> 实质结论全部维持，修正了若干行号引用（#1/#4 位置、附录 A/B 个别条目）、#5"契约冲突"
+> 的定性（§8.4 实为固化方）、补入遗漏的 `TaskOutcome.java` javadoc 与 `CancellationToken.bind`
+> javadoc 两个需同步修改点。#2 的"已知/已决策"状态在仓库内（adr/、CHANGELOG）无独立记录，
+> 已在第 2 节加注。
+
 | # | 位置 | 影响 | 严重度 | 状态 |
 |---|---|---|---|---|
-| 1 | `queue/VariableLinkedBlockingQueue.java:427-437` | 抛异常的 target 永久损坏队列（count 漂移、后续 poll/take 抛 NPE、元素丢失） | P1 | 新发现 |
+| 1 | `queue/VariableLinkedBlockingQueue.java:427-436` | 抛异常的 target 永久损坏队列（count 漂移、后续 poll/take 抛 NPE、元素丢失） | P1 | 新发现 |
 | 2 | `queue/VariableLinkedBlockingQueue.java:404,435` | 缩容后 `clear()`/`drainTo()` 不唤醒阻塞的 `put`，生产者永久挂起 | P1 | **已知**，已决定 0.2.0 带缺陷发布、0.2.1 修复 |
 | 3 | `SlidingWindowSubmitter.java:100-109,167` + `Task.java:96-100` | 元素被报 `SUBMISSION_FAILURE`，但用户 callable 实际已执行 | P1 | 新发现 |
-| 4 | `CancellationToken.java:133-139` | 已过期 deadline 不同步提交 `TIMEOUT`，用户 callable 仍会进入（违反契约 MUST） | P2 | 新发现 |
+| 4 | `CancellationToken.java:134-139` | 已过期 deadline 不同步提交 `TIMEOUT`，用户 callable 仍会进入（违反契约 MUST） | P2 | 新发现 |
 | 5 | `TaskGroup.java:290-299,362-380` | 失败成员的组 outcome 随完成顺序在 `USER_FAILURE`/`MEMBER_CANCELED` 间漂移 | P2 | 已知形态（被测试与文档固化），需决策 |
 
 ---
@@ -74,7 +80,7 @@ exit 0: every reported defect reproduced
 
 ## 1. `VariableLinkedBlockingQueue.drainTo` 不是异常安全的（新发现，P1）
 
-**位置**：`src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java:427-437`
+**位置**：`src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java:427-436`
 
 ```java
 while (i < n) {
@@ -112,12 +118,13 @@ q.size(); q.isEmpty(); q.poll(); q.poll();
 ```text
 after drainTo: raised=java.lang.IllegalStateException: target refuses 1  size=2  isEmpty=false   ← 链上其实只剩 1 个
 poll#1=2
-poll#2=NullPointerException: Cannot read field "item" because "first" is null                     ← dequeue() 的 requireNonNull
+poll#2=NullPointerException: Cannot read field "item" because "first" is null                     ← dequeue() :155 解引用已摘空的 first
 final size=1  isEmpty=false                                                                       ← count 永久卡住
 ```
 
 **后果**：元素 1 丢失且已传给 target（无法回滚，javadoc 明确不承诺回滚）；此后 `count` 永远比链长多 1，
-每次 `poll()`/`take()` 都在 `dequeue()` 抛 NPE（`poll()` 的快路径先看 `count == 0`，count=1 所以会进
+链耗尽前 `poll()` 仍正常返回剩余元素，链耗尽后每次 `poll()`/`take()` 都在 `dequeue()`（`:155`
+解引用空 `first`）抛 NPE（`poll()` 的快路径先看 `count == 0`，count=1 所以会进
 dequeue），`isEmpty()` 永远为 false。触发条件现实：target 是有界集合或带校验的集合（`add` 抛
 `IllegalStateException`）。
 
@@ -184,6 +191,10 @@ drainTo-after-shrink drained=2 size=0 remainingCapacity=1 producerAlive=true com
 > `io.github.huatalk:parallel-in-scope:0.1.0` 编译同一复现同样挂起），决定 0.2.1 修复。本报告的增量是
 > `drainTo()` 路径的同一复现与精确修复谓词。另注：`take()` 的 `==` 谓词本身是正确的（见上），
 > 不构成第三个受害点。
+>
+> 复核注记（2026-09-11）：上述"已知缺陷、带缺陷发布、0.2.1 修复、0.1.0 同样复现"的决策在仓库内
+> （adr/、CHANGELOG.md、design/、git 历史）无任何独立记录，唯一出处是本报告。缺陷机制本身已经
+> 复核成立，但若要引用该决策状态，建议先补一条 ADR 或 changelog 条目以便溯源。
 
 ---
 
@@ -236,7 +247,7 @@ loop 停在 `blockingQueue.take()` 时取消，且对每个 result 只断言 `is
 
 ## 4. 已过期 deadline 不同步提交 `TIMEOUT`，用户 callable 仍会进入（新发现，P2）
 
-**位置**：`CancellationToken.java:133-139`
+**位置**：`CancellationToken.java:134-139`
 
 ```java
 if (deadlineNanos != Long.MAX_VALUE) {
@@ -263,8 +274,9 @@ over 20 rounds: memberCallableRan in 20 rounds, group outcomes=[SUCCESS]
 `TIMEOUT`、取消全部成员且不得进入用户 callable；报 `SUCCESS` 的形态更糟：一个 deadline 早已过期的组
 既执行了全部用户代码，又自称成功。
 
-**契约依据**：`design/task-group-cancellation.md` §8.4「若外层 deadline 在 submit 准备期间已经到期……
-不得进入用户 callable」与必测矩阵 #22。
+**契约依据**：`design/task-group-cancellation.md` §8.4（:58）「若外层 deadline 在 submit 准备期间已经到期……
+不得进入用户 callable」；必测矩阵 #22（位于 `design/task-group-observability-and-verification.md` §14，
+非 cancellation 文档）有同义条目。
 
 **真实触发窗口**：外层或自身 deadline 已过、但其超时动作尚未被 action pool 线程执行时（scheduler 线程
 忙、GC、cached pool 线程创建延迟）。探针用 ns 级 timeout 把它变成必现；direct executor 下必现。
@@ -273,6 +285,9 @@ over 20 rounds: memberCallableRan in 20 rounds, group outcomes=[SUCCESS]
 `transitionTo(TIMEOUT)` 并取消已绑定 futures（等价于超时动作立即执行完毕），而不是排 0 延迟 timer；
 未过期才走 `withTimeout`。修复后 `TaskGroup` 侧无需改动：`submitPrepared()` 已有 `if (!future.isDone())`
 跳过，空组 + combine 的 `submitTerminalOnce()` 也有 `isDone` 判断。
+**需同步修改**：`CancellationToken.bind` 的 javadoc（`:120-121`）目前写着"An already-expired deadline
+simply schedules the timeout for immediate execution"，是当前行为的 API 层承认，修复后该句需改写为
+同步提交语义。
 
 **边界说明**：Batch 路径（`Par.map` → `submitAll` → `bind`）是**先提交后 bind**，bind 时刻的同步提交
 无法阻止已提交元素执行；若要满足矩阵 #22 对 batch 的同类要求，需要另行把 deadline 判定前移到提交前。
@@ -301,9 +316,12 @@ over 20 rounds: memberCallableRan in 20 rounds, group outcomes=[SUCCESS]
 同样失败 + 有 combine  → outcome=USER_FAILURE
 ```
 
-**判定**：同一逻辑两种结果 = 竞态泄漏到公开 API；并与三份契约冲突（`task-group-api-and-options` §3.3
-「fail-fast 时组沿用失败成员自己的 outcome」、`task-group-cancellation` §8.4 归因映射、
-`task-group-terminal-combine` §7 表格）。但它被 `ScopedTaskContractTest.java:90-96` 明确断言、
+**判定**：同一逻辑两种结果 = 竞态泄漏到公开 API。冲突的准确清单（复核后修正）：硬冲突是
+`task-group-api-and-options` §3.3「fail-fast 时组沿用失败成员自己的 outcome」与
+`TaskOutcome.java:18` javadoc（无条件写着 "a failing group adopts the failed member's own outcome"）；
+`task-group-cancellation` §8.4/§8.4.1（:98-103、:131-132）写的恰恰是现行行为，是**固化方**而非冲突方；
+`task-group-terminal-combine` §7 表格的冲突依赖对"member 的组级 outcome"的含糊解读，偏弱。
+但它被 `ScopedTaskContractTest.java:91-100` 明确断言、
 被 `design/task-group-lifecycle.md:240-241` 写为规则，因此修改属**行为变更**，必须实现 + 测试 + 文档
 一次性同步。
 
@@ -363,12 +381,12 @@ combine 对称），但会把 FAIL_FAST 提交提前到成员观测点，可能�
 
 **实现（同一次改动）**
 
-1. `TaskGroup.java:362-376`（`deriveOutcome`）—— `SUCCESS`/`RUNNING` 分支在 `allSuccess` 判定前插入
-   `failedTaskName != null` 的优先返回，并复用 `FAIL_FAST` 分支（`:366-369`）的"失败名可能是 terminal
+1. `TaskGroup.java:362-380`（`deriveOutcome`）—— `SUCCESS`/`RUNNING` 分支在 `allSuccess` 判定前插入
+   `failedTaskName != null` 的优先返回，并复用 `FAIL_FAST` 分支（`:365-370`）的"失败名可能是 terminal
    combine"解析。
 2. `TaskGroup.java:355-361`（`deriveOutcome` javadoc）—— 补一句"已记录的失败优先于 RUNNING/SUCCESS 的全成功规则"。
-3. `TaskGroup.java:289-295`（`memberCompleted` 注释）—— 删掉"lone member failure 在 RUNNING token 下读作
-   MEMBER_CANCELED"的表述；terminal 专用 `failFastCancel()` 的理由（`:288-291`）仍成立，保留。
+3. `TaskGroup.java:291-295`（`memberCompleted` 注释）—— 删掉"lone member failure 在 RUNNING token 下读作
+   MEMBER_CANCELED"的表述（`:294-295`）；terminal 专用 `failFastCancel()` 的理由（`:291-293`）仍成立，保留。
 
 **测试**
 
@@ -377,7 +395,8 @@ combine 对称），但会把 FAIL_FAST 提交提前到成员观测点，可能�
    先确认该用例里成员实际记录的是 TIMEOUT 还是 USER_FAILURE 再收窄（若成员仍记 TIMEOUT，则
    `failedTaskName` 保持 null，MEMBER_CANCELED 不再是合法期望值）。
 6. 新增回归用例（跨顺序一致性）：单成员失败（同 `ScopedTaskContractTest` 形状）、失败者最后完成
-   （同 `TaskGroupTest:155-176` 形状）都必须读 `USER_FAILURE`；补一个 lone `SUBMISSION_FAILURE` 变体。
+   （`verification/defect-repro` CHECK 5 的 "last" 形状；注意 `TaskGroupTest:155-176` 实为"失败者**先**
+   完成"的用例，不能直接当模板）都必须读 `USER_FAILURE`；补一个 lone `SUBMISSION_FAILURE` 变体。
 7. 判定为**无需改动**：`TaskGroupTest:171-174/:253/:508-510/:985-986/:1055-1056`、
    `TaskGroupCombineTest:104/130/200/241/269/292`、`TaskFutureTest:223/229/:499/515`、
    `TaskCompletionTest:76/82`、`FutureInspectorTest:29/53`、`TaskBatchResultTest`、`TaskGroupOptionsTest`、
@@ -393,11 +412,14 @@ combine 对称），但会把 FAIL_FAST 提交提前到成员观测点，可能�
     MEMBER_CANCELED"的括注；combine 同步 `failFastCancel()` 的论证本身仍成立。
 12. `design/task-group-api-and-options.md:276-280`（§3.3，SHOULD）—— "fail-fast 时组沿用失败成员自己的 outcome"
     → 改写为"有失败记录时（无论 token 是否已提交 FAIL_FAST）"。
-13. `design/task-group-observability-and-verification.md:112`（必测矩阵 15，SHOULD）—— 该行仍写着"成员失败固定
+13. `TaskOutcome.java:18`（MUST，复核补入）—— javadoc 无条件写着 "a failing group adopts the failed member's
+    own outcome"，是本次最硬的冲突点却不在原清单；需与 §3.3 同步改写，并连带核对同段对
+    `MEMBER_CANCELED`/`GROUP_CANCELED` 的释义。
+14. `design/task-group-observability-and-verification.md:112`（必测矩阵 15，SHOULD）—— 该行仍写着"成员失败固定
     FAILED"（`FAILED` 已不是 `TaskOutcome` 值，属 0.2.0 重命名残留），需改为按 outcome 规则表述，并把
     lone failure/RUNNING 收敛列为显式用例。
-14. `CHANGELOG.md:25`（SHOULD）—— 扩写该 breaking 条目，或在 0.2.0 下补一条 `### Fixes`。
-15. 判定为**兼容、无需改动**：`docs/{zh,en}/migration-v0.2.md`（讲的是被删枚举到 MEMBER_CANCELED 的映射，
+15. `CHANGELOG.md:25`（SHOULD）—— 扩写该 breaking 条目，或在 0.2.0 下补一条 `### Fixes`。
+16. 判定为**兼容、无需改动**：`docs/{zh,en}/migration-v0.2.md`（讲的是被删枚举到 MEMBER_CANCELED 的映射，
     非 RUNNING/失败场景）、`docs/{zh,en}/user-guide.md` 的成员级归因段落、`TaskGroupResult.java:62-66` javadoc、
     `TokenOutcomes.java:5-27`、`TaskFuture.java:44/62`、`adr/0001`、`adr/0002:219`、
     `design/AGENTS.md:11`、`wiki/`、`reports/*.html`、`demo/**`（只采样批量报告的字符串）、
@@ -421,7 +443,9 @@ combine 对称），但会把 FAIL_FAST 提交提前到成员观测点，可能�
 差分模糊 50 万次操作、20 万轮快照一致性检查），未发现挂起、丢失唤醒或状态机漏洞。已明确排除的区域：
 
 1. **不存在"DRAINING 且 count==0"的不一致窗口**：每个递减路径都在同一个 `takeMonitor` 临界区内发布
-   `DRAINED`（`poll` 803-811、`take` 895-896、`poll(t)` 973-975、`remove` 路径 1517-1518），消费者不会
+   `DRAINED`（复核修正行号：`poll` :550、`take` :581、`poll(t)` :616、`remove`/迭代器路径 :1517-1518；
+   经 `fullyLock` 的 clear/unlink/批量删除发布点为 :810/:896/:974——原稿误把这些行号标注给了
+   poll/take/poll(t)，结论不受影响），消费者不会
    在"已无元素可发"的状态下无限等待。
 2. **close 后无生产者漏入**：`open()`/lifecycle 在生产者监视器内复查（454/483/516/672/769）；`offer` 与
    `close` 竞争时要么在 DRAINING 之前落地、要么被拒，两种结果都不丢元素。

@@ -346,12 +346,16 @@ public final class DefectRepro {
     private static void check5GroupOutcomeOrderDependence() throws Exception {
         System.out.println();
         System.out.println("=== CHECK 5: group outcome for a failing member depends on completion order ===");
-        System.out.println("single failing member   : " + failingGroupShape("single"));
-        System.out.println("failure completes first : " + failingGroupShape("first"));
-        System.out.println("failure completes last  : " + failingGroupShape("last"));
-
+        String single = failingGroupShape("single");
+        String first = failingGroupShape("first");
         String last = failingGroupShape("last");
-        boolean reproduced = last.contains("outcome=MEMBER_CANCELED") && last.contains("failedTask=boom-late");
+        System.out.println("single failing member   : " + single);
+        System.out.println("failure completes first : " + first);
+        System.out.println("failure completes last  : " + last);
+
+        boolean reproduced = first.contains("outcome=USER_FAILURE")
+                && last.contains("outcome=MEMBER_CANCELED")
+                && last.contains("failedTask=boom-late");
         record("5 group-outcome-order-dependence", reproduced,
                 "the same failure reads MEMBER_CANCELED when it completes last and USER_FAILURE when it completes first");
     }
