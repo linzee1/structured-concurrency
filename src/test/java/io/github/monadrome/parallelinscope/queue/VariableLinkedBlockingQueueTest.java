@@ -651,6 +651,103 @@ class VariableLinkedBlockingQueueTest {
         assertEquals(3, queue.remainingCapacity());
     }
 
+    /**
+     * A target that throws on the very first add must leave the queue untouched: the JDK shape
+     * adds before unlinking, so no node is lost and count stays consistent with the chain.
+     */
+    @Test
+    void drainTo_targetThrowsOnFirstElement_leavesQueueUnchanged() {
+        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        queue.offer("a");
+        queue.offer("b");
+        List<String> refusing = refusingAt(0);
+        assertThrows(IllegalStateException.class, () -> queue.drainTo(refusing));
+        assertThrows(IllegalStateException.class, () -> queue.drainTo(refusing, 1));
+        assertEquals(2, queue.size());
+        assertFalse(queue.isEmpty());
+        assertEquals("a", queue.poll());
+        assertEquals("b", queue.poll());
+        assertNull(queue.poll());
+        assertEquals(0, queue.size());
+    }
+
+    /**
+     * A target that throws mid-drain keeps the elements it refused: only the elements already
+     * accepted by the target leave the queue, and count stays consistent with the chain.
+     */
+    @Test
+    void drainTo_targetThrowsOnSecondElement_keepsRefusedElements() {
+        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        queue.offer("a");
+        queue.offer("b");
+        queue.offer("c");
+        List<String> refusing = refusingAt(1);
+        assertThrows(IllegalStateException.class, () -> queue.drainTo(refusing));
+        assertEquals(Arrays.asList("a"), refusing);
+        assertEquals(2, queue.size());
+        assertEquals("b", queue.poll());
+        assertEquals("c", queue.poll());
+        assertNull(queue.poll());
+        assertEquals(0, queue.size());
+    }
+
+    /**
+     * After a shrink below the current size, count exceeds capacity, so the JDK {@code ==
+     * capacity} wakeup predicate never fires: a producer parked on the over-full queue must still
+     * be released when clear() empties it.
+     */
+    @Test
+    void shrinkBelowSize_clear_wakesBlockedProducer() throws Exception {
+        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        queue.offer("a");
+        queue.offer("b");
+        queue.setCapacity(1);
+
+        BlockedCall<String> putter = BlockedCall.start(pool, () -> {
+            queue.put("x");
+            return "done";
+        });
+        putter.awaitParked();
+
+        queue.clear();
+        assertEquals("done", putter.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        assertEquals("x", queue.poll());
+    }
+
+    /** Same lost-wakeup shape as above, with drainTo freeing the queue instead of clear(). */
+    @Test
+    void shrinkBelowSize_drainTo_wakesBlockedProducer() throws Exception {
+        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        queue.offer("a");
+        queue.offer("b");
+        queue.setCapacity(1);
+
+        BlockedCall<String> putter = BlockedCall.start(pool, () -> {
+            queue.put("x");
+            return "done";
+        });
+        putter.awaitParked();
+
+        List<String> drained = new ArrayList<>();
+        assertEquals(2, queue.drainTo(drained));
+        assertEquals(Arrays.asList("a", "b"), drained);
+        assertEquals("done", putter.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        assertEquals("x", queue.poll());
+    }
+
+    /** A list whose {@code add} throws once it holds {@code refuseAt} elements. */
+    private static List<String> refusingAt(int refuseAt) {
+        return new ArrayList<String>() {
+            @Override
+            public boolean add(String e) {
+                if (size() >= refuseAt) {
+                    throw new IllegalStateException("target refuses " + e);
+                }
+                return super.add(e);
+            }
+        };
+    }
+
     // ==================== iterator ====================
 
     @Test

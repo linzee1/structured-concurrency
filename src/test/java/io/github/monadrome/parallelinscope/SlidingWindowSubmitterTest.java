@@ -305,6 +305,95 @@ class SlidingWindowSubmitterTest {
         }
     }
 
+    /**
+     * The handoff window: the worker executor blocks inside the second {@code execute} until the
+     * cancellation lands, so the submitter loop (running the task and binding the placeholder)
+     * races the cancellation callback (abandoning placeholders). The claimed element must stay
+     * consistent: once handed to the executor it can only be canceled through its own future, so
+     * its callable runs and the caller sees the real result — never SUBMISSION_FAILURE for a task
+     * that ran. Only genuinely unsubmitted placeholders are abandoned.
+     */
+    @Test
+    void cancelDuringHandoffKeepsClaimedElementConsistent() throws Exception {
+        CountDownLatch secondExecuteEntered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger executions = new AtomicInteger();
+        AtomicInteger ranValues = new AtomicInteger();
+        ExecutorService blocking = new AbstractExecutorService() {
+            private volatile boolean shutdown;
+
+            @Override
+            public void shutdown() {
+                shutdown = true;
+            }
+
+            @Override
+            public java.util.List<Runnable> shutdownNow() {
+                shutdown = true;
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public boolean isShutdown() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean isTerminated() {
+                return shutdown;
+            }
+
+            @Override
+            public boolean awaitTermination(long timeout, TimeUnit unit) {
+                return true;
+            }
+
+            @Override
+            public void execute(Runnable command) {
+                if (executions.incrementAndGet() >= 2) {
+                    secondExecuteEntered.countDown();
+                    try {
+                        release.await(2, TimeUnit.SECONDS);
+                    } catch (InterruptedException interrupted) {
+                        // cancel(true) interrupts the submitter thread; run the handoff anyway
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                command.run();
+            }
+        };
+        ListeningExecutorService workers = MoreExecutors.listeningDecorator(blocking);
+        ListeningExecutorService submitter = MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+        try {
+            SlidingWindowSubmitter<Integer> executor =
+                    new SlidingWindowSubmitter<>(workers, context(3, 1, TaskType.IO_BOUND), submitter);
+            TaskBatchResult<Integer> batch = executor.submitAll(futures(
+                    () -> 1,
+                    () -> {
+                        ranValues.addAndGet(2);
+                        return 2;
+                    },
+                    () -> {
+                        ranValues.addAndGet(3);
+                        return 3;
+                    }));
+
+            assertThat(secondExecuteEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            batch.submitCanceller().cancel(true);
+            release.countDown();
+
+            // The claimed element ran and its caller sees the real result, not a submission failure.
+            assertThat(batch.results().get(1).get(2, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            // The unclaimed element was abandoned without ever entering user code.
+            assertThat(batch.results().get(2).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(ranValues.get()).isEqualTo(2);
+        } finally {
+            workers.shutdownNow();
+            submitter.shutdownNow();
+        }
+    }
+
     @SafeVarargs
     private static List<ExecutionPhaseHintFuture<Integer>> futures(Callable<Integer>... tasks) {
         return Arrays.stream(tasks)

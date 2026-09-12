@@ -90,10 +90,10 @@ class ScopedTaskContractTest {
                     .hasCause(boom);
             if (entry == Entry.GROUP) {
                 TaskGroupResult result = lastGroupResult(global);
-                // The member observer is registered before the group token bind, so the group
-                // converges while its token is still RUNNING: a lone member failure reads as
-                // MEMBER_CANCELED, with the failure attributed to the member.
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELED);
+                // A recorded member failure takes precedence over the group token state: even
+                // though convergence runs while the group token is still RUNNING, the group
+                // adopts the failed member's own outcome.
+                assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.failedTaskName()).isEqualTo("task");
                 assertThat(result.members().get("task").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);

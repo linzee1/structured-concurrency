@@ -289,10 +289,9 @@ public final class TaskGroup implements AutoCloseable {
         }
         if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
             // The combine is always the last task to complete, so its failure must commit
-            // FAIL_FAST synchronously: convergence below must not read a still-RUNNING group
-            // token and misattribute the terminal business failure as a cancellation. Members
-            // keep the established attribution rule — a lone member failure may still converge
-            // on a RUNNING token and read MEMBER_CANCELED.
+            // FAIL_FAST synchronously: the cascade it triggers must observe a committed group
+            // state. Members keep the established rule and leave the commit to the group bind's
+            // asynchronous callback; convergence adopts the recorded failure either way.
             if (member == terminal) {
                 groupToken.failFastCancel();
             }
@@ -353,23 +352,26 @@ public final class TaskGroup implements AutoCloseable {
     }
 
     /**
-     * Derives the group outcome from the group token state. On fail-fast, the group reports the
-     * failed task's own outcome; a fail-fast with no failed member means the trigger was a
-     * direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELED}. A
-     * token still RUNNING or SUCCESS means no framework cancellation path committed: the group
-     * succeeded only if every member did.
+     * Derives the group outcome from the group token state. A recorded failure takes precedence:
+     * whenever a member or the terminal combine already failed, the group reports that failure's
+     * own outcome regardless of whether the group token committed {@code FAIL_FAST} yet, so the
+     * outcome no longer depends on completion order. On fail-fast with no failed member the
+     * trigger was a direct member cancellation, so the group reports {@link
+     * TaskOutcome#MEMBER_CANCELED}. A token still RUNNING or SUCCESS with no recorded failure
+     * means no framework cancellation path committed: the group succeeded only if every member
+     * did.
      */
     private TaskOutcome deriveOutcome() {
         switch (groupToken.state()) {
             case FAIL_FAST:
-                if (failedTaskName != null) {
-                    MemberState failed = memberStates.get(failedTaskName);
-                    // The failed name may belong to the terminal combine, which is not a member.
-                    return (failed != null ? failed : terminal).reason;
-                }
-                return TaskOutcome.MEMBER_CANCELED;
+                MemberState failFastFailure = failedTask();
+                return failFastFailure != null ? failFastFailure.reason : TaskOutcome.MEMBER_CANCELED;
             case SUCCESS:
             case RUNNING:
+                MemberState recordedFailure = failedTask();
+                if (recordedFailure != null) {
+                    return recordedFailure.reason;
+                }
                 boolean allSuccess =
                         memberStates.values().stream().allMatch(member -> member.reason == TaskOutcome.SUCCESS)
                                 && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
@@ -377,6 +379,19 @@ public final class TaskGroup implements AutoCloseable {
             default:
                 return TokenOutcomes.forCanceled(groupToken, TaskOutcome.MEMBER_CANCELED);
         }
+    }
+
+    /**
+     * Returns the member or terminal combine recorded as failed, or {@code null} when no failure
+     * has been recorded. The failed name may belong to the terminal combine, which is not a
+     * member.
+     */
+    private @Nullable MemberState failedTask() {
+        if (failedTaskName == null) {
+            return null;
+        }
+        MemberState failed = memberStates.get(failedTaskName);
+        return failed != null ? failed : terminal;
     }
 
     private void completeEmpty() {

@@ -178,6 +178,102 @@ class TaskGroupTest {
         }
     }
 
+    /**
+     * The group outcome must not depend on completion order: a failure that completes last (so the
+     * group token is still RUNNING when the group converges) reads the same USER_FAILURE as one
+     * that completes first.
+     */
+    @Test
+    void failureCompletingLastIsStillReportedAsUserFailure() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("late-failure"));
+            definition.task(new TaskKey<>("fast") {}, ParName.of("worker"), () -> 1, memberOptions());
+            definition.task(
+                    new TaskKey<>("slow-boom") {},
+                    ParName.of("worker"),
+                    () -> {
+                        Thread.sleep(200);
+                        throw new IllegalStateException("boom-late");
+                    },
+                    memberOptions());
+
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.failedTaskName()).isEqualTo("slow-boom");
+            assertThat(result.members().get("fast").outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.members().get("slow-boom").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /** A lone rejected member converges on a still-RUNNING group token; the recorded submission failure still wins. */
+    @Test
+    void loneSubmissionFailureIsReportedAsSubmissionFailure() throws Exception {
+        ExecutorService rejecting = new RejectingExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("reject"), rejecting).build();
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("lone-rejection"));
+            definition.task(
+                    new TaskKey<>("rejected") {},
+                    ParName.of("reject"),
+                    () -> 1,
+                    TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.IO_BOUND));
+
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.failedTaskName()).isEqualTo("rejected");
+            assertThat(result.members().get("rejected").outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+        } finally {
+            global.close();
+            rejecting.shutdownNow();
+        }
+    }
+
+    /**
+     * A group deadline that already expired before submission commits TIMEOUT synchronously during
+     * bind: members are cancelled before their submission loop runs, so no member enters user
+     * code and the group reports TIMEOUT rather than SUCCESS.
+     */
+    @Test
+    void expiredGroupDeadlineSkipsMemberSubmissionAndReportsTimeout() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), direct).build();
+        try {
+            AtomicInteger calls = new AtomicInteger();
+            TaskGroupDefinition.Builder definition =
+                    TaskGroupDefinition.builder(TaskGroupOptions.timeout("expired", Duration.ofNanos(1)));
+            definition.task(
+                    new TaskKey<>("member") {},
+                    ParName.of("worker"),
+                    calls::incrementAndGet,
+                    TaskOptions.inheritTimeout());
+
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(calls).hasValue(0);
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.members().get("member").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        } finally {
+            global.close();
+            direct.shutdownNow();
+        }
+    }
+
     @Test
     void groupAndMemberDeadlinesConvergeAsTimeout() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -393,9 +489,10 @@ class TaskGroupTest {
             // Two timers share the group deadline: the group token's own and the nested batch's
             // (both inherit the same instant). If the group timer wins, the group converges as
             // TIMEOUT; if the nested timer wins, the member surfaces the nested cancellation as a
-            // failure while the group token is still RUNNING, and the group converges as
-            // MEMBER_CANCELED. Either way the deadline reached every level (asserted below).
-            assertThat(result.outcome()).isIn(TaskOutcome.TIMEOUT, TaskOutcome.MEMBER_CANCELED);
+            // failure while the group token is still RUNNING, and the group adopts the recorded
+            // member failure as USER_FAILURE. Either way the deadline reached every level
+            // (asserted below).
+            assertThat(result.outcome()).isIn(TaskOutcome.TIMEOUT, TaskOutcome.USER_FAILURE);
             // The member token is never bound, so only constructor-listener propagation from the
             // group token can move it; await the cascade, which runs after the group converges.
             org.awaitility.Awaitility.await()

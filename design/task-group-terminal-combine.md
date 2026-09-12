@@ -158,7 +158,7 @@ terminal future 保持普通 Guava 语义，与 member future 一致：成功返
 - combine 自身 deadline 先到时，与 member 规则一致：token 上的 timeout 监听器调用 `groupToken.timeoutCancel()`，Group 固定 `TIMEOUT`；
 - group deadline 从 submit 起计算，涵盖 fan-out 等待和 combine 运行，combine 不重新获得一整段 group timeout；
 - 归因走 `internal/TokenOutcomes` 同一张映射表，不新增映射；combine 的失败、直消或超时将 Group 固定为相应 outcome，members 已终态，无 sibling 可回撤；
-- combine 永远是最后完成的任务，其失败必须由框架同步提交 `FAIL_FAST`（`groupToken.failFastCancel()`）后再收敛，否则收敛会读到仍 `RUNNING` 的 group token，把终端业务失败误报为取消；member 失败保持既有归因规则不变（含"lone member 失败在 RUNNING token 下收敛为 `MEMBER_CANCELED`"的既有约定，见生命周期契约 §6）；
+- combine 永远是最后完成的任务，其失败必须由框架同步提交 `FAIL_FAST`（`groupToken.failFastCancel()`）后再收敛：同步提交保证级联取消观察到已提交的组状态，也使失败记录在收敛时确定可见；member 失败保持既有归因规则不变（组级 outcome 优先沿用已记录失败任务的 outcome，见生命周期契约 §6）；
 - combine 复用 Group 的 token 体系、`GlobalPar.timeoutScheduler()` 和 `TaskSubmissions` 两阶段内核，不创建新 executor 或 timer service。
 
 ## 9. 观测与 TaskGraph

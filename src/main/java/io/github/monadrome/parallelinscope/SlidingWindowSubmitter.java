@@ -142,7 +142,6 @@ final class SlidingWindowSubmitter<V> {
         int size = tasks.size();
         int submitted = 0;
         while (index < size) {
-            nextIndex.set(index);
             ListenableFuture<V> completed;
             try {
                 completed = blockingQueue.take();
@@ -151,7 +150,7 @@ final class SlidingWindowSubmitter<V> {
                 Thread.currentThread().interrupt();
                 return submitted;
             }
-            if (completed.isCancelled() || result.get(index).isCancelled()) {
+            if (completed.isCancelled() || result.get(index).isDone()) {
                 abandonRemaining(result, index, null);
                 return submitted;
             }
@@ -163,6 +162,11 @@ final class SlidingWindowSubmitter<V> {
                 Thread.currentThread().interrupt();
                 return submitted;
             }
+            // Claim the index before handing the task to the executor: the cancellation callback
+            // abandons only indexes at or beyond nextIndex, so an element already with the
+            // executor can only be canceled through its own future, never reported as
+            // never-submitted after user code may already have run.
+            nextIndex.set(index + 1);
             try {
                 result.get(index).bind(fallbackSubmit(tasks, index));
             } catch (RuntimeException e) {
@@ -171,7 +175,6 @@ final class SlidingWindowSubmitter<V> {
             }
             submitted++;
             index++;
-            nextIndex.set(index);
         }
         return submitted;
     }

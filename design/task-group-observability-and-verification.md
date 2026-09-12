@@ -109,7 +109,7 @@ fake-group-batch -> A/B/C
 
 13. 手动 group.cancel 使未完成成员记录 GROUP_CANCELED；
 14. 直接 member future.cancel 级联取消 Group：该成员 `MEMBER_CANCELED`，未完成 siblings `GROUP_CANCELED`，Group reason `CANCELED`；
-15. 成员失败固定 FAILED，first failedTaskName 稳定，siblings 为 FAIL_FAST；
+15. 成员失败固定其自身 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），与完成顺序无关——含 lone failure 在 RUNNING token 下收敛的形状；first failedTaskName 稳定，siblings 为 FAIL_FAST；
 16. 取消发生在 SUBMITTED/RUNNING/TERMINAL 三个阶段时状态一致；
 17. 用户忽略中断时公开 future 可以先取消，但 Group 仍能按公开 future 终态完成；
 18. outer scoped task 取消向 group/member 传播且不反向影响 outer。

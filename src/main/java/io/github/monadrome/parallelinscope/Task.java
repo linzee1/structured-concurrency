@@ -88,7 +88,10 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
      * Binds this placeholder to the future that will actually run the task.
      *
      * <p>From here on the placeholder follows {@code real}: the caller's listeners fire with its
-     * outcome, and a placeholder cancelled beforehand cancels {@code real} in turn.
+     * outcome, and a placeholder cancelled beforehand cancels {@code real} in turn. If the
+     * placeholder was already terminated by an abandonment that raced the handoff, {@code real} is
+     * cancelled as well, so a caller told the task never ran never observes user code still
+     * executing underneath.
      *
      * @param real the submitted task future
      * @throws IllegalStateException if this task was not created as a placeholder
@@ -96,7 +99,9 @@ public final class Task<T> extends ForwardingListenableFuture<T> implements Task
     void bind(ListenableFuture<T> real) {
         SettableFuture<T> placeholder = placeholderOrThrow();
         handedOff = true;
-        placeholder.setFuture(real);
+        if (!placeholder.setFuture(real)) {
+            real.cancel(true);
+        }
     }
 
     /**

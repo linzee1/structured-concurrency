@@ -275,8 +275,9 @@ public enum TaskOutcome {
 
 `TaskOutcome` 是全库统一的单任务终态词汇，同时服务批量报告、组成员结果与组级结果；`RUNNING`
 表示尚未终态，不会出现在完成后的结果快照中。组级只会出现 `SUCCESS`、`USER_FAILURE`、
-`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELED`、`GROUP_CANCELED`：fail-fast 时组沿用失败
-成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），`MEMBER_CANCELED` 表示取消源自
+`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELED`、`GROUP_CANCELED`：有失败记录时（无论
+group token 是否已提交 `FAIL_FAST`）组沿用失败任务自己的 outcome
+（`USER_FAILURE`/`SUBMISSION_FAILURE`），`MEMBER_CANCELED` 表示取消源自
 组员或直接作用于组员，`GROUP_CANCELED` 表示组被整体取消或取消自上传播。
 
 `TaskGroupResult` 和成员结果必须是完成后的不可变快照：

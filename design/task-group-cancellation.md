@@ -99,7 +99,8 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 `FAIL_FAST` → 有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），
 无失败成员（fail-fast 由成员直消触发）则记 `MEMBER_CANCELED`；`PROPAGATED_CANCELED` 按
 `originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELED`；`CANCELED`（用户直接 cancel 组或成员直消
-级联）→ `GROUP_CANCELED`；token 仍在 `RUNNING`/`SUCCESS` 时全部成员成功记 `SUCCESS`，否则
+级联）→ `GROUP_CANCELED`；token 仍在 `RUNNING`/`SUCCESS` 时，已记录失败任务优先沿用其
+outcome（失败归因不随完成顺序漂移），否则全部成员成功记 `SUCCESS`，否则
 `MEMBER_CANCELED`。
 
 嵌套提交的终态不唯一但归因确定：成员 callable 内部的嵌套 batch 继承组 deadline 后自身也会被
@@ -128,8 +129,8 @@ bind 的 token 确定为 `PROPAGATED_CANCELED`（只有传播能移动它）。�
   `MEMBER_CANCELED`，先拦截 `CANCELED` 再调用共享映射；组快照保持事后归因
   `GROUP_CANCELED`，两者允许不一致（见观测契约）。
 - `TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`（成员自身 deadline），再委托
-  共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败成员 outcome）与
-  `RUNNING`/`SUCCESS`（全成功判定），其余委托共享映射。
+  共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务 outcome）与
+  `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
 
 批次报告（`TaskBatchResult.report()`）携带批次 token 时同样按此表修正 future 层的粗分类
 （future 层对一切取消只报 `MEMBER_CANCELED`）。批次共享单一 token、无逐元素完成时归因，

@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+- Make `VariableLinkedBlockingQueue.drainTo` exception-safe: a target that throws mid-drain no longer loses already-unlinked elements or drifts the element count, which previously corrupted the queue permanently (later `poll`/`take` threw `NullPointerException`).
+- Wake producers parked on an over-capacity `VariableLinkedBlockingQueue` after a capacity shrink followed by `clear()`/`drainTo`: the not-full signal now fires on the `count >= capacity` crossing instead of only at exact equality.
+- Fix a sliding-window race in which a batch element already handed to the executor could be reported as `SUBMISSION_FAILURE`: the index is now claimed before the executor handoff so it is never abandoned afterwards, and a placeholder terminated by a racing cancellation now cancels the real future it fails to bind.
+- Commit `TIMEOUT` synchronously in `CancellationToken.bind` when the deadline has already expired, instead of scheduling a zero-delay timer: members of such a group are canceled before the submission loop, so they no longer enter user code and the group no longer risks reporting `SUCCESS`.
+- Make a task group's outcome independent of completion order: a recorded member or terminal-combine failure now takes precedence over a still-`RUNNING`/`SUCCESS` group token, so a lone or last-completing failure reports `USER_FAILURE`/`SUBMISSION_FAILURE` instead of `MEMBER_CANCELED`.
+
 ## [0.2.0] - 2026-09-10
 
 ### Breaking changes

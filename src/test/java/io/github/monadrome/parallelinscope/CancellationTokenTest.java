@@ -86,7 +86,7 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void expiredDeadlineCancelsBoundWorkThroughTheTimeoutChain() throws Exception {
+    public void expiredDeadlineCommitsTimeoutSynchronouslyDuringBind() throws Exception {
         CancellationToken token = withDeadlineAfter(-1000);
 
         SettableFuture<String> pending = SettableFuture.create();
@@ -96,11 +96,12 @@ public class CancellationTokenTest {
 
         token.bind(Arrays.asList(pending, alreadySucceeded), submitCanceller, TIMER);
 
-        await().untilAsserted(() -> {
-            assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
-            assertThat(pending).isCancelled();
-            assertThat(submitCanceller).isCancelled();
-        });
+        // The commit is synchronous: bind returns with the token already TIMEOUT and the pending
+        // work already canceled, so no submitted task can still enter user code in the window a
+        // zero-delay timer would leave open.
+        assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
+        assertThat(pending).isCancelled();
+        assertThat(submitCanceller).isCancelled();
         assertThat(alreadySucceeded).isNotCancelled();
         assertThat(alreadySucceeded.get()).isEqualTo("kept");
     }

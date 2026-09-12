@@ -237,8 +237,9 @@ null --all success-----------> SUCCESS
 - 单个成员被调用方直接取消时立即级联：先取消 group token，再取消其余未完成成员的 token，
   Group 原因在最终收敛时固定为 `GROUP_CANCELED`（若失败/超时已先固定则不被覆盖）；
 - 全部成员终态且存在直接取消成员时，若没有更早的组级失败/超时，Group 原因固定为 `GROUP_CANCELED`；
-- 组在 group token 仍 `RUNNING` 时收敛（成员 observer 先于 group bind 回调触发）且并非全部
-  成功时，Group 原因固定为 `MEMBER_CANCELED`；
+- 组在 group token 仍 `RUNNING` 时收敛（成员 observer 先于 group bind 回调触发）：已记录失败
+  任务时优先沿用其 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），与完成顺序无关；无失败
+  记录且并非全部成功时，Group 原因固定为 `MEMBER_CANCELED`；
 - `CLOSED` 只在 `terminalCount == memberCount` 时发布；
 - Group 原因可以先固定，但 completion future 仍必须等所有公开成员 future 达到终态；
 - 空 definition submit 后返回立即以 `SUCCESS` 完成的 Group，不启动物理 deadline timer；
