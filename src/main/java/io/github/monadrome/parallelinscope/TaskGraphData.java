@@ -37,6 +37,8 @@ final class TaskGraphData {
     private final Map<String, String> nodeLabels = new ConcurrentHashMap<>();
 
     private volatile ValueGraph<String, List<TaskEdge>> graph;
+    private volatile ValueGraph<String, List<TaskEdge>> executorGraph;
+    private volatile ValueGraph<ExecutorIdentity, List<TaskEdge>> executorIdentityGraph;
     private volatile Boolean taskCycle;
     private volatile Boolean selfLoop;
 
@@ -84,12 +86,20 @@ final class TaskGraphData {
     }
 
     /**
-     * Returns the executor graph built from deadlock-risk snapshots on task edges.
+     * Returns the memoized executor graph built from deadlock-risk snapshots on task edges, keyed
+     * by display label for export and detection-event rendering.
      *
      * @return executor dependency graph
      */
     public ValueGraph<String, List<TaskEdge>> executorGraph() {
-        return generateExecutorGraph();
+        if (executorGraph == null) {
+            synchronized (this) {
+                if (executorGraph == null) {
+                    executorGraph = generateExecutorGraph();
+                }
+            }
+        }
+        return executorGraph;
     }
 
     /**
@@ -98,12 +108,12 @@ final class TaskGraphData {
      * @return {@code true} when an executor cycle exists
      */
     public boolean executorCycle() {
-        ValueGraph<ExecutorIdentity, List<TaskEdge>> g = generateExecutorIdentityGraph();
-        if (g != null && !g.nodes().isEmpty()) {
+        ValueGraph<ExecutorIdentity, List<TaskEdge>> g = executorIdentityGraph();
+        if (!g.nodes().isEmpty()) {
             return Graphs.hasCycle(g.asGraph());
         }
-        ValueGraph<String, List<TaskEdge>> legacy = executorGraph();
-        return legacy != null && Graphs.hasCycle(legacy.asGraph());
+        // Edges recorded without an executor identity fall back to the label-keyed graph.
+        return Graphs.hasCycle(executorGraph().asGraph());
     }
 
     /**
@@ -112,11 +122,23 @@ final class TaskGraphData {
      * @return {@code true} when an executor self-loop exists
      */
     public boolean executorSelfLoop() {
-        ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraph = generateExecutorIdentityGraph();
-        if (identityGraph != null && !identityGraph.nodes().isEmpty()) {
+        ValueGraph<ExecutorIdentity, List<TaskEdge>> identityGraph = executorIdentityGraph();
+        if (!identityGraph.nodes().isEmpty()) {
             return identityGraph.edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
         }
         return executorGraph().edges().stream().anyMatch(p -> Objects.equals(p.nodeU(), p.nodeV()));
+    }
+
+    /** Returns the memoized identity-keyed executor graph used for cycle and self-loop detection. */
+    private ValueGraph<ExecutorIdentity, List<TaskEdge>> executorIdentityGraph() {
+        if (executorIdentityGraph == null) {
+            synchronized (this) {
+                if (executorIdentityGraph == null) {
+                    executorIdentityGraph = generateExecutorIdentityGraph();
+                }
+            }
+        }
+        return executorIdentityGraph;
     }
 
     /** Records one parent-to-child edge. Batch IDs, not reusable task names, keep nodes distinct. */

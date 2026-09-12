@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -49,7 +48,11 @@ public final class TaskGroup implements AutoCloseable {
     /** Null-object submission canceller: group members carry no submission pipeline to stop. */
     private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
-    private final String groupId = UUID.randomUUID().toString();
+    /** Process-local group identities: diagnostics only, never persisted. */
+    private static final java.util.concurrent.atomic.AtomicLong GROUP_SEQUENCE =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    private final String groupId = "group-" + GROUP_SEQUENCE.incrementAndGet();
     private final String groupName;
     private final long startTimeNanos;
     private final long deadlineNanos;
@@ -62,6 +65,7 @@ public final class TaskGroup implements AutoCloseable {
     private final CancellationToken groupToken;
 
     private int terminalCount;
+    private int successCount;
     private @Nullable TaskOutcome outcome;
     private @Nullable String failedTaskName;
     private boolean terminalSubmitted;
@@ -116,8 +120,9 @@ public final class TaskGroup implements AutoCloseable {
      * group.
      *
      * @throws IllegalArgumentException if no member or combine carries the key's name, or if the
-     *     key's raw result type is not assignable from the type it was registered with (a key
-     *     claiming a supertype of the registered type is accepted)
+     *     key's result type is not a supertype of the type it was registered with (generic
+     *     arguments included: a key claiming {@code List<Integer>} does not resolve a member
+     *     registered as {@code List<String>})
      */
     @SuppressWarnings("unchecked")
     public <T> TaskFuture<T> future(TaskKey<T> key) {
@@ -129,7 +134,7 @@ public final class TaskGroup implements AutoCloseable {
         if (member == null) {
             throw new IllegalArgumentException("No member named '" + key.name() + "'");
         }
-        if (!key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
+        if (!key.resultType().isSupertypeOf(member.resultType)) {
             throw new IllegalArgumentException("Member '" + key.name() + "' was registered with result type "
                     + member.resultType + " but the key claims " + key.resultType());
         }
@@ -266,16 +271,16 @@ public final class TaskGroup implements AutoCloseable {
             }
             observedReason = member.reason;
             terminalCount++;
+            if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
+                successCount++;
+            }
             if ((observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE)
                     && failedTaskName == null) {
                 failedTaskName = member.name;
             }
-            // The combine is not part of memberStates, so this counts members only: the join
-            // condition is every member counted and successful.
-            joinSatisfied = terminal != null
-                    && !terminalSubmitted
-                    && memberStates.values().stream()
-                            .allMatch(state -> state.counted && state.reason == TaskOutcome.SUCCESS);
+            // The combine is not part of memberStates, so successCount covers members only: the
+            // join condition is every member counted and successful, in O(1) under the lock.
+            joinSatisfied = terminal != null && !terminalSubmitted && successCount == memberStates.size();
         }
         if (observedReason == TaskOutcome.MEMBER_CANCELED) {
             // A directly canceled member cascades to the whole group; the group token is canceled
@@ -524,9 +529,12 @@ public final class TaskGroup implements AutoCloseable {
             }
             int index = 0;
             for (MemberState state : states.values()) {
-                logForking(
-                        state.context.multiTaskContext(),
-                        memberPars.get(index++).runtime().blockingRisk());
+                if (observation != null) {
+                    logForking(
+                            state.context.multiTaskContext(),
+                            memberPars.get(index).runtime().blockingRisk());
+                }
+                index++;
             }
             TaskGroupDefinition.CombineDefinition<?> combineDefinition = definition.combine();
             if (combineDefinition != null) {
@@ -560,7 +568,9 @@ public final class TaskGroup implements AutoCloseable {
                         par.submissionExecutor(),
                         false,
                         combineDefinition.key().resultType());
-                logForking(unit, par.runtime().blockingRisk());
+                if (observation != null) {
+                    logForking(unit, par.runtime().blockingRisk());
+                }
             }
         } catch (Throwable failure) {
             for (MemberState state : states.values()) state.future.cancel(true);

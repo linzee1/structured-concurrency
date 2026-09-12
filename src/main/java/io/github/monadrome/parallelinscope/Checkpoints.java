@@ -21,7 +21,9 @@ import java.util.function.Supplier;
  * <p>Every public method checks the current scope's {@link CancellationToken} before starting its
  * operation. A canceled token produces a {@link LeanCancellationException}, except that {@link
  * #checkpoint(String, boolean)} can produce a standard {@link CancellationException} with a stack
- * trace when requested.
+ * trace when requested. A token whose deadline has expired is treated as canceled even if the
+ * timer thread has not committed the timeout yet, so deadline enforcement never depends on
+ * scheduling punctuality. {@link #checkpoint()} is the primary no-argument form for user code.
  *
  * <p>Blocking-operation adapters restore the interrupt flag and translate {@link
  * InterruptedException} into {@link LeanCancellationException}.
@@ -37,21 +39,46 @@ public final class Checkpoints {
     private Checkpoints() {}
 
     /**
+     * Checks the current scope's cancellation token unconditionally.
+     *
+     * <p>This is the primary cooperative-cancellation checkpoint for user code inside a scoped
+     * task: it throws whenever the enclosing scope has been canceled or its deadline has expired.
+     * Outside any scoped task it is a no-op; use {@link #rawCheckpoint()} when the thread's
+     * interrupt status should be honored without a scope.
+     *
+     * @throws LeanCancellationException if the current scope is canceled
+     */
+    public static void checkpoint() {
+        checkCancellationToken(true);
+    }
+
+    /**
      * Checks whether the named task has been canceled in the current scope.
+     *
+     * <p>The name must match the current scoped task exactly: a mismatch means the caller is not
+     * running in the task it believes it is — a typo, a stale name after a rename, or a call one
+     * frame too far out — which is a bug, not a reason to skip a safety check, so it throws rather
+     * than silently skipping. Prefer {@link #checkpoint()}, which needs no name and cannot
+     * mismatch.
      *
      * @param taskName the task expected in the current scope
      * @param lean whether to omit the cancellation stack trace
+     * @throws IllegalStateException if there is no current scoped task, or its name differs from
+     *     {@code taskName}
      * @throws LeanCancellationException if the matching task is canceled and {@code lean} is true
      * @throws CancellationException if the matching task is canceled and {@code lean} is false
      */
     public static void checkpoint(String taskName, boolean lean) {
         MultiTaskContext unit = currentContext();
-        if (unit != null) {
-            if (taskName == null || !taskName.equals(unit.name())) return;
-            checkCancellationToken(lean);
-            return;
+        if (unit == null) {
+            throw new IllegalStateException("checkpoint('" + taskName
+                    + "') called outside any scoped task; use checkpoint() or rawCheckpoint()");
         }
-        return;
+        if (taskName == null || !taskName.equals(unit.name())) {
+            throw new IllegalStateException("checkpoint('" + taskName + "') does not match the current scoped task '"
+                    + unit.name() + "'; use checkpoint() to check the current task unconditionally");
+        }
+        checkCancellationToken(lean);
     }
 
     /**
@@ -494,10 +521,22 @@ public final class Checkpoints {
     private static void checkCancellationToken(boolean lean) {
         MultiTaskContext unit = currentContext();
         CancellationToken cancelToken = unit == null ? null : unit.cancellationToken();
-        if (cancelToken != null && cancelToken.state().shouldInterruptCurrentThread()) {
+        if (cancelToken == null) {
+            return;
+        }
+        if (cancelToken.state().shouldInterruptCurrentThread()) {
             throw lean
                     ? new LeanCancellationException("Cancel during running")
                     : new CancellationException("Cancel during running");
+        }
+        // Wall-clock backstop: an expired deadline is cancellation even when the timer thread has
+        // not committed TIMEOUT yet (GC pause, busy scheduler). Committing the timeout here keeps
+        // attribution on TIMEOUT instead of letting the race read as a user failure.
+        if (cancelToken.deadlineNanos() <= System.nanoTime()) {
+            cancelToken.timeoutCancel();
+            throw lean
+                    ? new LeanCancellationException("Cancel during running: deadline expired")
+                    : new CancellationException("Cancel during running: deadline expired");
         }
     }
 

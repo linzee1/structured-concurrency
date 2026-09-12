@@ -3,6 +3,11 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -20,8 +25,8 @@ import javax.annotation.Nullable;
  *
  * <ul>
  *   <li>Resolution of {@link BatchOptions} into a batch context
- *   <li>Scoped task preparation via {@link io.github.monadrome.parallelinscope.TaskSubmissions}
- *   <li>Concurrency-limited submission via {@link SlidingWindowSubmitter}
+ *   <li>Scoped task preparation via {@code TaskSubmissions}
+ *   <li>Concurrency-limited submission via {@code SlidingWindowSubmitter}
  *   <li>Parent-child {@link CancellationToken} chaining
  *   <li>Late binding for timeout and fail-fast cancellation
  *   <li>Heuristic cleanup of canceled queued tasks
@@ -30,6 +35,9 @@ import javax.annotation.Nullable;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public final class Par {
+
+    /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
+    private static final ListenableFuture<Void> NO_SUBMISSION = Futures.immediateVoidFuture();
 
     private final GlobalPar globalPar;
     private final ExecutorRuntime runtime;
@@ -76,14 +84,15 @@ public final class Par {
     /**
      * Executes a batch using the executor bound when the owning {@link GlobalPar} was built.
      *
-     * <p>The supplied list is snapshotted only as task callables are created; callers must not
-     * structurally mutate it while this method runs. A {@code null} or empty list returns an empty
-     * result without submitting work. When invoked within another scoped task, the child batch
-     * inherits cancellation and cannot outlive its parent's deadline. The selected executor never
-     * changes per call and is not owned by this {@code Par}. Once the owning {@link GlobalPar} is
-     * closed, this method throws {@link IllegalStateException} before submitting any task.
+     * <p>The supplied elements are snapshotted on entry unless the collection is already a {@link
+     * List}, in which case callers must not structurally mutate it while this method runs. A
+     * {@code null} or empty collection returns an empty result without submitting work. When
+     * invoked within another scoped task, the child batch inherits cancellation and cannot outlive
+     * its parent's deadline. The selected executor never changes per call and is not owned by this
+     * {@code Par}. Once the owning {@link GlobalPar} is closed, this method throws {@link
+     * IllegalStateException} before submitting any task.
      *
-     * @param list input elements, or {@code null} for an empty batch
+     * @param elements input elements, or {@code null} for an empty batch
      * @param function synchronous mapping function, run at most once for each submitted element
      * @param options immutable per-batch request; it cannot select an executor
      * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
@@ -91,14 +100,79 @@ public final class Par {
      * @throws IllegalStateException if the owning GlobalPar has begun shutdown
      */
     public <T, R> TaskBatchResult<R> map(
-            @Nullable List<T> list, Function<? super T, ? extends R> function, BatchOptions options) {
+            @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
         Objects.requireNonNull(options, "options cannot be null");
-        return globalPar.whileOpen(() -> mapWhileOpen(list, function, options));
+        return globalPar.whileOpen(() -> mapWhileOpen(elements, function, options));
+    }
+
+    /**
+     * Submits one scoped task to the executor bound when the owning {@link GlobalPar} was built.
+     *
+     * <p>This is the unary entry point of the same pipeline {@link #map} uses: the task gets its
+     * own child {@link CancellationToken} with the resolved deadline, a TTL snapshot taken on this
+     * thread, task-listener notification, and structured cancellation from any enclosing scope. A
+     * deadline that expires before the task starts never enters user code.
+     *
+     * @param taskName the task name reported on the returned future
+     * @param task the task body
+     * @param options immutable per-task request; it cannot select an executor
+     * @return the task's future view, carrying its name and cancellation attribution
+     * @throws IllegalArgumentException if the options declare an inherited timeout and no scoped
+     *     task encloses this call
+     * @throws IllegalStateException if the owning GlobalPar has begun shutdown
+     */
+    public <T> TaskFuture<T> submit(String taskName, Callable<T> task, TaskOptions options) {
+        Objects.requireNonNull(task, "task cannot be null");
+        Objects.requireNonNull(options, "options cannot be null");
+        return globalPar.whileOpen(() -> submitWhileOpen(taskName, task, options));
+    }
+
+    private <T> TaskFuture<T> submitWhileOpen(String taskName, Callable<T> task, TaskOptions options) {
+        TaskExecutionContext currentTask = TaskExecutionContext.current();
+        if (!options.timeout().isPresent() && currentTask == null) {
+            throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
+        }
+        MultiTaskContext parent = currentTask == null ? null : currentTask.multiTaskContext();
+        TaskGraphObservationScope currentObservation = TaskGraphObservationScope.current();
+        TaskGraphObservationScope observation = parent != null
+                        && parent.taskGraphObservationScope() != null
+                        && parent.taskGraphObservationScope().owner() == globalPar
+                ? parent.taskGraphObservationScope()
+                : parent == null && currentObservation != null && currentObservation.owner() == globalPar
+                        ? currentObservation
+                        : null;
+        MultiTaskContext unit = MultiTaskContext.resolve(
+                options.spec(taskName), 1, parent, observation, runtime.identity(), name.value());
+        if (observation != null) {
+            TaskEdge edge = new TaskEdge(
+                    1,
+                    unit.taskType(),
+                    unit.executorIdentity(),
+                    parent == null ? null : parent.executorIdentity(),
+                    unit.executorLabel(),
+                    parent == null ? "NA" : parent.executorLabel(),
+                    1,
+                    unit.remaining(),
+                    runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+            logForking(unit, edge);
+        }
+        TaskExecutionContext taskContext = new TaskExecutionContext(
+                unit, 0, com.google.common.base.Ticker.systemTicker().read());
+        ExecutionPhaseHintFuture<T> future =
+                TaskSubmissions.prepare(taskContext, task, globalPar.taskListenersFor(name), runtime.phaseObserver());
+        Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
+        // Bind before submitting: a deadline expiring during submission cancels the prepared
+        // future, whose phase claim then never lets it enter user code.
+        ListenableFuture<?> completion = unit.cancellationToken()
+                .bind(Collections.singletonList(future), NO_SUBMISSION, globalPar.timeoutScheduler());
+        globalPar.retainUntilComplete(completion);
+        TaskSubmissions.submitScoped(future, unit, runtime.submissionExecutor(), unit.taskType() == TaskType.CPU_BOUND);
+        return view;
     }
 
     private <T, R> TaskBatchResult<R> mapWhileOpen(
-            @Nullable List<T> list, Function<? super T, ? extends R> function, BatchOptions options) {
-        int taskCount = list == null ? 0 : list.size();
+            @Nullable Collection<T> elements, Function<? super T, ? extends R> function, BatchOptions options) {
+        int taskCount = elements == null ? 0 : elements.size();
         TaskExecutionContext currentTask = TaskExecutionContext.current();
         if (!options.timeout().isPresent() && currentTask == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
@@ -114,23 +188,33 @@ public final class Par {
                         : null;
         MultiTaskContext unit = MultiTaskContext.resolve(
                 options.spec(), taskCount, parent, observation, runtime.identity(), name.value());
-        return executeGlobal(list, item -> () -> function.apply(item), unit);
+        return executeGlobal(elements, item -> () -> function.apply(item), unit);
     }
 
+    @SuppressWarnings("unchecked")
     private <T, R> TaskBatchResult<R> executeGlobal(
-            @Nullable List<T> list, Function<T, Callable<R>> callableMapper, MultiTaskContext unit) {
-        if (list == null || list.isEmpty()) return emptyBatchResult();
-        TaskEdge edge = new TaskEdge(
-                unit.effectiveParallelism(),
-                unit.taskType(),
-                unit.executorIdentity(),
-                unit.structuralParent() == null ? null : unit.structuralParent().executorIdentity(),
-                unit.executorLabel(),
-                unit.structuralParent() == null ? "NA" : unit.structuralParent().executorLabel(),
-                list.size(),
-                unit.remaining(),
-                runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
-        logForking(unit, edge);
+            @Nullable Collection<T> elements, Function<T, Callable<R>> callableMapper, MultiTaskContext unit) {
+        if (elements == null || elements.isEmpty()) return emptyBatchResult();
+        List<T> list = elements instanceof List ? (List<T>) elements : new ArrayList<>(elements);
+        // Graph bookkeeping only pays off when a request-level observation scope is recording;
+        // skip the edge allocation and remaining() read on the common unobserved path.
+        if (TaskGraphObservationScope.current() != null) {
+            TaskEdge edge = new TaskEdge(
+                    unit.effectiveParallelism(),
+                    unit.taskType(),
+                    unit.executorIdentity(),
+                    unit.structuralParent() == null
+                            ? null
+                            : unit.structuralParent().executorIdentity(),
+                    unit.executorLabel(),
+                    unit.structuralParent() == null
+                            ? "NA"
+                            : unit.structuralParent().executorLabel(),
+                    list.size(),
+                    unit.remaining(),
+                    runtime.blockingRisk() == BlockingRisk.BOUNDED_PLATFORM_POOL);
+            logForking(unit, edge);
+        }
         com.google.common.base.Ticker ticker = com.google.common.base.Ticker.systemTicker();
         List<ExecutionPhaseHintFuture<R>> tasks = java.util.stream.IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
@@ -142,8 +226,9 @@ public final class Par {
         TaskBatchResult<R> result = new SlidingWindowSubmitter<R>(
                         runtime.submissionExecutor(), unit, globalPar.submitterPool())
                 .submitAll(tasks);
-        unit.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
-        globalPar.retainUntilComplete(result.results());
+        ListenableFuture<?> completion =
+                unit.cancellationToken().bind(result.results(), result.submitCanceller(), globalPar.timeoutScheduler());
+        globalPar.retainUntilComplete(completion);
         return result;
     }
 

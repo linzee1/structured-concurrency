@@ -17,7 +17,7 @@ import java.util.Objects;
  * <p>The key is handed to {@link TaskGroupDefinition.Builder#task(TaskKey, ParName,
  * java.util.concurrent.Callable, TaskOptions)} at configuration time. It carries no execution
  * state: the same key may be registered in several definitions and used against every submission of
- * those definitions, where it resolves a different {@link MultiTaskContext#unitId() unit} each time.
+ * those definitions, where it resolves a different execution unit each time.
  * A key is configuration-time data, never an execution identity.
  *
  * <p>The name is the key's identity: keys are equal when they name the same slot, so a key whose

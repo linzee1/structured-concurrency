@@ -29,8 +29,9 @@ class CheckpointsTest {
     @Test
     void checkpointHonorsTaskNameAndCancellationKind() throws Exception {
         MultiTaskContext context = context("task");
-        assertThat(runInTask(context, () -> Checkpoints.checkpoint("other", true)))
-                .isNull();
+        assertThatThrownBy(() -> runInTask(context, () -> Checkpoints.checkpoint("other", true)))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Checkpoints.checkpoint("task", true)).isInstanceOf(IllegalStateException.class);
 
         MultiTaskContext leanContext = context("task");
         assertThatThrownBy(() -> runInTask(leanContext, () -> {
@@ -46,6 +47,32 @@ class CheckpointsTest {
                 }))
                 .isInstanceOf(CancellationException.class)
                 .isNotInstanceOf(LeanCancellationException.class);
+    }
+
+    @Test
+    void noArgCheckpointChecksTheCurrentScopeUnconditionally() throws Exception {
+        Checkpoints.checkpoint();
+
+        MultiTaskContext context = context("task");
+        runInTask(context, Checkpoints::checkpoint);
+
+        MultiTaskContext canceled = context("task");
+        assertThatThrownBy(() -> runInTask(canceled, () -> {
+                    canceled.cancellationToken().cancel(false);
+                    Checkpoints.checkpoint();
+                }))
+                .isInstanceOf(LeanCancellationException.class);
+    }
+
+    @Test
+    void checkpointTreatsAnExpiredDeadlineAsCanceledWithoutWaitingForTheTimer() throws Exception {
+        MultiTaskContext expired = MultiTaskContext.resolve(
+                BatchOptions.timeout("task", Duration.ofNanos(1)).spec(), 1, null);
+        Thread.sleep(5L);
+        assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.RUNNING);
+        assertThatThrownBy(() -> runInTask(expired, Checkpoints::checkpoint))
+                .isInstanceOf(LeanCancellationException.class);
+        assertThat(expired.cancellationToken().state()).isEqualTo(CancellationToken.State.TIMEOUT);
     }
 
     private static Void runInTask(MultiTaskContext context, Runnable action) throws Exception {

@@ -145,7 +145,7 @@ if (future instanceof TaskFuture) {
 ```java
 httpPar.map(accountIds, id -> {
     for (int page = 0; page < pageCount(id); page++) {
-        Checkpoints.checkpoint("fetch-account", true);
+        Checkpoints.checkpoint();
         fetchPage(id, page);
     }
     return id;

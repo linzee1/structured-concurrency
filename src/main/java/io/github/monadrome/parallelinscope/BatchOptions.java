@@ -60,7 +60,14 @@ public final class BatchOptions {
                 name, parallelism, timeout, Objects.requireNonNull(taskType, "taskType cannot be null"), rejectEnqueue);
     }
 
-    /** Returns a copy of these options with the given enqueue-rejection policy. */
+    /**
+     * Returns a copy of these options with the given enqueue-rejection policy.
+     *
+     * <p>The policy is honoured only when the registered executor's queue is a {@link
+     * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this
+     * flag is inert. The CPU-bound inline fallback on executor rejection works with any executor
+     * regardless of this flag.
+     */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
         return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue);
     }

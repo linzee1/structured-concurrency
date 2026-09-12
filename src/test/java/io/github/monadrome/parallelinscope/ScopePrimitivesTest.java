@@ -183,8 +183,9 @@ class ScopePrimitivesTest {
     @Test
     void scopedCallableRecordsPositiveWaitAndExecutionDurations() throws Exception {
         MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
+        TaskExecutionContext taskContext = task(context, 0);
         ScopedCallable<Integer> callable = new ScopedCallable<>(
-                task(context, 0),
+                taskContext,
                 () -> {
                     Thread.sleep(4);
                     return 42;
@@ -193,42 +194,20 @@ class ScopePrimitivesTest {
 
         Thread.sleep(6); // Simulate queue wait between construction and start.
         assertThat(callable.call()).isEqualTo(42);
-        assertThat(callable.waitTime()).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(4));
-        assertThat(callable.executionTime()).isGreaterThan(0L);
-        assertThat(callable.totalTime()).isEqualTo(callable.waitTime() + callable.executionTime());
-        assertThat(callable.cancellationToken()).isNotNull();
-
-        ScopedCallable<Integer> unlabelled = new ScopedCallable<>(task(context, 0), () -> 1, null);
-        unlabelled.call();
-        assertThat(unlabelled.executorName()).isNotEmpty();
+        assertThat(taskContext.waitTimeNanos()).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(4));
+        assertThat(taskContext.executionTimeNanos()).isGreaterThan(0L);
+        assertThat(taskContext.totalTimeNanos())
+                .isEqualTo(taskContext.waitTimeNanos() + taskContext.executionTimeNanos());
+        assertThat(context.cancellationToken()).isNotNull();
     }
 
     @Test
-    void scopedCallableExecutorNameUsesParLabelElseNA() throws Exception {
-        ExecutorService supplied = Executors.newSingleThreadExecutor();
-        try {
-            ExecutorIdentity identity = new ExecutorIdentity(supplied);
-            MultiTaskContext labelled = MultiTaskContext.resolve(
-                    BatchOptions.timeout("n", Duration.ofSeconds(30)).spec(), 1, null, null, identity, "par-label");
-            ScopedCallable<String> labelledCall =
-                    new ScopedCallable<>(task(labelled, 0), () -> "ok", java.util.Collections.emptyList());
-            assertThat(labelledCall.executorName()).isEqualTo("par-label");
-
-            MultiTaskContext anonymous = MultiTaskContext.resolve(
-                    BatchOptions.timeout("n", Duration.ofSeconds(30)).spec(), 1, null, null, identity, null);
-            ScopedCallable<String> anonymousCall =
-                    new ScopedCallable<>(task(anonymous, 0), () -> "ok", java.util.Collections.emptyList());
-            assertThat(anonymousCall.executorName()).isEqualTo("NA");
-
-            assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
-                    .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new ScopedCallable<>(task(labelled, 0), null, java.util.Collections.emptyList()))
-                    .isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
-                    .isInstanceOf(NullPointerException.class);
-        } finally {
-            supplied.shutdownNow();
-        }
+    void scopedCallableRejectsNullConstructionArguments() {
+        MultiTaskContext context = resolve(0, Duration.ofSeconds(30), 1, null);
+        assertThatThrownBy(() -> new ScopedCallable<>(null, () -> "ok", java.util.Collections.emptyList()))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ScopedCallable<>(task(context, 0), null, java.util.Collections.emptyList()))
+                .isInstanceOf(NullPointerException.class);
     }
 
     private static TaskExecutionContext task(MultiTaskContext context, int index) {

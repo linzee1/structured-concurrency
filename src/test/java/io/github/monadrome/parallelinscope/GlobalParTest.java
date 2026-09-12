@@ -327,6 +327,45 @@ class GlobalParTest {
     }
 
     @Test
+    void closingTheInstalledInstanceReleasesTheGlobalSlot() {
+        GlobalPar first = GlobalPar.builder().build();
+        GlobalPar.installGlobal(first);
+        first.close();
+
+        GlobalPar second = GlobalPar.builder().build();
+        try {
+            GlobalPar.installGlobal(second);
+            assertThat(GlobalPar.global()).isSameAs(second);
+        } finally {
+            second.close();
+        }
+    }
+
+    @Test
+    void awaitQuiescenceWaitsForCloseAndDrain() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("io"), executor).build();
+        try {
+            assertThat(global.awaitQuiescence(Duration.ofMillis(20))).isFalse();
+
+            TaskBatchResult<String> batch = global.par(ParName.of("io"))
+                    .map(
+                            java.util.Arrays.asList("a", "b"),
+                            x -> x,
+                            BatchOptions.timeout("quiesce", Duration.ofSeconds(30)));
+            batch.valuesOrThrow();
+            global.close();
+
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(2))).isTrue();
+            assertThat(global.inFlight()).isZero();
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void observationIsOwnedAndClosedExactlyOnce() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         GlobalPar global =

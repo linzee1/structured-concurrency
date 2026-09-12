@@ -50,7 +50,7 @@ global.par(ParName.of("myExecutor")).map(dataList, item -> {
     for (int i = 0; i < 1_000_000; i++) {
         // 每 1000 次迭代检查一次取消状态
         if (i % 1000 == 0) {
-            Checkpoints.checkpoint("my-task", true);
+            Checkpoints.checkpoint();
         }
         heavyComputation(item, i);
     }
@@ -59,16 +59,15 @@ global.par(ParName.of("myExecutor")).map(dataList, item -> {
 ```
 
 关键规则：
-- **第一个参数必须与传给 `Par.map` 的 `BatchOptions.name()` 一致**。这是一个安全守卫——checkpoint 只在 taskName 匹配时才生效，防止被不相关的代码误触发。
-- **第二个参数 `lean`** 控制抛出的异常类型：
-  - `true` → `LeanCancellationException`：无堆栈跟踪，零额外开销，适合生产环境。
-  - `false` → 标准 `CancellationException`：完整堆栈跟踪，适合调试定位取消发生位置。
+- **首选无参 `Checkpoints.checkpoint()`**：无条件检查当前 scope，不需要任务名，也不会因改名而失效。
+- **带名字的 `checkpoint(taskName, lean)` 仍会校验当前任务名**：名字不匹配（笔误、重构后的旧名字、调用位置在任务外）会抛 `IllegalStateException`，而不是静默跳过安全检查。`lean` 为 `false` 时抛出带完整堆栈的标准 `CancellationException`，适合调试定位取消发生位置。
 
 ### Checkpoints API 一览
 
 | 方法 | 用途 | 典型场景 |
 |---|---|---|
-| `Checkpoints.checkpoint(taskName, lean)` | 检查 `CancellationToken` 状态，已取消则抛异常 | CPU 密集型循环中的周期性检查 |
+| `Checkpoints.checkpoint()` | 无条件检查当前 scope 的 `CancellationToken`，已取消或 deadline 已过则抛异常 | CPU 密集型循环中的周期性检查（首选） |
+| `Checkpoints.checkpoint(taskName, lean)` | 同上，但要求任务名匹配，不匹配抛 `IllegalStateException` | 需要带堆栈的 `CancellationException`（`lean=false`）做诊断时 |
 | `Checkpoints.sleep(millis)` | 取消感知的 sleep，将 `InterruptedException` 统一转换为 `LeanCancellationException` | 替代 `Thread.sleep()` |
 | `Checkpoints.rawCheckpoint()` | 仅检查线程 interrupt 标志 | 不在 `Par` scope 内但仍需响应中断的场景 |
 | `Checkpoints.propagateCancellation(ex)` | 在 catch 块中重新抛出取消异常 | 需要区分处理"取消"和"其他异常"时 |
@@ -83,21 +82,21 @@ checkpoint 并非越多越好——每次调用都有微小开销（读取 `Thre
 // 1. 长循环的每 N 次迭代
 for (int i = 0; i < items.size(); i++) {
     if (i % 100 == 0) {
-        Checkpoints.checkpoint("batch-process", true);
+        Checkpoints.checkpoint();
     }
     process(items.get(i));
 }
 
 // 2. 多阶段计算的阶段之间
 ResultA a = phaseOne(input);
-Checkpoints.checkpoint("multi-phase", true);
+Checkpoints.checkpoint();
 ResultB b = phaseTwo(a);
-Checkpoints.checkpoint("multi-phase", true);
+Checkpoints.checkpoint();
 ResultC c = phaseThree(b);
 
 // 3. 递归调用的入口处
 void traverse(TreeNode node) {
-    Checkpoints.checkpoint("tree-walk", true);
+    Checkpoints.checkpoint();
     if (node == null) return;
     process(node);
     traverse(node.left);
@@ -181,7 +180,7 @@ Checkpoints.sleep(1000);  // 自动将 InterruptedException 转换为 LeanCancel
 ## 核心要点总结
 
 1. **协作式取消依赖你的配合**——框架发出信号，但 CPU 密集型任务需要你手动添加 `Checkpoints.checkpoint()` 才能响应。
-2. **taskName 必须匹配**——`checkpoint("x", lean)` 只在当前 scope 的 taskName 等于 `"x"` 时生效。
+2. **优先用无参 `checkpoint()`**——带名字的 `checkpoint("x", lean)` 会在名字不匹配时抛 `IllegalStateException`，不会静默跳过。
 3. **在合理的粒度插入 checkpoint**——长循环每 N 次迭代一次，多阶段计算在阶段之间，递归在入口处。
 4. **不要在 catch 中吞掉取消异常**——使用 `Checkpoints.propagateCancellation(e)` 确保取消异常能透传。
 5. **用 `Checkpoints.sleep()` 替代 `Thread.sleep()`**——统一取消异常类型。

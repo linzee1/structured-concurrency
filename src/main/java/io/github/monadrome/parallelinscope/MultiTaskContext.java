@@ -3,7 +3,7 @@ package io.github.monadrome.parallelinscope;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -17,6 +17,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * without making child failure cancel its parent.
  */
 final class MultiTaskContext {
+    /** Process-local unit identities: graph keys and diagnostics only, never persisted. */
+    private static final AtomicLong UNIT_SEQUENCE = new AtomicLong();
+
     private final String unitId;
     private final String name;
     private final int taskCount;
@@ -42,7 +45,7 @@ final class MultiTaskContext {
             @Nullable String executorLabel,
             TaskType taskType,
             boolean rejectEnqueue) {
-        this.unitId = UUID.randomUUID().toString();
+        this.unitId = "unit-" + UNIT_SEQUENCE.incrementAndGet();
         this.name = name;
         this.taskCount = taskCount;
         this.effectiveParallelism = effectiveParallelism;

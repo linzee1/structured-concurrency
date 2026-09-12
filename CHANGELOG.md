@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `Checkpoints.checkpoint(String, boolean)` no longer fails open: a name that does not match the current scoped task — or a call outside any scoped task — throws `IllegalStateException` instead of silently skipping the cancellation check. The new no-argument `Checkpoints.checkpoint()` is the primary form and needs no name.
+- `TaskGroup.future(TaskKey)` and `CompletedTaskValues.value(TaskKey)` now compare full generic types via `TypeToken.isSupertypeOf`: a key claiming `List<Integer>` no longer resolves a member registered as `List<String>` (previously accepted on raw types and failing later with a `ClassCastException` in user code).
+- `CancellationToken` is now `final` and its `bind(...)` is package-private: the token carries the library's attribution truth, so subclassing and external binding are no longer possible.
+- `Task` is package-private; the public contract is `TaskFuture` only.
+- `Par.map` now takes any `Collection` of elements instead of only `List` (non-`List` inputs are snapshotted on entry).
+- `TaskBatchResult.BatchReport.stateCounts()` is no longer `@Nullable` (the `null` case was unreachable), and the `BatchReport` constructor is package-private.
+- `GlobalPar.installGlobal` is symmetric with the instance lifecycle: `close()` on the installed instance releases the global slot so a restarted context may install again.
+
+### Features
+
+- Add `Par.submit(String, Callable, TaskOptions)`: a unary scoped-task entry point with deadline, TTL propagation, listener notification, and structured cancellation, returning a `TaskFuture`.
+- Add `TaskBatchResult.valuesOrThrow()` — the "run these, give me the results, fail if any failed" path in one call — and `TaskGroupResult.orThrow()`, so a group whose member threw can no longer be read as successful by a caller that forgets to inspect `outcome()`.
+- Add `TaskGroupResult.outcomeCounts()` and `reportString()`, symmetric with the batch report.
+- Add `GlobalPar.awaitQuiescence(Duration)` and `inFlight()` so application shutdown hooks can join a closing topology.
+- Checkpoints now treat an expired deadline as cancelled on the wall clock: an expired token commits `TIMEOUT` at the next checkpoint even when the timer thread has not run yet, so deadline enforcement no longer depends on scheduling punctuality.
+- Warn once at `GlobalPar.Builder.build()` when a registered executor is not a `ThreadPoolExecutor` the library can see through (e.g. a pre-wrapped `listeningDecorator`), since queue purge and blocking-risk detection are silently disabled for it; `rejectEnqueue` javadoc now states it is honoured only by `SmartBlockingQueue`-backed pools.
+
+### Performance
+
+- Share one completion aggregate between `CancellationToken.bind` and batch retention instead of building two, and skip task-graph bookkeeping entirely when no observation scope is active.
+- Make the task-group join test O(1) via a success counter, memoize the derived executor graphs, and replace per-unit `SecureRandom` UUID generation with process-local sequence ids.
+
 ### Fixes
 
 - Make `VariableLinkedBlockingQueue.drainTo` exception-safe: a target that throws mid-drain no longer loses already-unlinked elements or drifts the element count, which previously corrupted the queue permanently (later `poll`/`take` threw `NullPointerException`).

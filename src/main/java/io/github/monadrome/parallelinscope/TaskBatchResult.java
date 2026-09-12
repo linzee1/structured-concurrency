@@ -8,6 +8,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -53,6 +55,32 @@ public final class TaskBatchResult<T> {
      */
     public List<TaskFuture<T>> results() {
         return results;
+    }
+
+    /**
+     * Waits for every element and returns its values in input order — the common "run these, give
+     * me the results, fail if any failed" path in one call.
+     *
+     * <p>Unlike {@link #results()}, forgetting to handle failure is not possible here: the first
+     * element failure propagates, a cancelled element surfaces as {@link CancellationException},
+     * and an interrupted wait restores the interrupt flag and throws {@link
+     * LeanCancellationException}.
+     *
+     * @return the element values in input order
+     * @throws ExecutionException if any element failed
+     * @throws CancellationException if any element was cancelled
+     * @throws LeanCancellationException if the calling thread is interrupted while waiting
+     */
+    public List<T> valuesOrThrow() throws ExecutionException {
+        try {
+            return Futures.allAsList(results).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LeanCancellationException cancellation =
+                    new LeanCancellationException("Interrupted while awaiting batch values");
+            cancellation.initCause(e);
+            throw cancellation;
+        }
     }
 
     /**
@@ -115,9 +143,6 @@ public final class TaskBatchResult<T> {
     public String reportString() {
         BatchReport r = report();
         Map<TaskOutcome, Integer> stateCounts = r.stateCounts();
-        if (stateCounts == null) {
-            return "";
-        }
         StringBuilder sb = new StringBuilder();
         boolean first = true;
         for (Map.Entry<TaskOutcome, Integer> e : stateCounts.entrySet()) {
@@ -133,7 +158,7 @@ public final class TaskBatchResult<T> {
 
     /** Immutable report of batch task execution state. */
     public static final class BatchReport {
-        private final @Nullable Map<TaskOutcome, Integer> stateCounts;
+        private final Map<TaskOutcome, Integer> stateCounts;
         private final Throwable firstException;
 
         /**
@@ -142,17 +167,16 @@ public final class TaskBatchResult<T> {
          * @param stateCounts counts keyed by terminal or current future state
          * @param firstException the first observed failure, or {@code null}
          */
-        public BatchReport(@Nullable Map<TaskOutcome, Integer> stateCounts, @Nullable Throwable firstException) {
-            this.stateCounts = immutableStateCounts(stateCounts);
+        BatchReport(Map<TaskOutcome, Integer> stateCounts, @Nullable Throwable firstException) {
+            this.stateCounts = immutableStateCounts(Objects.requireNonNull(stateCounts, "stateCounts cannot be null"));
             this.firstException = firstException;
         }
 
         /**
          * Provides counts by future state, for example {@code SUCCESS=3, FAILED=1}.
          *
-         * @return the immutable state count map, or {@code null} when unavailable
+         * @return the immutable state count map, empty when the batch had no elements
          */
-        @Nullable
         public Map<TaskOutcome, Integer> stateCounts() {
             return stateCounts;
         }
@@ -172,11 +196,7 @@ public final class TaskBatchResult<T> {
             return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
         }
 
-        private static @Nullable Map<TaskOutcome, Integer> immutableStateCounts(
-                @Nullable Map<TaskOutcome, Integer> stateCounts) {
-            if (stateCounts == null) {
-                return null;
-            }
+        private static Map<TaskOutcome, Integer> immutableStateCounts(Map<TaskOutcome, Integer> stateCounts) {
             EnumMap<TaskOutcome, Integer> copy = new EnumMap<>(TaskOutcome.class);
             copy.putAll(stateCounts);
             return Collections.unmodifiableMap(copy);

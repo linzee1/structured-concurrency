@@ -33,68 +33,14 @@ final class ScopedCallable<V> implements Callable<V> {
     private final Callable<V> delegate;
     private final com.google.common.base.Ticker ticker;
     private final TaskExecutionContext taskContext;
+    private final List<TaskListener> taskListeners;
 
     /** Creates a task wrapper from the batch context owned by one GlobalPar execution. */
-    public ScopedCallable(TaskExecutionContext taskContext, Callable<V> delegate, List<TaskListener> taskListeners) {
+    ScopedCallable(TaskExecutionContext taskContext, Callable<V> delegate, List<TaskListener> taskListeners) {
         this.taskContext = Objects.requireNonNull(taskContext, "taskContext cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
         this.ticker = com.google.common.base.Ticker.systemTicker();
-        this.newTaskListeners = taskListeners == null ? java.util.Collections.emptyList() : taskListeners;
-    }
-
-    private List<TaskListener> newTaskListeners = java.util.Collections.emptyList();
-
-    /**
-     * Returns task execution time.
-     *
-     * @return the execution duration in nanoseconds
-     */
-    public long executionTime() {
-        return taskContext.executionTimeNanos();
-    }
-
-    /**
-     * Returns queue wait time.
-     *
-     * @return the queue wait duration in nanoseconds
-     */
-    public long waitTime() {
-        return taskContext.waitTimeNanos();
-    }
-
-    /**
-     * Returns total time from submission to completion.
-     *
-     * @return the total time in nanoseconds
-     */
-    public long totalTime() {
-        return taskContext.totalTimeNanos();
-    }
-
-    /** Returns the per-task execution context owned by this wrapper. */
-    public TaskExecutionContext taskExecutionContext() {
-        return taskContext;
-    }
-
-    // ==================== Context Fields ====================
-
-    /**
-     * Returns this task's cancellation token.
-     *
-     * @return the task cancellation token
-     */
-    public CancellationToken cancellationToken() {
-        return taskContext.multiTaskContext().cancellationToken();
-    }
-
-    /**
-     * Returns the logical executor name.
-     *
-     * @return the executor name
-     */
-    public String executorName() {
-        String executorLabel = taskContext.multiTaskContext().executorLabel();
-        return executorLabel == null ? "NA" : executorLabel;
+        this.taskListeners = taskListeners == null ? java.util.Collections.emptyList() : taskListeners;
     }
 
     @Override
@@ -102,8 +48,6 @@ final class ScopedCallable<V> implements Callable<V> {
         // ==================== prepareContext ====================
         TaskExecutionContext previousTask = TaskExecutionContext.install(taskContext);
 
-        MultiTaskContext unit = taskContext.multiTaskContext();
-        String taskName = unit.name();
         // TaskGraphObservationScope is a TransmittableThreadLocal captured by the TtlCallable
         // wrapper created at the Par.map boundary.
 
@@ -112,7 +56,7 @@ final class ScopedCallable<V> implements Callable<V> {
         try {
             // ==================== doCall ====================
             taskContext.markStarted(ticker.read());
-            Checkpoints.checkpoint(taskName, true);
+            Checkpoints.checkpoint();
             result = delegate.call();
             return result;
         } catch (Throwable t) {
@@ -133,7 +77,7 @@ final class ScopedCallable<V> implements Callable<V> {
     }
 
     private void notifyListeners(V result, Throwable exception) {
-        List<TaskListener> listeners = newTaskListeners;
+        List<TaskListener> listeners = taskListeners;
         if (listeners.isEmpty()) {
             return;
         }

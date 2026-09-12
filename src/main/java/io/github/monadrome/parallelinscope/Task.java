@@ -16,8 +16,9 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * The {@link TaskFuture} implementation the library delivers; instances are never constructed by
- * users.
+ * The {@link TaskFuture} implementation the library delivers; it is package-private because
+ * instances are never constructed by users and never appear in a public signature — callers only
+ * ever see the {@link TaskFuture} contract.
  *
  * <p>A task is a thin forwarding shell over the future that actually carries its outcome, plus the
  * name and {@link CancellationToken} that belong to the task rather than to that future. The shell
@@ -35,7 +36,7 @@ import javax.annotation.Nullable;
  * listeners and cancellations, and is later bound to the real future — or abandoned, when the task
  * will never run.
  */
-public final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<T> {
+final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<T> {
 
     private final ListenableFuture<T> delegate;
     private final String taskName;

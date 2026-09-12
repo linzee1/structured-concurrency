@@ -87,7 +87,8 @@ class TaskGroupTest {
                         MultiTaskContext context =
                                 TaskExecutionContext.current().multiTaskContext();
                         context.cancellationToken().cancel(false);
-                        Checkpoints.checkpoint("load-user", true);
+                        assertThatThrownBy(() -> Checkpoints.checkpoint("load-user", true))
+                                .isInstanceOf(IllegalStateException.class);
                         assertThatThrownBy(() -> Checkpoints.checkpoint("user", true))
                                 .isInstanceOf(CancellationException.class);
                         return "alice";
@@ -1160,6 +1161,73 @@ class TaskGroupTest {
             global.close();
             outer.shutdownNow();
             inner.shutdownNow();
+        }
+    }
+
+    @Test
+    void groupResultOrThrowRethrowsTheRecordedFailure() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        try {
+            TaskGroupDefinition.Builder definition = TaskGroupDefinition.builder(groupOptions("page"));
+            IllegalStateException boom = new IllegalStateException("boom");
+            definition.task(
+                    new TaskKey<>("text") {},
+                    ParName.of("worker"),
+                    () -> {
+                        throw boom;
+                    },
+                    memberOptions());
+
+            TaskGroupResult result = TaskGroup.submit(global, definition.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+
+            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThatThrownBy(result::orThrow).isSameAs(boom);
+            assertThat(result.reportString()).contains("outcome=USER_FAILURE", "failedTask=text");
+            assertThat(result.outcomeCounts()).containsEntry(TaskOutcome.USER_FAILURE, 1);
+        } finally {
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void groupResultOrThrowReturnsThisOnSuccessAndThrowsCancellationOtherwise() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        GlobalPar global =
+                GlobalPar.builder().register(ParName.of("worker"), executor).build();
+        try {
+            TaskGroupDefinition.Builder succeeding = TaskGroupDefinition.builder(groupOptions("ok-page"));
+            succeeding.task(new TaskKey<>("text") {}, ParName.of("worker"), () -> "value", memberOptions());
+            TaskGroupResult success = TaskGroup.submit(global, succeeding.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(success.orThrow()).isSameAs(success);
+            assertThat(success.reportString()).contains("SUCCESS:1", "outcome=SUCCESS");
+
+            TaskGroupDefinition.Builder canceling = TaskGroupDefinition.builder(groupOptions("cancelled-page"));
+            canceling.task(
+                    new TaskKey<>("text") {},
+                    ParName.of("worker"),
+                    () -> {
+                        TaskExecutionContext.current()
+                                .multiTaskContext()
+                                .cancellationToken()
+                                .cancel(false);
+                        Checkpoints.checkpoint();
+                        return "unreached";
+                    },
+                    memberOptions());
+            TaskGroupResult cancelled = TaskGroup.submit(global, canceling.build())
+                    .completionFuture()
+                    .get(2, TimeUnit.SECONDS);
+            assertThatThrownBy(cancelled::orThrow).isInstanceOf(CancellationException.class);
+        } finally {
+            global.close();
+            executor.shutdownNow();
         }
     }
 

@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 /**
  * Immutable application execution topology containing logical {@link Par} entries.
@@ -37,12 +39,13 @@ import java.util.function.Supplier;
  * timer, submission, and maintenance services; registered executors are borrowed and are never
  * shut down by this object.
  *
- * <p>{@link #close()} immediately rejects all new {@link Par#map(List, Function, BatchOptions)}
+ * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
  * calls. Batches admitted before closing retain their submission, timeout, and cancellation
  * processing while the framework-owned services drain; {@code close()} itself does not wait for
  * those batches to finish.
  */
 public final class GlobalPar implements AutoCloseable {
+    private static final Logger LOGGER = Logger.getLogger(GlobalPar.class.getName());
     private static final AtomicReference<GlobalPar> INSTALLED = new AtomicReference<>();
     private final Map<ParName, Par> pars;
     private final Map<ParName, ExecutorRuntime> runtimes;
@@ -57,6 +60,7 @@ public final class GlobalPar implements AutoCloseable {
     private final AtomicInteger activeAdmissions = new AtomicInteger();
     private final AtomicInteger activeBatches = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
+    private final Object quiescenceMonitor = new Object();
     private final ScheduledExecutorService timerService;
     private final ExecutorService timeoutActionPool;
     private final ListeningExecutorService submitterPool;
@@ -91,6 +95,16 @@ public final class GlobalPar implements AutoCloseable {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
             ExecutorRuntime runtime = identityRuntimes.get(identity);
             if (runtime == null) {
+                if (!(entry.getValue() instanceof ThreadPoolExecutor)) {
+                    // Detection that silently downgrades is worse than a diagnostic: a decorated
+                    // or foreign executor hides the physical pool from purge and deadlock-risk
+                    // classification, so say so once at the composition root.
+                    LOGGER.warning("Par '" + entry.getKey() + "' is registered with "
+                            + entry.getValue().getClass().getName()
+                            + ", which this library cannot see through: queue purge and"
+                            + " blocking-risk detection are disabled for it. Register the physical"
+                            + " ThreadPoolExecutor instead of a decorated wrapper to keep them.");
+                }
                 runtime = new ExecutorRuntime(entry.getValue());
                 identityRuntimes.put(identity, runtime);
             }
@@ -108,11 +122,14 @@ public final class GlobalPar implements AutoCloseable {
     }
 
     /**
-     * Installs the optional process-wide convenience instance exactly once.
+     * Installs the process-wide convenience instance, replacing none.
      *
      * <p>This does not transfer ownership of supplied executors. Applications should normally pass
      * individual {@code Par} instances to their components rather than use {@link #global()} as a
-     * service locator.
+     * service locator. Installation is symmetric with the instance lifecycle: {@link #close()} of
+     * the installed instance uninstalls it, so a restarted container context may install again.
+     *
+     * @throws IllegalStateException if another instance is currently installed
      */
     public static void installGlobal(GlobalPar globalPar) {
         Objects.requireNonNull(globalPar, "globalPar cannot be null");
@@ -226,7 +243,7 @@ public final class GlobalPar implements AutoCloseable {
      * Rejects new work and begins releasing framework-owned resources.
      *
      * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
-     * a {@link Par#map(List, Function, BatchOptions)} call already setting up a batch, so that
+     * a {@link Par#map(Collection, Function, BatchOptions)} call already setting up a batch, so that
      * call either completes setup and returns its result or is rejected before any task is
      * submitted. Services drain batches admitted before shutdown; this method does not wait for
      * their task bodies to finish.
@@ -234,9 +251,45 @@ public final class GlobalPar implements AutoCloseable {
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
+            // Symmetric with installGlobal: closing the installed instance releases the slot so a
+            // restarted container context can install a fresh topology.
+            INSTALLED.compareAndSet(this, null);
             purger.close();
             shutdownServicesWhenAdmissionsComplete();
         }
+    }
+
+    /**
+     * Waits until this topology is closed and fully drained: no admission is setting up a batch,
+     * no admitted batch retains incomplete futures, and the framework-owned services have shut
+     * down. Call {@link #close()} first; without it this method simply waits out the timeout.
+     *
+     * @param timeout the maximum time to wait
+     * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
+     * @throws InterruptedException if the calling thread is interrupted while waiting
+     */
+    public boolean awaitQuiescence(java.time.Duration timeout) throws InterruptedException {
+        Objects.requireNonNull(timeout, "timeout cannot be null");
+        long remainingNanos = timeout.toNanos();
+        long deadline = System.nanoTime() + remainingNanos;
+        // Saturate instead of overflowing when the requested wait is astronomical.
+        if (remainingNanos > 0 && deadline < 0) deadline = Long.MAX_VALUE;
+        synchronized (quiescenceMonitor) {
+            while (!servicesShutdown.get()) {
+                if (remainingNanos <= 0) return false;
+                TimeUnit.NANOSECONDS.timedWait(quiescenceMonitor, remainingNanos);
+                remainingNanos = deadline - System.nanoTime();
+            }
+            return true;
+        }
+    }
+
+    /**
+     * Returns the in-flight work this topology still tracks — admissions setting up a batch plus
+     * undrained batches — which is what {@link #awaitQuiescence(java.time.Duration)} waits on.
+     */
+    public int inFlight() {
+        return activeAdmissions.get() + activeBatches.get();
     }
 
     /** Runs one synchronous batch setup while this topology remains open. */
@@ -271,20 +324,32 @@ public final class GlobalPar implements AutoCloseable {
             timerService.shutdown();
             timeoutActionPool.shutdown();
             submitterPool.shutdown();
+            synchronized (quiescenceMonitor) {
+                quiescenceMonitor.notifyAll();
+            }
         }
     }
 
-    /** Keeps a submitted batch's futures from being dropped until every one reaches a terminal state. */
+    /**
+     * Keeps a submitted batch's futures from being dropped until every one reaches a terminal
+     * state. Callers that already hold a completion aggregate — such as the one returned by
+     * {@link CancellationToken#bind} over the same futures — pass it to {@link
+     * #retainUntilComplete(ListenableFuture)} instead of building a second aggregate here.
+     */
     void retainUntilComplete(List<? extends ListenableFuture<?>> results) {
         if (results.isEmpty()) return;
+        retainUntilComplete(Futures.successfulAsList(results));
+    }
+
+    /** Keeps a completion aggregate referenced until it reaches a terminal state. */
+    void retainUntilComplete(ListenableFuture<?> completion) {
         activeBatches.incrementAndGet();
-        Futures.successfulAsList(results)
-                .addListener(
-                        () -> {
-                            activeBatches.decrementAndGet();
-                            shutdownServicesWhenAdmissionsComplete();
-                        },
-                        MoreExecutors.directExecutor());
+        completion.addListener(
+                () -> {
+                    activeBatches.decrementAndGet();
+                    shutdownServicesWhenAdmissionsComplete();
+                },
+                MoreExecutors.directExecutor());
     }
 
     /** Scheduler adapter that keeps deadline detection separate from timeout actions. */

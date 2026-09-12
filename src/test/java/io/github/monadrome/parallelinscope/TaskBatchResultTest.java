@@ -104,13 +104,35 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void batchReport_acceptsNullStateCountsAndFormatsItsContents() {
+    public void batchReport_rejectsNullStateCounts() {
         RuntimeException failure = new RuntimeException("failure");
-        TaskBatchResult.BatchReport report = new TaskBatchResult.BatchReport(null, failure);
 
-        assertThat(report.stateCounts()).isNull();
-        assertThat(report.firstException()).isSameAs(failure);
-        assertThat(report.toString()).contains("stateCounts=null", "firstException=");
+        assertThatThrownBy(() -> new TaskBatchResult.BatchReport(null, failure))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    public void valuesOrThrow_returnsValuesInInputOrder() throws Exception {
+        CancellationToken token = new CancellationToken();
+        TaskBatchResult<String> batch = TaskBatchResult.of(
+                Arrays.asList(task(token, Futures.immediateFuture("a")), task(token, Futures.immediateFuture("b"))));
+
+        assertThat(batch.valuesOrThrow()).containsExactly("a", "b");
+    }
+
+    @Test
+    public void valuesOrThrow_propagatesFailureAndCancellation() {
+        CancellationToken token = new CancellationToken();
+        RuntimeException failure = new RuntimeException("boom");
+        TaskBatchResult<String> failed = TaskBatchResult.of(Arrays.asList(
+                task(token, Futures.immediateFuture("ok")), task(token, Futures.immediateFailedFuture(failure))));
+        assertThatThrownBy(failed::valuesOrThrow)
+                .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                .hasCause(failure);
+
+        TaskBatchResult<String> cancelled =
+                TaskBatchResult.of(Collections.singletonList(task(token, Futures.immediateCancelledFuture())));
+        assertThatThrownBy(cancelled::valuesOrThrow).isInstanceOf(java.util.concurrent.CancellationException.class);
     }
 
     // ==================== token-based cancellation attribution ====================

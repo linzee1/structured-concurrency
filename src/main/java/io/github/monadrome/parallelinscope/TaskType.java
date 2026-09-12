@@ -4,7 +4,7 @@ package io.github.monadrome.parallelinscope;
  * Task type classification, determines scheduling behavior.
  *
  * <p>Used by {@link io.github.monadrome.parallelinscope.SmartBlockingQueue SmartBlockingQueue}
- * and {@link SlidingWindowSubmitter} to control how tasks are queued and executed.
+ * and the submission pipeline to control how tasks are queued and executed.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */

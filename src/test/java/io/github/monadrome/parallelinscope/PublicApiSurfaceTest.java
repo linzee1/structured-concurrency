@@ -31,7 +31,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".ParName",
             BASE_PACKAGE + ".SmartBlockingQueue",
-            BASE_PACKAGE + ".Task",
             BASE_PACKAGE + ".TaskBatchResult",
             BASE_PACKAGE + ".TaskCompletion",
             BASE_PACKAGE + ".TaskFuture",

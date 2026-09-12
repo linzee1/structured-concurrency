@@ -31,7 +31,7 @@ BatchOptions options = BatchOptions.timeout("my-task", Duration.ofSeconds(5)).pa
 global.par(ParName.of("myExecutor")).map(dataList, item -> {
     for (int i = 0; i < 1_000_000; i++) {
         if (i % 1000 == 0) {
-            Checkpoints.checkpoint("my-task", true);
+            Checkpoints.checkpoint();
         }
         heavyComputation(item, i);
     }
@@ -39,13 +39,14 @@ global.par(ParName.of("myExecutor")).map(dataList, item -> {
 }, options);
 ```
 
-The checkpoint task name must match the `BatchOptions.name()` passed to `Par.map`. The `lean` flag selects `LeanCancellationException` without a stack trace for production paths or the standard `CancellationException` with a stack trace for diagnostics.
+Prefer the no-argument `Checkpoints.checkpoint()`: it checks the current scope unconditionally and cannot go stale across a rename. The named `checkpoint(taskName, lean)` still validates the current task's name and throws `IllegalStateException` on a mismatch (a typo, a stale name, or a call outside any scoped task) instead of silently skipping the safety check; its `lean=false` form throws the standard `CancellationException` with a stack trace for diagnostics.
 
 ## Checkpoints API
 
 | Method | Purpose |
 |---|---|
-| `Checkpoints.checkpoint(taskName, lean)` | Check the current cancellation token and throw when cancelled |
+| `Checkpoints.checkpoint()` | Check the current scope's cancellation token unconditionally and throw when cancelled or past the deadline |
+| `Checkpoints.checkpoint(taskName, lean)` | Same check, but requires the task name to match; a mismatch throws `IllegalStateException` |
 | `Checkpoints.sleep(millis)` | Sleep while converting interruption into a cancellation exception |
 | `Checkpoints.rawCheckpoint()` | Check only the thread interrupt flag |
 | `Checkpoints.propagateCancellation(ex)` | Re-throw cancellation exceptions from a catch block |

@@ -31,8 +31,8 @@ public final class CompletedTaskValues {
      * Returns the successful value of the given member without blocking; the value may be null.
      *
      * @throws IllegalArgumentException if the key names the combine itself or no member of this
-     *     group, or if the key's raw result type is not assignable from the type the member was
-     *     registered with (a key claiming a supertype of the registered type is accepted)
+     *     group, or if the key's result type is not a supertype of the type the member was
+     *     registered with (generic arguments included)
      */
     @SuppressWarnings("unchecked")
     public <T> T value(TaskKey<T> key) {
@@ -44,7 +44,7 @@ public final class CompletedTaskValues {
         if (member == null) {
             throw new IllegalArgumentException("No member named '" + key.name() + "'");
         }
-        if (!key.resultType().getRawType().isAssignableFrom(member.resultType.getRawType())) {
+        if (!key.resultType().isSupertypeOf(member.resultType)) {
             throw new IllegalArgumentException("Member '" + key.name() + "' was registered with result type "
                     + member.resultType + " but the key claims " + key.resultType());
         }

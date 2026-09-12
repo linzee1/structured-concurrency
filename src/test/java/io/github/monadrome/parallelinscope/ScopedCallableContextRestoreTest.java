@@ -30,11 +30,10 @@ class ScopedCallableContextRestoreTest {
         assertThat(event.taskName()).isEqualTo("listener");
         assertThat(event.failure()).isNull();
         assertThat(event.endTimeNanos()).isGreaterThanOrEqualTo(event.startTimeNanos());
-        assertThat(callable.executionTime()).isGreaterThanOrEqualTo(0L);
-        assertThat(callable.waitTime()).isGreaterThanOrEqualTo(0L);
-        assertThat(callable.totalTime()).isGreaterThanOrEqualTo(callable.executionTime());
-        assertThat(callable.cancellationToken()).isSameAs(context.cancellationToken());
-        assertThat(callable.executorName()).isEqualTo("NA");
+        assertThat(taskContext.executionTimeNanos()).isGreaterThanOrEqualTo(0L);
+        assertThat(taskContext.waitTimeNanos()).isGreaterThanOrEqualTo(0L);
+        assertThat(taskContext.totalTimeNanos()).isGreaterThanOrEqualTo(taskContext.executionTimeNanos());
+        assertThat(context.cancellationToken()).isNotNull();
         assertThat(callable.toString()).contains("listener", "submitTime", "startTime", "endTime");
     }
 
